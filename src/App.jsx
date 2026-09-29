@@ -24,19 +24,20 @@ function Login({ onLogin }) {
 
   return (
     <div className="login-container">
-      <div className="login-card">
+      <div className="login-orb orb-1"></div>
+      <div className="login-orb orb-2"></div>
+      <div className="login-card premium-glass">
+        <div className="logo-placeholder">UTD</div>
         <h2>Assessment Helper</h2>
-        <p>UTD Computer Science Department</p>
+        <p>Faculty Observation Portal</p>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label>NetID / Username</label>
-            <input type="text" placeholder="Enter 'admin' or 'professor'" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <input type="text" placeholder="NetID / Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
           </div>
           <div className="input-group">
-            <label>Password</label>
-            <input type="password" placeholder="Any password works" required />
+            <input type="password" placeholder="Password" required />
           </div>
-          <button type="submit" className="btn-primary">Sign In</button>
+          <button type="submit" className="btn-primary btn-3d" style={{marginTop: '10px'}}>Secure Sign In</button>
         </form>
       </div>
     </div>
@@ -44,142 +45,186 @@ function Login({ onLogin }) {
 }
 
 /* =========================================
+   ICONS (SVG)
+========================================= */
+const Icons = {
+  Home: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+  Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 11.08 22 12 22 12a10 10 0 1 1-5.93-9.14"></polyline><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
+  FileText: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  LogOut: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+};
+
+/* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
 function ProfessorDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('home');
 
+  const NavItem = ({ id, icon: Icon, label }) => (
+    <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
+      <Icon /> <span>{label}</span>
+    </li>
+  );
+
   return (
     <div className="dashboard-layout">
-      <div className="sidebar">
+      <div className="sidebar premium-glass-dark">
         <div className="sidebar-header">
-          <h3>UTD Assessment</h3>
-          <small>Professor Portal</small>
+          <div className="logo-small">UTD</div>
+          <div>
+            <h3>Professor Portal</h3>
+            <small>Assessment System</small>
+          </div>
         </div>
         <ul className="nav-menu">
-          <li className={activeTab === 'home' ? 'active' : ''} onClick={() => setActiveTab('home')}>My Evaluation Cycle</li>
-          <li className={activeTab === 'my-observation' ? 'active' : ''} onClick={() => setActiveTab('my-observation')}>My Observee Status</li>
-          <li className={activeTab === 'observer-duties' ? 'active' : ''} onClick={() => setActiveTab('observer-duties')}>My Observer Duties</li>
-          <li className={activeTab === 'survey' ? 'active' : ''} onClick={() => setActiveTab('survey')}>End of Process Survey</li>
-          <li onClick={onLogout} style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Logout</li>
+          <NavItem id="home" icon={Icons.Home} label="My Cycle" />
+          <NavItem id="my-observation" icon={Icons.Users} label="Observer Status" />
+          <NavItem id="observer-duties" icon={Icons.Check} label="My Duties" />
+          <NavItem id="survey" icon={Icons.FileText} label="End Survey" />
+          <li onClick={onLogout} className="logout-btn"><Icons.LogOut /> <span>Logout</span></li>
         </ul>
       </div>
 
       <div className="main-content">
-        <div className="top-bar">
-          <div>
-            <h2>Welcome, Prof. Smith</h2>
-            <p style={{ margin: 0, color: '#666' }}>Last Evaluated: Spring 2025</p>
+        <header className="top-header premium-glass">
+          <div className="header-title">
+            <h2>Welcome back, Dr. Smith</h2>
+            <p>Spring 2027 Evaluation Cycle</p>
           </div>
-        </div>
+          <div className="user-profile">
+            <div className="avatar">JS</div>
+          </div>
+        </header>
 
-        {activeTab === 'home' && (
-          <>
-            <div className="info-box">
-              <strong>Cycle Status: </strong> You are <span className="status-badge status-due">DUE</span> for an evaluation this semester (Spring 2027).
-            </div>
-            
-            <div className="content-card">
-              <h3>Step 1: Sign up for Observation</h3>
-              <p>Please select exactly ONE course section from your schedule for an observer to attend.</p>
-              <table className="data-table">
-                <thead>
-                  <tr><th>Course #</th><th>Section</th><th>Days & Times</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>CS 3345</td><td>001</td><td>MW 8:30 AM - 9:45 AM</td><td><button className="btn-primary" style={{width: 'auto'}}>Select for Observation</button></td></tr>
-                  <tr><td>CS 4485</td><td>004</td><td>TTh 1:00 PM - 2:15 PM</td><td><button className="btn-secondary">Select for Observation</button></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'my-observation' && (
-          <>
-            <div className="content-card">
-              <h3>Step 2: Select Your Observer</h3>
-              <p>The Assessment Committee has generated eligible observers for your selected course (CS 3345). You may send requests to multiple colleagues for different times until you find one that works.</p>
-              <table className="data-table">
-                <thead>
-                  <tr><th>Matched Observer</th><th>Status</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Dr. A. Johnson</td><td><span className="status-badge status-pending">Not Contacted</span></td><td><button className="btn-secondary" onClick={()=>alert("Request Sent!")}>Send Request</button></td></tr>
-                  <tr><td>Dr. R. Davis</td><td><span className="status-badge status-pending">Not Contacted</span></td><td><button className="btn-secondary">Send Request</button></td></tr>
-                  <tr><td>Dr. M. Lee</td><td><span className="status-badge status-pending">Request Sent</span></td><td><button className="btn-secondary" disabled>Pending...</button></td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="content-card">
-              <h3>Step 3: Confirm Final Observer</h3>
-              <p>Review the colleagues who have accepted your observation request. You must accept ONE and the system will gracefully decline the others.</p>
-              <table className="data-table">
-                <thead>
-                  <tr><th>Observer</th><th>Status</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Dr. M. Lee</td><td><span className="status-badge status-good">Accepted your Request</span></td><td><button className="btn-primary" style={{marginRight: '10px'}}>Confirm Observer</button><button className="btn-secondary">Decline</button></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'observer-duties' && (
-          <>
-            <div className="info-box">
-              Because you signed up to be observed, you are automatically in the Observer Pool.
-            </div>
-            <div className="content-card">
-              <h3>Incoming Observation Requests</h3>
-              <p>Confirm observation requests from your peers. Once an observation occurs, the physical form requirement is no longer needed—simply ensure the survey is completed.</p>
-              <table className="data-table">
-                <thead>
-                  <tr><th>Observee</th><th>Course</th><th>Date/Time</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Dr. J. Martin</td><td>CS 1200</td><td>TTh 10:00 AM</td><td><button className="btn-secondary">Confirm Request</button></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'survey' && (
-          <div className="content-card">
-            <h3>End of Process Survey</h3>
-            <p>Please provide feedback on the evaluation process.</p>
-            <form onSubmit={(e) => { e.preventDefault(); alert("Survey Submitted!"); }}>
+        <div className="content-scroll">
+          {activeTab === 'home' && (
+            <div className="bento-grid">
+              <div className="bento-card highlight-card">
+                <div className="card-icon">!</div>
+                <div>
+                  <h3>Action Required</h3>
+                  <p>You are <strong style={{color: '#e87500'}}>DUE</strong> for an evaluation this semester. Select a course to proceed.</p>
+                </div>
+              </div>
               
-              <div className="input-group">
-                <label>Was this process OK overall?</label>
-                <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-                  <label style={{ fontWeight: 'normal' }}><input type="radio" name="ok" value="yes" /> Yes</label>
-                  <label style={{ fontWeight: 'normal' }}><input type="radio" name="ok" value="no" /> No</label>
+              <div className="bento-card full-span">
+                <h3>Step 1: Course Selection</h3>
+                <p className="subtitle">Select exactly ONE course section from your schedule.</p>
+                <div className="modern-table-wrapper">
+                  <table className="data-table">
+                    <thead><tr><th>Course</th><th>Section</th><th>Schedule</th><th>Action</th></tr></thead>
+                    <tbody>
+                      <tr><td><strong>CS 3345</strong></td><td>001</td><td>MW 8:30 AM</td><td><button className="btn-primary btn-3d sm">Select Course</button></td></tr>
+                      <tr><td><strong>CS 4485</strong></td><td>004</td><td>TTh 1:00 PM</td><td><button className="btn-secondary btn-3d sm">Select Course</button></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'my-observation' && (
+            <div className="bento-grid">
+              <div className="bento-card full-span">
+                <h3>Step 2: Request Observers</h3>
+                <p className="subtitle">Send requests to eligible colleagues for CS 3345.</p>
+                <div className="modern-table-wrapper">
+                  <table className="data-table">
+                    <thead><tr><th>Colleague</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <div className="user-cell"><div className="avatar-sm">AJ</div> <strong>Dr. A. Johnson</strong></div>
+                        </td>
+                        <td><span className="badge badge-neutral">Not Contacted</span></td>
+                        <td><button className="btn-secondary btn-3d sm" onClick={()=>alert("Request Sent!")}>Send Request</button></td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div className="user-cell"><div className="avatar-sm">ML</div> <strong>Dr. M. Lee</strong></div>
+                        </td>
+                        <td><span className="badge badge-warning">Request Sent</span></td>
+                        <td><button className="btn-secondary sm disabled" disabled>Pending</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div className="form-grid">
-                <div className="input-group">
-                  <label>Positive Feedback</label>
-                  <textarea rows="4" placeholder="What went well with the logistics?"></textarea>
-                </div>
-                <div className="input-group">
-                  <label>Negative Feedback / Difficulties</label>
-                  <textarea rows="4" placeholder="List any difficulties experienced during scheduling..."></textarea>
+              <div className="bento-card full-span">
+                <h3>Step 3: Confirm Match</h3>
+                <div className="modern-table-wrapper">
+                  <table className="data-table">
+                    <thead><tr><th>Accepted By</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td><div className="user-cell"><div className="avatar-sm">ML</div> <strong>Dr. M. Lee</strong></div></td>
+                        <td><span className="badge badge-success">Accepted</span></td>
+                        <td>
+                          <div style={{display: 'flex', gap: '10px'}}>
+                            <button className="btn-primary btn-3d sm">Confirm</button>
+                            <button className="btn-danger btn-3d sm">Decline</button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
+            </div>
+          )}
 
-              <div className="input-group">
-                <label>Upload additional context file (Optional):</label>
-                <input type="file" />
+          {activeTab === 'observer-duties' && (
+            <div className="bento-card full-span">
+              <h3>Incoming Peer Requests</h3>
+              <p className="subtitle">Confirm requests to observe your colleagues.</p>
+              <div className="modern-table-wrapper">
+                <table className="data-table">
+                  <thead><tr><th>Observee</th><th>Course</th><th>Schedule</th><th>Action</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><div className="user-cell"><div className="avatar-sm">JM</div> <strong>Dr. J. Martin</strong></div></td>
+                      <td>CS 1200</td><td>TTh 10:00 AM</td>
+                      <td><button className="btn-primary btn-3d sm">Accept Request</button></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <button type="submit" className="btn-primary" style={{width: '150px'}}>Submit Survey</button>
-            </form>
-          </div>
-        )}
+            </div>
+          )}
+
+          {activeTab === 'survey' && (
+            <div className="bento-card full-span">
+              <h3>End of Cycle Survey</h3>
+              <p className="subtitle">Provide feedback on the logistics of the evaluation.</p>
+              <form className="modern-form" onSubmit={(e) => { e.preventDefault(); alert("Survey Submitted!"); }}>
+                <div className="form-group">
+                  <label>Was this process OK overall?</label>
+                  <div className="radio-group">
+                    <label className="radio-btn"><input type="radio" name="ok" value="yes" /><span>Yes</span></label>
+                    <label className="radio-btn"><input type="radio" name="ok" value="no" /><span>No</span></label>
+                  </div>
+                </div>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Positive Feedback</label>
+                    <textarea rows="4" placeholder="What went well?"></textarea>
+                  </div>
+                  <div className="form-group">
+                    <label>Difficulties</label>
+                    <textarea rows="4" placeholder="Any scheduling issues?"></textarea>
+                  </div>
+                </div>
+                <div className="form-group file-upload">
+                  <label>Additional Context (Optional)</label>
+                  <input type="file" />
+                </div>
+                <button type="submit" className="btn-primary btn-3d">Submit Feedback</button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -191,88 +236,132 @@ function ProfessorDashboard({ onLogout }) {
 function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('selection');
 
+  const NavItem = ({ id, icon: Icon, label }) => (
+    <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
+      <Icon /> <span>{label}</span>
+    </li>
+  );
+
   return (
     <div className="dashboard-layout">
-      <div className="sidebar" style={{ backgroundColor: '#0C2340' }}>
+      <div className="sidebar admin-sidebar premium-glass-dark">
         <div className="sidebar-header">
-          <h3>Assessment Comm.</h3>
-          <small>Admin Portal</small>
+          <div className="logo-small admin-logo">AC</div>
+          <div>
+            <h3>Committee</h3>
+            <small>Admin Portal</small>
+          </div>
         </div>
         <ul className="nav-menu">
-          <li className={activeTab === 'selection' ? 'active' : ''} onClick={() => setActiveTab('selection')}>Observer Selection</li>
-          <li className={activeTab === 'kpi' ? 'active' : ''} onClick={() => setActiveTab('kpi')}>Executive KPIs</li>
-          <li className={activeTab === 'cycle' ? 'active' : ''} onClick={() => setActiveTab('cycle')}>Cycle & Deadlines</li>
-          <li onClick={onLogout} style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Logout</li>
+          <NavItem id="selection" icon={Icons.Users} label="Matchmaking" />
+          <NavItem id="kpi" icon={Icons.Home} label="Metrics (KPIs)" />
+          <NavItem id="cycle" icon={Icons.FileText} label="Deadlines" />
+          <li onClick={onLogout} className="logout-btn"><Icons.LogOut /> <span>Logout</span></li>
         </ul>
       </div>
 
       <div className="main-content">
-        <div className="top-bar">
-          <h2>Assessment Committee Dashboard</h2>
-        </div>
+        <header className="top-header premium-glass">
+          <div className="header-title">
+            <h2>Committee Executive View</h2>
+            <p>System Overview & Control</p>
+          </div>
+          <div className="user-profile">
+            <div className="avatar admin-avatar">AD</div>
+          </div>
+        </header>
 
-        {activeTab === 'selection' && (
-          <>
-            <div className="alert-box">
-              <span><strong>ALERT:</strong> Dr. Banner (CS 4485) has NO eligible observers available based on schedule criteria.</span>
-              <button className="btn-danger">Resolve Manually</button>
-            </div>
-
-            <div className="content-card">
-              <h3>Post-Signup Observer Selection</h3>
-              <p>Signup deadline has passed. Generate matched observers for each signup based on Class Level and Availability.</p>
-              
-              <div style={{marginBottom: '20px'}}>
-                <button className="btn-primary" style={{width: '200px', marginRight: '10px'}} onClick={()=>alert("Observer matching algorithm executed.")}>1. Generate Observers</button>
-                <button className="btn-secondary" onClick={()=>alert("Notifications sent to Observees.")}>2. Notify Observees (Lists Ready)</button>
+        <div className="content-scroll">
+          {activeTab === 'selection' && (
+            <div className="bento-grid">
+              <div className="bento-card alert-card full-span">
+                <div className="card-icon error-icon">!</div>
+                <div style={{flexGrow: 1}}>
+                  <h3 style={{color: '#c62828'}}>System Alert</h3>
+                  <p>Dr. Banner (CS 4485) has <strong>NO eligible observers</strong> based on schedule constraints.</p>
+                </div>
+                <button className="btn-danger btn-3d sm">Resolve Manually</button>
               </div>
 
-              <table className="data-table">
-                <thead>
-                  <tr><th>Observee</th><th>Email</th><th>Course #</th><th>Sec</th><th>Days/Time</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Dr. Smith</td><td>smith@utd.edu</td><td>CS 3345</td><td>001</td><td>MW 8:30 AM</td><td><span className="status-badge status-good">Matches Found</span> <button className="btn-secondary" style={{marginLeft: '10px', fontSize:'0.75rem'}}>Edit</button></td></tr>
-                  <tr><td>Dr. Banner</td><td>banner@utd.edu</td><td>CS 4485</td><td>002</td><td>TTh 1:00 PM</td><td><span className="status-badge status-overdue">Insufficient List</span></td></tr>
-                </tbody>
-              </table>
+              <div className="bento-card full-span">
+                <div className="card-header-flex">
+                  <div>
+                    <h3>Post-Signup Matchmaking</h3>
+                    <p className="subtitle">Generate observer lists for all signups.</p>
+                  </div>
+                  <div className="action-buttons">
+                    <button className="btn-secondary btn-3d">1. Generate</button>
+                    <button className="btn-primary btn-3d">2. Notify Faculty</button>
+                  </div>
+                </div>
+                
+                <div className="modern-table-wrapper">
+                  <table className="data-table">
+                    <thead><tr><th>Faculty</th><th>Course</th><th>Schedule</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>Dr. Smith</strong></td><td>CS 3345</td><td>MW 8:30 AM</td>
+                        <td><span className="badge badge-success">Matches Found</span></td>
+                      </tr>
+                      <tr>
+                        <td><strong>Dr. Banner</strong></td><td>CS 4485</td><td>TTh 1:00 PM</td>
+                        <td><span className="badge badge-error">Insufficient List</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </>
-        )}
+          )}
 
-        {activeTab === 'kpi' && (
-          <>
-            <h3 style={{marginTop: 0}}>Faculty Evaluation KPIs</h3>
-            <div className="stats-grid">
-              <div className="stat-card"><h4>Eval Eligibility Accuracy</h4><h2>98%</h2><p>Matches correct dept/level</p></div>
-              <div className="stat-card" style={{borderLeftColor: '#dc3545'}}><h4>Overdue Evals</h4><h2>3</h2><p>Faculty missing 2+ year cycle</p></div>
-            </div>
+          {activeTab === 'kpi' && (
+            <>
+              <h3 className="section-title">Executive Metrics</h3>
+              <div className="bento-grid kpi-grid">
+                <div className="bento-card kpi-card">
+                  <p>Participation Rate</p>
+                  <h2>85%</h2>
+                  <div className="kpi-trend positive">+5% from last cycle</div>
+                </div>
+                <div className="bento-card kpi-card">
+                  <p>List Sufficiency</p>
+                  <h2>92%</h2>
+                  <div className="kpi-trend positive">Matches generated</div>
+                </div>
+                <div className="bento-card kpi-card alert-border">
+                  <p>Overdue Evaluations</p>
+                  <h2 style={{color: '#c62828'}}>3</h2>
+                  <div className="kpi-trend negative">Requires attention</div>
+                </div>
+              </div>
+            </>
+          )}
 
-            <h3>Assessment Participation KPIs</h3>
-            <div className="stats-grid">
-              <div className="stat-card"><h4>Participation Rate</h4><h2>85%</h2><p>Signed up / Total Due</p></div>
-              <div className="stat-card"><h4>Observer Utilization</h4><h2>60%</h2><p>Took Observer Role / Signed Up</p></div>
-              <div className="stat-card"><h4>List Sufficiency Rate</h4><h2>92%</h2><p>Signups with sufficient matches</p></div>
+          {activeTab === 'cycle' && (
+            <div className="bento-card full-span">
+              <h3>Faculty Due Report</h3>
+              <div className="modern-table-wrapper">
+                <table className="data-table">
+                  <thead><tr><th>Faculty</th><th>Status</th><th>Last Eval</th><th>Action</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Dr. Smith</strong></td>
+                      <td><span className="badge badge-warning">Due</span></td>
+                      <td>Spring 2025</td>
+                      <td><button className="btn-secondary btn-3d sm">Remind</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Dr. Banner</strong></td>
+                      <td><span className="badge badge-error">Overdue</span></td>
+                      <td>Fall 2024</td>
+                      <td><button className="btn-danger btn-3d sm">Remind</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </>
-        )}
-
-        {activeTab === 'cycle' && (
-          <>
-            <div className="content-card">
-              <h3>Faculty Due / Overdue Report</h3>
-              <table className="data-table">
-                <thead>
-                  <tr><th>Faculty Member</th><th>Status</th><th>Last Eval</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Dr. Smith</td><td><span className="status-badge status-due">Due</span></td><td>Spring 2025</td><td><button className="btn-secondary">Send Reminder</button></td></tr>
-                  <tr><td>Dr. Banner</td><td><span className="status-badge status-overdue">Overdue</span></td><td>Fall 2024</td><td><button className="btn-secondary">Send Reminder</button></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
