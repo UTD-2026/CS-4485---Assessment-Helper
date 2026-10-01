@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import FeedbackSurvey from './FeedbackSurvey';
 import './App.css';
 
 export default function App() {
@@ -98,6 +99,9 @@ function ProfessorDashboard({ onLogout }) {
         </header>
 
         <div className="content-scroll">
+          {activeTab === 'survey' && (
+            <FeedbackSurvey />
+          )}
           {activeTab === 'home' && (
             <div className="bento-grid">
               <div className="bento-card highlight-card">
