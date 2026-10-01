@@ -108,22 +108,26 @@ function ProfessorDashboard({ onLogout }) {
                 <div className="card-icon">!</div>
                 <div>
                   <h3>Action Required</h3>
-                  <p>You are <strong style={{color: '#e87500'}}>DUE</strong> for an evaluation this semester. Select a course to proceed.</p>
+                  <p>You are <strong style={{color: '#e87500'}}>DUE</strong> for an evaluation this semester.</p>
                 </div>
               </div>
               
-              <div className="bento-card full-span">
-                <h3>Step 1: Course Selection</h3>
-                <p className="subtitle">Select exactly ONE course section from your schedule.</p>
-                <div className="modern-table-wrapper">
-                  <table className="data-table">
-                    <thead><tr><th>Course</th><th>Section</th><th>Schedule</th><th>Action</th></tr></thead>
-                    <tbody>
-                      <tr><td><strong>CS 3345</strong></td><td>001</td><td>MW 8:30 AM</td><td><button className="btn-primary btn-3d sm">Select Course</button></td></tr>
-                      <tr><td><strong>CS 4485</strong></td><td>004</td><td>TTh 1:00 PM</td><td><button className="btn-secondary btn-3d sm">Select Course</button></td></tr>
-                    </tbody>
-                  </table>
-                </div>
+              {/* NEW: Official Course Sign-Up Form based on PDF requirements */}
+              <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)', color: '#1e293b' }}>
+                <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
+                <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Course & Section #</label>
+                    <input type="text" placeholder="e.g., CS 3345.001" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Meeting Days & Time</label>
+                    <input type="text" placeholder="e.g., MW 8:30 AM - 9:45 AM" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                  </div>
+                  <button type="button" style={{ gridColumn: '1 / -1', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Submit for Observer Selection
+                  </button>
+                </form>
               </div>
             </div>
           )}
@@ -180,20 +184,20 @@ function ProfessorDashboard({ onLogout }) {
           )}
 
           {activeTab === 'observer-duties' && (
-            <div className="bento-card full-span">
-              <h3>Incoming Peer Requests</h3>
-              <p className="subtitle">Confirm requests to observe your colleagues.</p>
-              <div className="modern-table-wrapper">
-                <table className="data-table">
-                  <thead><tr><th>Observee</th><th>Course</th><th>Schedule</th><th>Action</th></tr></thead>
-                  <tbody>
-                    <tr>
-                      <td><div className="user-cell"><div className="avatar-sm">JM</div> <strong>Dr. J. Martin</strong></div></td>
-                      <td>CS 1200</td><td>TTh 10:00 AM</td>
-                      <td><button className="btn-primary btn-3d sm">Accept Request</button></td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div className="bento-grid">
+              <div className="bento-card" style={{ background: 'rgba(255,255,255,0.8)', color: '#1e293b' }}>
+                <h3>Pending Observer Duties</h3>
+                <p>You have agreed to observe <strong>Dr. Banner (CS 4485)</strong>.</p>
+                
+                {/* NEW: Required Upload Field for the Observer */}
+                <div style={{ marginTop: '1rem', padding: '1rem', border: '1px dashed #94a3b8', borderRadius: '8px', background: '#f8fafc' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0' }}>Upload Signed Observation Template</h4>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '10px' }}>Both Observee and Observer signatures are required.</p>
+                  <input type="file" accept=".pdf" />
+                  <button type="button" style={{ display: 'block', marginTop: '10px', padding: '8px 16px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                    Submit Record
+                  </button>
+                </div>
               </div>
             </div>
           )}
