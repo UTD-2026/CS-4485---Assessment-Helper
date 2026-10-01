@@ -19,7 +19,7 @@ export default function FeedbackSurvey() {
         boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
       }}>
         <h2 style={{ marginTop: 0, borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '10px' }}>
-          End-of-Semester Faculty Feedback
+          End-of-Process Survey & Feedback
         </h2>
         
         {submitted ? (
@@ -36,32 +36,41 @@ export default function FeedbackSurvey() {
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
             
+            {/* Requirement: Was this process ok or not */}
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Faculty Member Observed</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Was this observation process OK?</label>
               <select style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b' }} required>
-                <option value="">Select Faculty...</option>
-                <option value="smith">Dr. Smith (CS 3345)</option>
-                <option value="banner">Dr. Banner (CS 4485)</option>
+                <option value="">Select...</option>
+                <option value="ok">Yes, the process was OK</option>
+                <option value="not_ok">No, the process was not OK</option>
               </select>
             </div>
 
+            {/* Requirement: A place to list difficulties */}
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Overall Observation Rating (1-5)</label>
-              <input type="range" min="1" max="5" defaultValue="5" style={{ width: '100%' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginTop: '5px' }}>
-                <span>1 - Needs Improvement</span>
-                <span>5 - Excellent</span>
-              </div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>List your difficulties</label>
+              <textarea 
+                rows="3" 
+                placeholder="Describe any issues you faced during the observation process..."
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', resize: 'vertical' }}
+              ></textarea>
             </div>
 
+            {/* Requirement: Opinion on how to improve */}
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Constructive Feedback (Replaces PDF Upload)</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Opinion on how to improve the process</label>
               <textarea 
-                rows="4" 
-                placeholder="Enter detailed observation notes here..."
+                rows="3" 
+                placeholder="Share your suggestions for improving this system..."
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', resize: 'vertical' }}
-                required
               ></textarea>
+            </div>
+
+            {/* Requirement: Upload file for trouble */}
+            <div className="form-group" style={{ padding: '1rem', background: '#f1f5f9', borderRadius: '8px', border: '1px dashed #94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Troubleshooting Upload (Optional)</label>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 0, marginBottom: '10px' }}>Upload a file to shed light on any trouble during the observation.</p>
+              <input type="file" style={{ width: '100%' }} />
             </div>
 
             <button 
@@ -78,7 +87,7 @@ export default function FeedbackSurvey() {
                 marginTop: '10px'
               }}
             >
-              Submit Evaluation
+              Submit Survey
             </button>
           </form>
         )}
