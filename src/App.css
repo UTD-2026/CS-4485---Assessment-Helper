@@ -83,6 +83,18 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 .orb-1 { width: 400px; height: 400px; background: var(--utd-green); top: -100px; left: -100px; }
 .orb-2 { width: 300px; height: 300px; background: var(--utd-orange); bottom: -50px; right: -50px; }
 
+/* Login card layout: fills its container up to a max width that scales with the
+   window (420px min, 560px max), with inner padding and centered text.
+   position/z-index keep the card above the blurred background orbs. */
+.login-card {
+  position: relative;
+  z-index: 1;                          
+  width: 100%;
+  max-width: clamp(420px, 36vw, 560px);
+  padding: 56px 48px;
+  text-align: center;
+}
+
 /* Fix for invisible text */
 .login-card input {
   color: #1e293b;
@@ -91,12 +103,12 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
   color: #64748b;
   opacity: 1;
 }
-.logo-placeholder { width: 60px; height: 60px; background: linear-gradient(135deg, var(--utd-orange), #ff9d00); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.5rem; border-radius: 16px; margin: 0 auto 20px auto; box-shadow: 0 10px 20px rgba(232, 117, 0, 0.3); }
-.login-card h2 { font-size: 1.8rem; font-weight: 800; color: #1e293b; margin-bottom: 5px; }
-.login-card p { color: #64748b; margin-bottom: 30px; font-weight: 500; }
-.login-card input { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.7); font-size: 1rem; outline: none; transition: all 0.3s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+.logo-placeholder { width: 90px; height: 90px; background: linear-gradient(135deg, var(--utd-orange), #ff9d00); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 2.2rem; border-radius: 22px; margin: 0 auto 24px auto; box-shadow: 0 10px 20px rgba(232, 117, 0, 0.3); }
+.login-card h2 { font-size: clamp(1.8rem, 2.6vw, 2.4rem); font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+.login-card p { color: #64748b; margin-bottom: 36px; font-weight: 500; font-size: 1.05rem;}
+.login-card input { width: 100%; padding: 18px 20px; margin-bottom: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.7); font-size: 1rem; outline: none; transition: all 0.3s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
 .login-card input:focus { background: #fff; border-color: var(--utd-green); box-shadow: 0 0 0 4px rgba(21, 71, 52, 0.1); }
-.login-card button { width: 100%; margin-top: 10px; padding: 16px; font-size: 1.1rem; }
+.login-card button { width: 100%; margin-top: 12px; padding: 18px; font-size: 1.15rem; }
 
 /* --- Layout & Glassmorphism --- */
 .dashboard-layout { display: flex; height: 100vh; width: 100vw; }

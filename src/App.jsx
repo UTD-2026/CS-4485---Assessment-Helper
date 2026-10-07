@@ -38,7 +38,7 @@ function Login({ onLogin }) {
           <div className="input-group">
             <input type="password" placeholder="Password" required />
           </div>
-          <button type="submit" className="btn-primary btn-3d" style={{marginTop: '10px'}}>Secure Sign In</button>
+          <button type="submit" className="btn-primary btn-3d" style={{marginTop: '10px'}}>Sign In</button>
         </form>
       </div>
     </div>
