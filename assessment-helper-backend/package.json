@@ -1,0 +1,27 @@
+{
+  "name": "assessment-helper",
+  "version": "1.0.0",
+  "description": "UTD Assessment Helper - centralized teacher evaluation, course, and observation-workflow platform",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:migrate": "node src/db/migrate.js",
+    "db:seed": "node src/db/seed/fakeDataGenerator.js",
+    "mongo:init": "node src/db/initMongo.js",
+    "import:catalog": "node src/jobs/importCourseCatalog.js",
+    "sync:coursebook": "node src/jobs/syncCourseBook.js",
+    "expire:requests": "node src/jobs/expireObservationRequests.js"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.0.0",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mongodb": "^6.9.0",
+    "pg": "^8.13.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,50 @@
+[
+    {
+        "courseNumber": "CS 1336",
+        "title": "Programming Fundamentals",
+        "section": "001",
+        "instructor": "Sample Instructor A",
+        "days": "MWF",
+        "time": "09:00-09:50"
+    },
+    {
+        "courseNumber": "CS 2336",
+        "title": "Computer Science II",
+        "section": "002",
+        "instructor": "Sample Instructor B",
+        "days": "TTH",
+        "time": "11:00-12:15"
+    },
+    {
+        "courseNumber": "CS 3345",
+        "title": "Data Structures and Introduction to Algorithmic Analysis",
+        "section": "001",
+        "instructor": "Sample Instructor C",
+        "days": "MW",
+        "time": "14:00-15:15"
+    },
+    {
+        "courseNumber": "CS 4349",
+        "title": "Advanced Algorithm Design and Analysis",
+        "section": "001",
+        "instructor": "Sample Instructor D",
+        "days": "TTH",
+        "time": "13:00-14:15"
+    },
+    {
+        "courseNumber": "CS 5343",
+        "title": "Analysis of Algorithms",
+        "section": "001",
+        "instructor": "Sample Instructor E",
+        "days": "MW",
+        "time": "16:00-17:15"
+    },
+    {
+        "courseNumber": "CS 6350",
+        "title": "Big Data Management and Analytics",
+        "section": "001",
+        "instructor": "Sample Instructor F",
+        "days": "TTH",
+        "time": "17:30-18:45"
+    }
+]
