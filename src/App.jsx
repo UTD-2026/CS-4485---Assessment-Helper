@@ -1,28 +1,28 @@
 import React, { useState } from 'react';
 import FeedbackSurvey from './FeedbackSurvey';
+import { mockProfessors } from './mockDatabase.js';
+import { generateObserverMatches } from './matchmaker.js';
 import './App.css';
 
 export default function App() {
-  const [currentUserRole, setCurrentUserRole] = useState(null);
+  // Store the full user object, not just a string
+  const [currentUser, setCurrentUser] = useState(null);
 
-  if (!currentUserRole) return <Login onLogin={setCurrentUserRole} />;
-  if (currentUserRole === 'professor') return <ProfessorDashboard onLogout={() => setCurrentUserRole(null)} />;
-  if (currentUserRole === 'admin') return <AdminDashboard onLogout={() => setCurrentUserRole(null)} />;
+  // Show login if no one is selected
+  if (!currentUser) return <Login onLogin={setCurrentUser} />;
+  
+  // Route to the correct dashboard based on the user's database flag
+  if (currentUser.is_ac_member) {
+    return <AdminDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
+  } else {
+    return <ProfessorDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
+  }
 }
 
 /* =========================================
-   LOGIN PAGE
+   LOGIN PAGE (Developer Bypass)
 ========================================= */
 function Login({ onLogin }) {
-  const [username, setUsername] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (username.toLowerCase() === 'admin') onLogin('admin');
-    else if (username.toLowerCase() === 'professor') onLogin('professor');
-    else alert('Invalid username. Use "admin" or "professor".');
-  };
-
   return (
     <div className="login-container">
       <div className="login-orb orb-1"></div>
@@ -30,16 +30,20 @@ function Login({ onLogin }) {
       <div className="login-card premium-glass">
         <div className="logo-placeholder">UTD</div>
         <h2>Assessment Helper</h2>
-        <p>Faculty Observation Portal</p>
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <input type="text" placeholder="NetID / Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-          </div>
-          <div className="input-group">
-            <input type="password" placeholder="Password" required />
-          </div>
-          <button type="submit" className="btn-primary btn-3d" style={{marginTop: '10px'}}>Secure Sign In</button>
-        </form>
+        <p>Developer Login (Bypass NetID)</p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+          {mockProfessors.map(prof => (
+            <button 
+              key={prof.professor_id}
+              onClick={() => onLogin(prof)}
+              className={prof.is_ac_member ? "btn-primary btn-3d" : "btn-secondary btn-3d"}
+              style={{ padding: '10px', width: '100%' }}
+            >
+              Log in as {prof.name} {prof.is_ac_member ? "(AC Admin)" : "(Faculty)"}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -59,8 +63,9 @@ const Icons = {
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ onLogout }) {
+function ProfessorDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('home');
+  const [matchedObservers, setMatchedObservers] = useState([]); // NEW: stores the generated matches
 
   const NavItem = ({ id, icon: Icon, label }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
@@ -79,29 +84,26 @@ function ProfessorDashboard({ onLogout }) {
           </div>
         </div>
         <ul className="nav-menu">
-          <NavItem id="home" icon={Icons.Home} label="My Cycle" />
-          <NavItem id="my-observation" icon={Icons.Users} label="Observer Status" />
-          <NavItem id="observer-duties" icon={Icons.Check} label="My Duties" />
-          <NavItem id="survey" icon={Icons.FileText} label="End Survey" />
-          <li onClick={onLogout} className="logout-btn"><Icons.LogOut /> <span>Logout</span></li>
+          <NavItem id="home" icon={() => <span>🏠</span>} label="My Cycle" />
+          <NavItem id="my-observation" icon={() => <span>👥</span>} label="Observer Status" />
+          <NavItem id="observer-duties" icon={() => <span>✅</span>} label="My Duties" />
+          <NavItem id="survey" icon={() => <span>📄</span>} label="End Survey" />
+          <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
         </ul>
       </div>
 
       <div className="main-content">
         <header className="top-header premium-glass">
           <div className="header-title">
-            <h2>Welcome back, Dr. Smith</h2>
+            <h2>Welcome back, {user ? user.name : "Professor"}</h2>
             <p>Spring 2027 Evaluation Cycle</p>
           </div>
           <div className="user-profile">
-            <div className="avatar">JS</div>
+            <div className="avatar">{user ? user.name.charAt(4) : "U"}</div>
           </div>
         </header>
 
         <div className="content-scroll">
-          {activeTab === 'survey' && (
-            <FeedbackSurvey />
-          )}
           {activeTab === 'home' && (
             <div className="bento-grid">
               <div className="bento-card highlight-card">
@@ -112,7 +114,6 @@ function ProfessorDashboard({ onLogout }) {
                 </div>
               </div>
               
-              {/* NEW: Official Course Sign-Up Form based on PDF requirements */}
               <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)', color: '#1e293b' }}>
                 <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
                 <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
@@ -124,9 +125,22 @@ function ProfessorDashboard({ onLogout }) {
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Meeting Days & Time</label>
                     <input type="text" placeholder="e.g., MW 8:30 AM - 9:45 AM" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                   </div>
-                  <button type="button" style={{ gridColumn: '1 / -1', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  
+                  {/* NEW: Button triggers matching algorithm and switches tab */}
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (!user) return;
+                      // Hardcoded to section 101 (CS 1000) for prototype testing
+                      const matches = generateObserverMatches(user.professor_id, 101);
+                      setMatchedObservers(matches);
+                      setActiveTab('my-observation'); 
+                    }}
+                    style={{ gridColumn: '1 / -1', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
                     Submit for Observer Selection
                   </button>
+                  
                 </form>
               </div>
             </div>
@@ -136,25 +150,32 @@ function ProfessorDashboard({ onLogout }) {
             <div className="bento-grid">
               <div className="bento-card full-span">
                 <h3>Step 2: Request Observers</h3>
-                <p className="subtitle">Send requests to eligible colleagues for CS 3345.</p>
+                <p className="subtitle">Send requests to eligible colleagues for your requested course.</p>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
                     <thead><tr><th>Colleague</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
-                      <tr>
-                        <td>
-                          <div className="user-cell"><div className="avatar-sm">AJ</div> <strong>Dr. A. Johnson</strong></div>
-                        </td>
-                        <td><span className="badge badge-neutral">Not Contacted</span></td>
-                        <td><button className="btn-secondary btn-3d sm" onClick={()=>alert("Request Sent!")}>Send Request</button></td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <div className="user-cell"><div className="avatar-sm">ML</div> <strong>Dr. M. Lee</strong></div>
-                        </td>
-                        <td><span className="badge badge-warning">Request Sent</span></td>
-                        <td><button className="btn-secondary sm disabled" disabled>Pending</button></td>
-                      </tr>
+                      {/* NEW: Dynamically render matched observers from the algorithm */}
+                      {matchedObservers.length === 0 ? (
+                        <tr><td colSpan="3" style={{textAlign: 'center', padding: '20px'}}>No eligible observers found. Try logging in as Dr. Alice Smith.</td></tr>
+                      ) : (
+                        matchedObservers.map(observer => (
+                          <tr key={observer.professor_id}>
+                            <td>
+                              <div className="user-cell">
+                                <div className="avatar-sm">{observer.name.charAt(4)}</div> 
+                                <strong>{observer.name}</strong>
+                              </div>
+                            </td>
+                            <td><span className="badge badge-neutral">Not Contacted</span></td>
+                            <td>
+                              <button className="btn-secondary btn-3d sm" onClick={()=>alert(`Request Sent to ${observer.name}!`)}>
+                                Send Request
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -167,14 +188,7 @@ function ProfessorDashboard({ onLogout }) {
                     <thead><tr><th>Accepted By</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
                       <tr>
-                        <td><div className="user-cell"><div className="avatar-sm">ML</div> <strong>Dr. M. Lee</strong></div></td>
-                        <td><span className="badge badge-success">Accepted</span></td>
-                        <td>
-                          <div style={{display: 'flex', gap: '10px'}}>
-                            <button className="btn-primary btn-3d sm">Confirm</button>
-                            <button className="btn-danger btn-3d sm">Decline</button>
-                          </div>
-                        </td>
+                        <td colSpan="3" style={{textAlign: 'center', color: '#64748b'}}>Waiting for an observer to accept your request...</td>
                       </tr>
                     </tbody>
                   </table>
@@ -187,17 +201,7 @@ function ProfessorDashboard({ onLogout }) {
             <div className="bento-grid">
               <div className="bento-card" style={{ background: 'rgba(255,255,255,0.8)', color: '#1e293b' }}>
                 <h3>Pending Observer Duties</h3>
-                <p>You have agreed to observe <strong>Dr. Banner (CS 4485)</strong>.</p>
-                
-                {/* NEW: Required Upload Field for the Observer */}
-                <div style={{ marginTop: '1rem', padding: '1rem', border: '1px dashed #94a3b8', borderRadius: '8px', background: '#f8fafc' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0' }}>Upload Signed Observation Template</h4>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '10px' }}>Both Observee and Observer signatures are required.</p>
-                  <input type="file" accept=".pdf" />
-                  <button type="button" style={{ display: 'block', marginTop: '10px', padding: '8px 16px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                    Submit Record
-                  </button>
-                </div>
+                <p>You have no pending observation duties at this time.</p>
               </div>
             </div>
           )}
@@ -224,10 +228,7 @@ function ProfessorDashboard({ onLogout }) {
                     <textarea rows="4" placeholder="Any scheduling issues?"></textarea>
                   </div>
                 </div>
-                <div className="form-group file-upload">
-                  <label>Additional Context (Optional)</label>
-                  <input type="file" />
-                </div>
+                {/* Note: File upload removed from survey per requirements */}
                 <button type="submit" className="btn-primary btn-3d">Submit Feedback</button>
               </form>
             </div>
