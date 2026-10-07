@@ -77,26 +77,106 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 
 .btn-secondary.disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: 0 2px 0 #cbd5e1; }
 
-/* --- Login Page --- */
-.login-container { display: flex; height: 100vh; justify-content: center; align-items: center; position: relative; overflow: hidden; background: #0a1914; }
-.login-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5; }
-.orb-1 { width: 400px; height: 400px; background: var(--utd-green); top: -100px; left: -100px; }
-.orb-2 { width: 300px; height: 300px; background: var(--utd-orange); bottom: -50px; right: -50px; }
+/* --- Login Page ---
+   Everything inside .login-card is sized in `em`, so changing the single
+   font-size on .login-card below scales the whole login UI up or down. */
+.login-container {
+  /* >>> SCALE KNOB <<<  The UI size = the smaller of a width-based size and a
+     height-based size, so the card always fits the window (any zoom/display scaling).
+     Raise the 22px cap or the 38 divisor to make the card bigger/smaller. */
+  --ui: clamp(11px, min(calc(0.55vw + 12px), calc((100vh - 56px) / 38), calc((100dvh - 56px) / 38)), 22px);
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; min-height: 100dvh; width: 100%;
+  padding: 28px 24px; position: relative; overflow-x: hidden; overflow-y: auto;
+  background: #0a1914;
+}
+.login-orb { position: absolute; border-radius: 50%; filter: blur(12px); opacity: 0.9; pointer-events: none; }
+/* Dots near the card (scale with the card) */
+.orb-1  { width: calc(var(--ui) * 13);  height: calc(var(--ui) * 13);  background: var(--utd-green);  top: 12%;    left: calc(50% - var(--ui) * 19); }
+.orb-2  { width: calc(var(--ui) * 11);  height: calc(var(--ui) * 11);  background: var(--utd-orange); bottom: 8%;  right: calc(50% - var(--ui) * 17.5); }
+.orb-3  { width: calc(var(--ui) * 7);   height: calc(var(--ui) * 7);   background: #3b82f6;           top: 6%;     right: calc(50% - var(--ui) * 15.5); }
+.orb-4  { width: calc(var(--ui) * 5.5); height: calc(var(--ui) * 5.5); background: #ff9d00;           bottom: 16%; left: calc(50% - var(--ui) * 16.5); }
 
-/* Fix for invisible text */
+/* Dots spread across the rest of the background (positions are % of the screen).
+   Bigger dots get a softer blur so they feel further away. */
+.orb-5  { width: calc(var(--ui) * 9);   height: calc(var(--ui) * 9);   background: #14b8a6;           top: 4%;     left: 6%;   filter: blur(16px); }
+.orb-6  { width: calc(var(--ui) * 12);  height: calc(var(--ui) * 12);  background: #8b5cf6;           top: 40%;    left: 3%;   filter: blur(28px); opacity: 0.6; }
+.orb-7  { width: calc(var(--ui) * 15);  height: calc(var(--ui) * 15);  background: var(--utd-green);  bottom: 3%;  left: 9%;   filter: blur(34px); opacity: 0.7; }
+.orb-8  { width: calc(var(--ui) * 10);  height: calc(var(--ui) * 10);  background: var(--utd-orange); top: 7%;     right: 7%;  filter: blur(20px); opacity: 0.75; }
+.orb-9  { width: calc(var(--ui) * 13);  height: calc(var(--ui) * 13);  background: #3b82f6;           top: 44%;    right: 4%;  filter: blur(30px); opacity: 0.6; }
+.orb-10 { width: calc(var(--ui) * 8);   height: calc(var(--ui) * 8);   background: #ff9d00;           bottom: 5%;  right: 11%; filter: blur(14px); }
+.orb-11 { width: calc(var(--ui) * 5);   height: calc(var(--ui) * 5);   background: #8b5cf6;           top: 72%;    left: 24%;  filter: blur(10px); }
+.orb-12 { width: calc(var(--ui) * 6);   height: calc(var(--ui) * 6);   background: #14b8a6;           top: 22%;    right: 20%; filter: blur(12px); }
+.orb-13 { width: calc(var(--ui) * 4);   height: calc(var(--ui) * 4);   background: #ff9d00;           top: 30%;    left: 19%;  filter: blur(8px); }
+.orb-14 { width: calc(var(--ui) * 5);   height: calc(var(--ui) * 5);   background: #3b82f6;           bottom: 28%; right: 18%; filter: blur(10px); }
+
+.login-card {
+  font-size: var(--ui);
+
+  position: relative; z-index: 1;
+  width: min(100%, 27em);
+  padding: 2.6em 2.4em 2em;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 1.5em;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.logo-placeholder {
+  width: 4.2em; height: 4.2em; margin: 0 auto 1.4em;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--utd-orange), #ff9d00);
+  color: #fff; font-weight: 800; font-size: 1.05em; letter-spacing: 0.5px;
+  border-radius: 1.2em;
+  box-shadow: 0 0.7em 1.4em rgba(232, 117, 0, 0.3);
+  transform: scale(1.2); /* makes ONLY the logo bigger */
+}
+
+.login-card h2 {
+  font-size: 1.9em; font-weight: 800; line-height: 1.15; margin-bottom: 0.25em;
+  /* orange at both ends, black through the middle */
+  background: linear-gradient(90deg, #e87500 0%, #6c4a20 50%, #e87500 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.login-subtitle { color: #0f172a; font-weight: 500; font-size: 1.05em; margin-bottom: 2em; }
+
+.login-form { text-align: left; }
+.input-group { margin-bottom: 1.15em; }
+.input-group label { display: block; margin-bottom: 0.45em; font-size: 0.85em; font-weight: 600; color: var(--text-main); }
 .login-card input {
-  color: #1e293b;
+  display: block; width: 100%; padding: 0.95em 1.1em;
+  font-size: 1em; color: var(--text-main);
+  background: #f1f5f9; border: 1.5px solid #e2e8f0; border-radius: 0.8em;
+  outline: none; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
-.login-card input::placeholder {
-  color: #64748b;
-  opacity: 1;
+.login-card input::placeholder { color: #94a3b8; opacity: 1; }
+.login-card input:focus { background: #fff; border-color: var(--utd-green); box-shadow: 0 0 0 0.25em rgba(21, 71, 52, 0.12); }
+
+.login-card .btn-3d { width: 100%; margin-top: 0.7em; padding: 1em; font-size: 1.05em; }
+
+.login-error {
+  margin-bottom: 1.1em; padding: 0.7em 0.9em; text-align: left;
+  font-size: 0.9em; font-weight: 600; color: #b91c1c;
+  background: #fee2e2; border: 1px solid #fecaca; border-radius: 0.7em;
 }
-.logo-placeholder { width: 60px; height: 60px; background: linear-gradient(135deg, var(--utd-orange), #ff9d00); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.5rem; border-radius: 16px; margin: 0 auto 20px auto; box-shadow: 0 10px 20px rgba(232, 117, 0, 0.3); }
-.login-card h2 { font-size: 1.8rem; font-weight: 800; color: #1e293b; margin-bottom: 5px; }
-.login-card p { color: #64748b; margin-bottom: 30px; font-weight: 500; }
-.login-card input { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.7); font-size: 1rem; outline: none; transition: all 0.3s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
-.login-card input:focus { background: #fff; border-color: var(--utd-green); box-shadow: 0 0 0 4px rgba(21, 71, 52, 0.1); }
-.login-card button { width: 100%; margin-top: 10px; padding: 16px; font-size: 1.1rem; }
+
+.login-hint {
+  margin-top: 1.8em; padding-top: 1.2em;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8em; line-height: 1.6; color: #1f2937;
+}
+.login-hint span {
+  display: block; margin-bottom: 0.2em;
+  font-size: 0.9em; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0f172a;
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 2em 1.4em 1.6em; }
+}
 
 /* --- Layout & Glassmorphism --- */
 .dashboard-layout { display: flex; height: 100vh; width: 100vw; }
@@ -107,13 +187,14 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 .sidebar { width: 280px; display: flex; flex-direction: column; color: white; z-index: 100; }
 .sidebar.admin-sidebar { background: rgba(12, 35, 64, 0.9); }
 .sidebar-header { padding: 30px 24px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.logo-small { width: 45px; height: 45px; background: var(--utd-orange); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(232, 117, 0, 0.4); }
+.logo-small { width: 45px; height: 45px; background: var(--utd-orange-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(255, 140, 0, 0.4); }
 .admin-logo { background: linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
 .sidebar-header h3 { font-size: 1.2rem; font-weight: 700; margin: 0; }
-.sidebar-header small { color: rgba(255,255,255,0.6); font-weight: 500; }
+.sidebar-header small { color: rgba(255,255,255,0.9); font-weight: 500; }
 
+.nav-menu li > span:first-child { filter: brightness(1) saturate(2.5) drop-shadow(0 0 4px rgba(255,255,255,0.35)); }
 .nav-menu { padding: 20px 12px; list-style: none; flex-grow: 1; }
-.nav-menu li { padding: 14px 16px; margin-bottom: 8px; border-radius: 14px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,0.6); font-weight: 600; transition: all 0.3s; }
+.nav-menu li { padding: 14px 16px; margin-bottom: 8px; border-radius: 14px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #f8fafc; font-weight: 600; transition: all 0.3s; }
 .nav-menu li:hover { background: rgba(255,255,255,0.05); color: white; transform: translateX(4px); }
 .nav-menu li.active { background: rgba(232, 117, 0, 0.15); color: var(--utd-orange); border: 1px solid rgba(232, 117, 0, 0.3); }
 .nav-menu li.logout-btn { margin-top: auto; color: #ef4444; }
