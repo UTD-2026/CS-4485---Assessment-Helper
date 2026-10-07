@@ -1,48 +1,70 @@
 import React, { useState } from 'react';
-import FeedbackSurvey from './FeedbackSurvey';
 import { mockProfessors } from './mockDatabase.js';
 import { generateObserverMatches } from './matchmaker.js';
 import './App.css';
 
 export default function App() {
-  // Store the full user object, not just a string
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // GLOBAL STATE: This holds the requests so they don't disappear when you log out
+  const [globalRequests, setGlobalRequests] = useState([]);
 
-  // Show login if no one is selected
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
   
-  // Route to the correct dashboard based on the user's database flag
-  if (currentUser.is_ac_member) {
-    return <AdminDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
-  } else {
-    return <ProfessorDashboard user={currentUser} onLogout={() => setCurrentUser(null)} />;
-  }
+  return (
+    <ProfessorDashboard 
+      user={currentUser} 
+      onLogout={() => setCurrentUser(null)} 
+      globalRequests={globalRequests}
+      setGlobalRequests={setGlobalRequests}
+    />
+  );
 }
 
 /* =========================================
-   LOGIN PAGE (Developer Bypass)
+   LOGIN PAGE (Credential Validation)
 ========================================= */
 function Login({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const user = mockProfessors.find(p => p.username === username);
+    
+    if (!user) {
+      setError("Professor not found.");
+      return;
+    }
+    if (user.password !== password) {
+      setError("Incorrect password.");
+      return;
+    }
+    
+    setError('');
+    onLogin(user);
+  };
+
   return (
     <div className="login-container">
-      <div className="login-orb orb-1"></div>
-      <div className="login-orb orb-2"></div>
       <div className="login-card premium-glass">
         <div className="logo-placeholder">UTD</div>
         <h2>Assessment Helper</h2>
-        <p>Developer Login (Bypass NetID)</p>
+        <p>Faculty Sign In</p>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-          {mockProfessors.map(prof => (
-            <button 
-              key={prof.professor_id}
-              onClick={() => onLogin(prof)}
-              className={prof.is_ac_member ? "btn-primary btn-3d" : "btn-secondary btn-3d"}
-              style={{ padding: '10px', width: '100%' }}
-            >
-              Log in as {prof.name} {prof.is_ac_member ? "(AC Admin)" : "(Faculty)"}
-            </button>
-          ))}
+        <form onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
+          {error && <div style={{ color: '#ef4444', marginBottom: '10px', fontSize: '0.9rem', fontWeight: 'bold' }}>{error}</div>}
+          <div className="input-group">
+            <input type="text" placeholder="Username (e.g., asmith)" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          </div>
+          <div className="input-group" style={{ marginTop: '10px' }}>
+            <input type="password" placeholder="Password (e.g., 123)" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn-primary btn-3d" style={{marginTop: '15px', width: '100%'}}>Secure Sign In</button>
+        </form>
+        <div style={{marginTop: '20px', fontSize: '0.8rem', color: '#64748b'}}>
+          *Test credentials: asmith/123, bjones/123, cwhite/123, dbrown/123*
         </div>
       </div>
     </div>
@@ -50,28 +72,56 @@ function Login({ onLogin }) {
 }
 
 /* =========================================
-   ICONS (SVG)
-========================================= */
-const Icons = {
-  Home: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
-  Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-  Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 11.08 22 12 22 12a10 10 0 1 1-5.93-9.14"></polyline><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
-  FileText: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
-  LogOut: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-};
-
-/* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests }) {
   const [activeTab, setActiveTab] = useState('home');
-  const [matchedObservers, setMatchedObservers] = useState([]); // NEW: stores the generated matches
+  const [matchedObservers, setMatchedObservers] = useState([]); 
+  
+  // Input states for dynamic generation
+  const [courseInput, setCourseInput] = useState('');
+  const [timeInput, setTimeInput] = useState('');
 
   const NavItem = ({ id, icon: Icon, label }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
       <Icon /> <span>{label}</span>
     </li>
   );
+
+  const handleGenerate = () => {
+    if (!courseInput || !timeInput) {
+      alert("Please enter both course and time.");
+      return;
+    }
+    const matches = generateObserverMatches(user.professor_id, courseInput, timeInput);
+    setMatchedObservers(matches);
+    setActiveTab('observee-status'); // Renamed per instructions
+  };
+
+  const handleSendRequest = (observer) => {
+    const newRequest = {
+      id: Date.now(),
+      observeeId: user.professor_id,
+      observeeName: user.name,
+      observerId: observer.professor_id,
+      observerName: observer.name,
+      courseCode: courseInput,
+      timing: timeInput,
+      status: 'Pending'
+    };
+    setGlobalRequests([...globalRequests, newRequest]);
+    alert(`Request Sent to ${observer.name}!`);
+  };
+
+  const updateRequestStatus = (reqId, newStatus) => {
+    setGlobalRequests(globalRequests.map(req => 
+      req.id === reqId ? { ...req, status: newStatus } : req
+    ));
+  };
+
+  // Filter requests for the current user's views
+  const mySentRequests = globalRequests.filter(req => req.observeeId === user.professor_id);
+  const myIncomingDuties = globalRequests.filter(req => req.observerId === user.professor_id);
 
   return (
     <div className="dashboard-layout">
@@ -85,7 +135,7 @@ function ProfessorDashboard({ user, onLogout }) {
         </div>
         <ul className="nav-menu">
           <NavItem id="home" icon={() => <span>🏠</span>} label="My Cycle" />
-          <NavItem id="my-observation" icon={() => <span>👥</span>} label="Observer Status" />
+          <NavItem id="observee-status" icon={() => <span>👥</span>} label="Observee Status" />
           <NavItem id="observer-duties" icon={() => <span>✅</span>} label="My Duties" />
           <NavItem id="survey" icon={() => <span>📄</span>} label="End Survey" />
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
@@ -95,11 +145,11 @@ function ProfessorDashboard({ user, onLogout }) {
       <div className="main-content">
         <header className="top-header premium-glass">
           <div className="header-title">
-            <h2>Welcome back, {user ? user.name : "Professor"}</h2>
+            <h2>Welcome back, {user.name}</h2>
             <p>Spring 2027 Evaluation Cycle</p>
           </div>
           <div className="user-profile">
-            <div className="avatar">{user ? user.name.charAt(4) : "U"}</div>
+            <div className="avatar">{user.name.charAt(4)}</div>
           </div>
         </header>
 
@@ -114,67 +164,55 @@ function ProfessorDashboard({ user, onLogout }) {
                 </div>
               </div>
               
-              <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)', color: '#1e293b' }}>
+              <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)' }}>
                 <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
                 <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Course & Section #</label>
-                    <input type="text" placeholder="e.g., CS 3345.001" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                    <input type="text" placeholder="e.g., CS 1000" value={courseInput} onChange={(e) => setCourseInput(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Meeting Days & Time</label>
-                    <input type="text" placeholder="e.g., MW 8:30 AM - 9:45 AM" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                    <input type="text" placeholder="e.g., MW 8:30 AM" value={timeInput} onChange={(e) => setTimeInput(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                   </div>
                   
-                  {/* NEW: Button triggers matching algorithm and switches tab */}
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      if (!user) return;
-                      // Hardcoded to section 101 (CS 1000) for prototype testing
-                      const matches = generateObserverMatches(user.professor_id, 101);
-                      setMatchedObservers(matches);
-                      setActiveTab('my-observation'); 
-                    }}
-                    style={{ gridColumn: '1 / -1', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    Submit for Observer Selection
+                  <button type="button" onClick={handleGenerate} style={{ gridColumn: '1 / -1', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Submit & Generate Observers
                   </button>
-                  
                 </form>
               </div>
             </div>
           )}
 
-          {activeTab === 'my-observation' && (
+          {activeTab === 'observee-status' && (
             <div className="bento-grid">
               <div className="bento-card full-span">
                 <h3>Step 2: Request Observers</h3>
-                <p className="subtitle">Send requests to eligible colleagues for your requested course.</p>
+                <p className="subtitle">Eligible colleagues generated for {courseInput || "your course"}.</p>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Colleague</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
                     <tbody>
-                      {/* NEW: Dynamically render matched observers from the algorithm */}
                       {matchedObservers.length === 0 ? (
-                        <tr><td colSpan="3" style={{textAlign: 'center', padding: '20px'}}>No eligible observers found. Try logging in as Dr. Alice Smith.</td></tr>
+                        <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No observers generated yet. Submit a course from the 'My Cycle' tab.</td></tr>
                       ) : (
-                        matchedObservers.map(observer => (
-                          <tr key={observer.professor_id}>
-                            <td>
-                              <div className="user-cell">
-                                <div className="avatar-sm">{observer.name.charAt(4)}</div> 
-                                <strong>{observer.name}</strong>
-                              </div>
-                            </td>
-                            <td><span className="badge badge-neutral">Not Contacted</span></td>
-                            <td>
-                              <button className="btn-secondary btn-3d sm" onClick={()=>alert(`Request Sent to ${observer.name}!`)}>
-                                Send Request
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        matchedObservers.map(observer => {
+                          const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
+                          return (
+                            <tr key={observer.professor_id}>
+                              <td><strong>{observer.name}</strong></td>
+                              <td>
+                                {hasRequested ? (
+                                  <span className="badge badge-warning">Request Sent</span>
+                                ) : (
+                                  <button className="btn-secondary btn-3d sm" onClick={() => handleSendRequest(observer)}>
+                                    Send Request
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -182,14 +220,26 @@ function ProfessorDashboard({ user, onLogout }) {
               </div>
 
               <div className="bento-card full-span">
-                <h3>Step 3: Confirm Match</h3>
+                <h3>Step 3: Track My Requests</h3>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Accepted By</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Requested Observer</th><th>Course</th><th>Status</th></tr></thead>
                     <tbody>
-                      <tr>
-                        <td colSpan="3" style={{textAlign: 'center', color: '#64748b'}}>Waiting for an observer to accept your request...</td>
-                      </tr>
+                      {mySentRequests.length === 0 ? (
+                        <tr><td colSpan="3" style={{textAlign: 'center'}}>No requests sent yet.</td></tr>
+                      ) : (
+                        mySentRequests.map(req => (
+                          <tr key={req.id}>
+                            <td><strong>{req.observerName}</strong></td>
+                            <td>{req.courseCode} ({req.timing})</td>
+                            <td>
+                              {req.status === 'Pending' && <span className="badge badge-warning">Pending</span>}
+                              {req.status === 'Accepted' && <span className="badge badge-success">Accepted</span>}
+                              {req.status === 'Rejected' && <span className="badge badge-danger" style={{background: '#ef4444', color: 'white'}}>Rejected</span>}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -199,123 +249,33 @@ function ProfessorDashboard({ user, onLogout }) {
 
           {activeTab === 'observer-duties' && (
             <div className="bento-grid">
-              <div className="bento-card" style={{ background: 'rgba(255,255,255,0.8)', color: '#1e293b' }}>
-                <h3>Pending Observer Duties</h3>
-                <p>You have no pending observation duties at this time.</p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'survey' && (
-            <div className="bento-card full-span">
-              <h3>End of Cycle Survey</h3>
-              <p className="subtitle">Provide feedback on the logistics of the evaluation.</p>
-              <form className="modern-form" onSubmit={(e) => { e.preventDefault(); alert("Survey Submitted!"); }}>
-                <div className="form-group">
-                  <label>Was this process OK overall?</label>
-                  <div className="radio-group">
-                    <label className="radio-btn"><input type="radio" name="ok" value="yes" /><span>Yes</span></label>
-                    <label className="radio-btn"><input type="radio" name="ok" value="no" /><span>No</span></label>
-                  </div>
-                </div>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Positive Feedback</label>
-                    <textarea rows="4" placeholder="What went well?"></textarea>
-                  </div>
-                  <div className="form-group">
-                    <label>Difficulties</label>
-                    <textarea rows="4" placeholder="Any scheduling issues?"></textarea>
-                  </div>
-                </div>
-                {/* Note: File upload removed from survey per requirements */}
-                <button type="submit" className="btn-primary btn-3d">Submit Feedback</button>
-              </form>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================
-   ADMIN DASHBOARD 
-========================================= */
-function AdminDashboard({ onLogout }) {
-  const [activeTab, setActiveTab] = useState('selection');
-
-  const NavItem = ({ id, icon: Icon, label }) => (
-    <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
-      <Icon /> <span>{label}</span>
-    </li>
-  );
-
-  return (
-    <div className="dashboard-layout">
-      <div className="sidebar admin-sidebar premium-glass-dark">
-        <div className="sidebar-header">
-          <div className="logo-small admin-logo">AC</div>
-          <div>
-            <h3>Committee</h3>
-            <small>Admin Portal</small>
-          </div>
-        </div>
-        <ul className="nav-menu">
-          <NavItem id="selection" icon={Icons.Users} label="Matchmaking" />
-          <NavItem id="kpi" icon={Icons.Home} label="Metrics (KPIs)" />
-          <NavItem id="cycle" icon={Icons.FileText} label="Deadlines" />
-          <li onClick={onLogout} className="logout-btn"><Icons.LogOut /> <span>Logout</span></li>
-        </ul>
-      </div>
-
-      <div className="main-content">
-        <header className="top-header premium-glass">
-          <div className="header-title">
-            <h2>Committee Executive View</h2>
-            <p>System Overview & Control</p>
-          </div>
-          <div className="user-profile">
-            <div className="avatar admin-avatar">AD</div>
-          </div>
-        </header>
-
-        <div className="content-scroll">
-          {activeTab === 'selection' && (
-            <div className="bento-grid">
-              <div className="bento-card alert-card full-span">
-                <div className="card-icon error-icon">!</div>
-                <div style={{flexGrow: 1}}>
-                  <h3 style={{color: '#c62828'}}>System Alert</h3>
-                  <p>Dr. Banner (CS 4485) has <strong>NO eligible observers</strong> based on schedule constraints.</p>
-                </div>
-                <button className="btn-danger btn-3d sm">Resolve Manually</button>
-              </div>
-
               <div className="bento-card full-span">
-                <div className="card-header-flex">
-                  <div>
-                    <h3>Post-Signup Matchmaking</h3>
-                    <p className="subtitle">Generate observer lists for all signups.</p>
-                  </div>
-                  <div className="action-buttons">
-                    <button className="btn-secondary btn-3d">1. Generate</button>
-                    <button className="btn-primary btn-3d">2. Notify Faculty</button>
-                  </div>
-                </div>
-                
+                <h3>Incoming Observation Requests</h3>
+                <p className="subtitle">Colleagues requesting you as an observer.</p>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Faculty</th><th>Course</th><th>Schedule</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Requesting Professor</th><th>Course to Observe</th><th>Status/Action</th></tr></thead>
                     <tbody>
-                      <tr>
-                        <td><strong>Dr. Smith</strong></td><td>CS 3345</td><td>MW 8:30 AM</td>
-                        <td><span className="badge badge-success">Matches Found</span></td>
-                      </tr>
-                      <tr>
-                        <td><strong>Dr. Banner</strong></td><td>CS 4485</td><td>TTh 1:00 PM</td>
-                        <td><span className="badge badge-error">Insufficient List</span></td>
-                      </tr>
+                      {myIncomingDuties.length === 0 ? (
+                        <tr><td colSpan="3" style={{textAlign: 'center'}}>No pending duties.</td></tr>
+                      ) : (
+                        myIncomingDuties.map(req => (
+                          <tr key={req.id}>
+                            <td><strong>{req.observeeName}</strong></td>
+                            <td>{req.courseCode} ({req.timing})</td>
+                            <td>
+                              {req.status === 'Pending' ? (
+                                <div style={{display: 'flex', gap: '10px'}}>
+                                  <button className="btn-primary sm" onClick={() => updateRequestStatus(req.id, 'Accepted')} style={{background: '#16a34a', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Accept</button>
+                                  <button className="btn-danger sm" onClick={() => updateRequestStatus(req.id, 'Rejected')} style={{background: '#ef4444', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Reject</button>
+                                </div>
+                              ) : (
+                                <span className={req.status === 'Accepted' ? "badge badge-success" : "badge badge-danger"}>{req.status}</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -323,51 +283,10 @@ function AdminDashboard({ onLogout }) {
             </div>
           )}
 
-          {activeTab === 'kpi' && (
-            <>
-              <h3 className="section-title">Executive Metrics</h3>
-              <div className="bento-grid kpi-grid">
-                <div className="bento-card kpi-card">
-                  <p>Participation Rate</p>
-                  <h2>85%</h2>
-                  <div className="kpi-trend positive">+5% from last cycle</div>
-                </div>
-                <div className="bento-card kpi-card">
-                  <p>List Sufficiency</p>
-                  <h2>92%</h2>
-                  <div className="kpi-trend positive">Matches generated</div>
-                </div>
-                <div className="bento-card kpi-card alert-border">
-                  <p>Overdue Evaluations</p>
-                  <h2 style={{color: '#c62828'}}>3</h2>
-                  <div className="kpi-trend negative">Requires attention</div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'cycle' && (
+          {activeTab === 'survey' && (
             <div className="bento-card full-span">
-              <h3>Faculty Due Report</h3>
-              <div className="modern-table-wrapper">
-                <table className="data-table">
-                  <thead><tr><th>Faculty</th><th>Status</th><th>Last Eval</th><th>Action</th></tr></thead>
-                  <tbody>
-                    <tr>
-                      <td><strong>Dr. Smith</strong></td>
-                      <td><span className="badge badge-warning">Due</span></td>
-                      <td>Spring 2025</td>
-                      <td><button className="btn-secondary btn-3d sm">Remind</button></td>
-                    </tr>
-                    <tr>
-                      <td><strong>Dr. Banner</strong></td>
-                      <td><span className="badge badge-error">Overdue</span></td>
-                      <td>Fall 2024</td>
-                      <td><button className="btn-danger btn-3d sm">Remind</button></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <h3>End of Cycle Survey</h3>
+              <p>Survey form temporarily hidden for workflow testing.</p>
             </div>
           )}
         </div>
