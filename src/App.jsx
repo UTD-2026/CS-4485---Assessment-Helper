@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { mockProfessors } from './mockDatabase.js';
 import { generateObserverMatches } from './matchmaker.js';
 import './App.css';
+import FeedbackSurvey from './FeedbackSurvey.jsx';
+import AdminSurveyResults from './AdminSurveyResults.jsx';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -83,6 +85,136 @@ function Login({ onLogin }) {
   );
 }
 
+/* =========================================
+   ADMIN DASHBOARD (My Portion)
+========================================= */
+function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines }) {
+  const [activeTab, setActiveTab] = useState('metrics');
+
+  const allFacultyStatus = mockProfessors.map(prof => ({
+    ...prof,
+    ...calculateEvaluationStatus(prof)
+  }));
+
+  const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
+  const overdueFaculty = allFacultyStatus.filter(f => f.status === 'Overdue');
+
+  const NavItem = ({ id, label }) => (
+    <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
+      <span>{label}</span>
+    </li>
+  );
+
+  return (
+    <div className="dashboard-layout">
+      <div className="sidebar premium-glass-dark" style={{ background: '#1e293b' }}>
+        <div className="sidebar-header"><div className="logo-small">AC</div><div><h3>Committee</h3><small>Executive Portal</small></div></div>
+        <ul className="nav-menu">
+          <NavItem id="metrics" label="📊 Live Metrics & KPIs" />
+          <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
+          <NavItem id="signups" label="📝 Signup & Matching Monitor" />
+          <NavItem id="deadlines" label="📅 Deadline Management" />
+          <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
+        </ul>
+      </div>
+
+      <div className="main-content">
+        <header className="top-header premium-glass">
+          <div className="header-title"><h2>System Overview</h2><p>Welcome, {user.name} (Committee Member)</p></div>
+        </header>
+
+        <div className="content-scroll">
+          {activeTab === 'metrics' && (
+            <div>
+              <h3>Real-Time Operational Metrics</h3>
+              <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                <div className="bento-card" style={{ textAlign: 'center', background: '#3b82f6', color: 'white' }}>
+                  <h4>Total Faculty Due</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{dueFaculty.length}</h1>
+                </div>
+                <div className="bento-card" style={{ textAlign: 'center', background: '#8b5cf6', color: 'white' }}>
+                  <h4>Total Signups</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalSignups.length}</h1>
+                </div>
+                <div className="bento-card" style={{ textAlign: 'center', background: '#f59e0b', color: 'white' }}>
+                  <h4>Confirmed Observations</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalObservations.length}</h1>
+                </div>
+                <div className="bento-card" style={{ textAlign: 'center', background: '#10b981', color: 'white' }}>
+                  <h4>Completed Observations</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalObservations.filter(o => o.status === 'Completed').length}</h1>
+                </div>
+              </div>
+              
+              {/* TEAMMATE HANDOFF POINT FOR ANALYTICS */}
+              <div className="bento-card" style={{ marginTop: '20px', border: '2px dashed #94a3b8', background: '#f8fafc' }}>
+                <h3 style={{color: '#64748b'}}>Teammate Integration Zone: Executive KPIs</h3>
+                <p style={{color: '#64748b', fontSize: '0.9rem'}}>*Survey participation metrics, utilization KPIs, and executive reporting components will be injected here.*</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'faculty' && (
+            <div className="bento-card full-span">
+              <h3>Faculty Due for Evaluation ({currentSemester})</h3>
+              <table className="data-table">
+                <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
+                <tbody>
+                  {dueFaculty.map(f => (
+                    <tr key={f.professor_id}>
+                      <td><strong>{f.name}</strong></td><td>{f.hire_level}</td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
+                      <td>
+                        {f.status === 'Overdue' ? <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Overdue ({f.overdue_by} sem)</span> : <span className="badge badge-warning">Due</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'signups' && (
+            <div className="bento-card full-span">
+              <h3>Signup & Matching Monitor</h3>
+              <table className="data-table">
+                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
+                <tbody>
+                  {globalSignups.length === 0 ? <tr><td colSpan="5" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
+                    globalSignups.map(signup => {
+                      const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
+                      return (
+                        <tr key={signup.id}>
+                          <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
+                          <td>{signup.matchesCount} Observers</td>
+                          <td>
+                            {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
+                            {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
+                            {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
+                          </td>
+                          <td>{obs ? <strong>{obs.observerName}</strong> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
+                        </tr>
+                      );
+                    })
+                  }
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'deadlines' && (
+            <div className="bento-grid">
+              <div className="bento-card">
+                <h3>Global Deadlines</h3>
+                <form className="modern-form">
+                  <div className="form-group"><label>Signup Deadline</label><input type="date" value={globalDeadlines.signup} onChange={e => setGlobalDeadlines({...globalDeadlines, signup: e.target.value})} /></div>
+                  <div className="form-group"><label>Observation Period Ends</label><input type="date" value={globalDeadlines.observation} onChange={e => setGlobalDeadlines({...globalDeadlines, observation: e.target.value})} /></div>
+                  <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={globalDeadlines.survey} onChange={e => setGlobalDeadlines({...globalDeadlines, survey: e.target.value})} /></div>
+                  <button type="button" className="btn-primary" onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
