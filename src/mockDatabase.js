@@ -1,5 +1,11 @@
 // mockDatabase.js
 
+/*Will add currentUser.is_ac_member true later
+Using if currentUser.role === 'admin' for now*/
+export const mockAdmins = [
+  { professor_id: 0, username: "admin", password: "123", name: "Assessment Committee Admin", role: "admin" }, 
+];
+
 export const mockProfessors = [
   { professor_id: 1, username: "asmith", password: "123", name: "Dr. Alice Smith", department: "CS", hire_level: "Assistant", is_ac_member: false },
   { professor_id: 2, username: "bjones", password: "123", name: "Dr. Bob Jones", department: "CS", hire_level: "Associate", is_ac_member: true },

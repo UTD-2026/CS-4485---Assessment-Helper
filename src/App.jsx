@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { mockProfessors } from './mockDatabase.js';
 import { generateObserverMatches } from './matchmaker.js';
 import './App.css';
 import FeedbackSurvey from './FeedbackSurvey.jsx';
 import AdminSurveyResults from './AdminSurveyResults.jsx';
+import { mockProfessors, mockAdmins } from './mockDatabase.js';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -26,7 +26,7 @@ export default function App() {
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
 
   // Committee members see the admin portal, everyone else sees the professor portal
-  if (currentUser.is_ac_member) {
+  if (currentUser.role === 'admin') {
     return (
       <AdminDashboard
         user={currentUser}
@@ -61,7 +61,8 @@ function Login({ onLogin }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const user = mockProfessors.find(p => p.username === username);
+    const user = mockProfessors.find(p => p.username === username)
+          || mockAdmins.find(a => a.username === username);
     
     if (!user) {
       setError("Professor not found.");
@@ -106,7 +107,7 @@ function Login({ onLogin }) {
 
         <div className="login-hint">
           <span>Test credentials</span>
-          asmith / bjones / cwhite / dbrown &nbsp;·&nbsp; password: 123
+          asmith / bjones / cwhite / dbrown (professors) &nbsp;·&nbsp; admin (committee) &nbsp;·&nbsp; password: 123
         </div>
       </div>
     </div>
