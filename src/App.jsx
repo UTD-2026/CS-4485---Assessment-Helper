@@ -5,6 +5,13 @@ import FeedbackSurvey from './FeedbackSurvey.jsx';
 import AdminSurveyResults from './AdminSurveyResults.jsx';
 import { mockProfessors, mockAdmins } from './mockDatabase.js';
 
+// placeholder for now: in a real app, this would be fetched from the backend
+const currentSemester = 'Spring 2027';
+// TEMPORARY STAND-IN: replace with your teammate's real function from main
+function calculateEvaluationStatus(prof) {
+  return { status: 'Due', overdue_by: 0 };
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -12,16 +19,25 @@ export default function App() {
   const [globalRequests, setGlobalRequests] = useState([]);
 
   // SURVEY STATE. Two separate lists on purpose, to keep responses anonymous:
-  //  surveySubmissions = WHO finished (professor_id only, no answers)
-  //  surveyResponses   = WHAT they answered (no professor_id, random id, no timestamp)
+  // surveySubmissions = WHO finished (professor_id only, no answers)
+  // surveyResponses = WHAT they answered (no professor_id, random id, no timestamp)
   const [surveySubmissions, setSurveySubmissions] = useState([]);
   const [surveyResponses, setSurveyResponses] = useState([]);
 
+  const [globalSignups, setGlobalSignups] = useState([]);
+  const [globalObservations, setGlobalObservations] = useState([]);
+  const [globalDeadlines, setGlobalDeadlines] = useState({ signup: '', observation: '', survey: '' });
+
   const handleSurveySubmit = (professorId, answers) => {
-  if (surveySubmissions.some(s => s.professor_id === professorId)) return; // one per professor
+    if (surveySubmissions.some(s => s.professor_id === professorId)) return; // one per professor
       setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
       setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
   };
+
+  // Surveys completed by professors who actually signed up this cycle (the required group).
+  // Calculated here so the admin only ever receives a number, never who submitted.
+  const completedRequiredSurveys = surveySubmissions.filter(sub =>
+    globalSignups.some(signup => signup.observeeId === sub.professor_id)).length;
 
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
 
@@ -35,6 +51,12 @@ export default function App() {
         surveyResponses={surveyResponses}
         submittedCount={surveySubmissions.length}
         totalProfessors={mockProfessors.length}
+        globalSignups={globalSignups}
+        setGlobalSignups={setGlobalSignups}
+        globalObservations={globalObservations}
+        globalDeadlines={globalDeadlines}
+        setGlobalDeadlines={setGlobalDeadlines}
+        completedRequiredSurveys={completedRequiredSurveys}
       />
     );
   }
@@ -45,6 +67,8 @@ export default function App() {
       onLogout={() => setCurrentUser(null)}
       globalRequests={globalRequests}
       setGlobalRequests={setGlobalRequests}
+      globalSignups={globalSignups}
+      setGlobalSignups={setGlobalSignups}
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
       onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
     />
@@ -119,7 +143,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors }) {
+function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, completedRequiredSurveys }) {
   const [activeTab, setActiveTab] = useState('metrics');
 
   const allFacultyStatus = mockProfessors.map(prof => ({
@@ -175,7 +199,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                 <div className="bento-card" style={{ textAlign: 'center', background: '#ef4444', color: 'white' }}>
                   <h4>Survey Complete Rate</h4>
                   <h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>
-                    {globalSignups.length ? Math.round((surveyResponses.length / globalSignups.length) * 100) : 0}%
+                    {/*will use surveyResponse.length later for numerator*/}
+                    {globalSignups.length ? Math.round((completedRequiredSurveys / globalSignups.length) * 100) : 0}%
                   </h1>
                 </div>
               </div>
@@ -264,7 +289,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups }) {
   const [activeTab, setActiveTab] = useState('home');
   const [matchedObservers, setMatchedObservers] = useState([]); 
   
@@ -284,6 +309,22 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       return;
     }
     const matches = generateObserverMatches(user.professor_id, courseInput, timeInput);
+
+    // one signup per professor: replace it if they resubmit
+    setGlobalSignups(prev => [
+      ...prev.filter(s => s.observeeId !== user.professor_id),
+      {
+        id: Date.now(),
+        observeeId: user.professor_id,
+        observeeName: user.name,
+        courseCode: courseInput,
+        matchesCount: matches.length,
+        matchFlag: matches.length === 0 ? 'NO ELIGIBLE OBSERVER'
+                : matches.length < 5 ? 'INSUFFICIENT OBSERVERS'
+                : 'OK',
+      },
+    ]);
+
     setMatchedObservers(matches);
     setActiveTab('observee-status'); // Renamed per instructions
   };

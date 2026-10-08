@@ -26,10 +26,10 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit({
-      processOk: processOk === 'ok',
+      process_ok: processOk === 'ok',
       difficulties: difficulties.trim(),
       improvements: improvements.trim(),
-      hasAttachment: Boolean(file), // the file name itself is never stored (could identify the sender)
+      has_attachment: Boolean(file), // the file name itself is never stored (could identify the sender)
     });
   };
 
