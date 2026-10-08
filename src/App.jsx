@@ -107,7 +107,9 @@ function Login({ onLogin }) {
 
         <div className="login-hint">
           <span>Test credentials</span>
-          asmith / bjones / cwhite / dbrown (professors) &nbsp;·&nbsp; admin (committee) &nbsp;·&nbsp; password: 123
+          <div>Professors: asmith / bjones / cwhite / dbrown</div>
+          <div>Admin (committee): admin</div>
+          <div>Password: 123</div>
         </div>
       </div>
     </div>
@@ -115,7 +117,7 @@ function Login({ onLogin }) {
 }
 
 /* =========================================
-   ADMIN DASHBOARD (My Portion)
+   ADMIN DASHBOARD
 ========================================= */
 function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors }) {
   const [activeTab, setActiveTab] = useState('metrics');
