@@ -3,45 +3,31 @@ import { generateObserverMatches } from './matchmaker.js';
 import './App.css';
 import FeedbackSurvey from './FeedbackSurvey.jsx';
 import AdminSurveyResults from './AdminSurveyResults.jsx';
-import { mockProfessors, mockAdmins } from './mockDatabase.js';
-
-// placeholder for now: in a real app, this would be fetched from the backend
-const currentSemester = 'Spring 2027';
-// TEMPORARY STAND-IN: replace with your teammate's real function from main
-function calculateEvaluationStatus(prof) {
-  return { status: 'Due', overdue_by: 0 };
-}
+// BIG FIX: Added the missing imports here!
+import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines } from './mockDatabase.js';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
-  // GLOBAL STATE: This holds the requests so they don't disappear when you log out
+  // GLOBAL STATE
   const [globalRequests, setGlobalRequests] = useState([]);
-
-  // SURVEY STATE. Two separate lists on purpose, to keep responses anonymous:
-  // surveySubmissions = WHO finished (professor_id only, no answers)
-  // surveyResponses = WHAT they answered (no professor_id, random id, no timestamp)
   const [surveySubmissions, setSurveySubmissions] = useState([]);
   const [surveyResponses, setSurveyResponses] = useState([]);
-
   const [globalSignups, setGlobalSignups] = useState([]);
   const [globalObservations, setGlobalObservations] = useState([]);
-  const [globalDeadlines, setGlobalDeadlines] = useState({ signup: '', observation: '', survey: '' });
+  const [globalDeadlines, setGlobalDeadlines] = useState(initialDeadlines);
 
   const handleSurveySubmit = (professorId, answers) => {
-    if (surveySubmissions.some(s => s.professor_id === professorId)) return; // one per professor
+    if (surveySubmissions.some(s => s.professor_id === professorId)) return;
       setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
       setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
   };
 
-  // Surveys completed by professors who actually signed up this cycle (the required group).
-  // Calculated here so the admin only ever receives a number, never who submitted.
   const completedRequiredSurveys = surveySubmissions.filter(sub =>
     globalSignups.some(signup => signup.observeeId === sub.professor_id)).length;
 
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
 
-  // Committee members see the admin portal, everyone else sees the professor portal
   if (currentUser.role === 'admin') {
     return (
       <AdminDashboard
@@ -69,12 +55,14 @@ export default function App() {
       setGlobalRequests={setGlobalRequests}
       globalSignups={globalSignups}
       setGlobalSignups={setGlobalSignups}
+      /* BIG FIX: Passed these down so your dashboard can use them! */
+      globalObservations={globalObservations}
+      setGlobalObservations={setGlobalObservations}
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
       onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
     />
   );
 }
-
 /* =========================================
    LOGIN PAGE (Credential Validation)
 ========================================= */
@@ -289,13 +277,14 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations }) {
   const [activeTab, setActiveTab] = useState('home');
-  const [matchedObservers, setMatchedObservers] = useState([]); 
+  const [selectedCourseId, setSelectedCourseId] = useState('');
   
-  // Input states for dynamic generation
-  const [courseInput, setCourseInput] = useState('');
-  const [timeInput, setTimeInput] = useState('');
+  const myStatus = calculateEvaluationStatus(user);
+  const myCourses = mockCourses.filter(c => c.instructor_id === user.professor_id);
+  const mySignup = globalSignups.find(s => s.observeeId === user.professor_id);
+  const myConfirmedObservation = globalObservations?.find(o => o.observeeId === user.professor_id);
 
   const NavItem = ({ id, icon: Icon, label }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
@@ -303,66 +292,73 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     </li>
   );
 
-  const handleGenerate = () => {
-    if (!courseInput || !timeInput) {
-      alert("Please enter both course and time.");
-      return;
-    }
-    const matches = generateObserverMatches(user.professor_id, courseInput, timeInput);
-
-    // one signup per professor: replace it if they resubmit
+  const handleSignup = () => {
+    if (!selectedCourseId) { alert("Select a course first."); return; }
+    const course = myCourses.find(c => c.section_id.toString() === selectedCourseId);
+    
+    const result = generateObserverMatches(user.professor_id, course.course_code, course.timing);
+    
     setGlobalSignups(prev => [
       ...prev.filter(s => s.observeeId !== user.professor_id),
       {
         id: Date.now(),
         observeeId: user.professor_id,
         observeeName: user.name,
-        courseCode: courseInput,
-        matchesCount: matches.length,
-        matchFlag: matches.length === 0 ? 'NO ELIGIBLE OBSERVER'
-                : matches.length < 5 ? 'INSUFFICIENT OBSERVERS'
-                : 'OK',
-      },
+        courseCode: course.course_code,
+        section: course.section,
+        timing: course.timing,
+        matchesCount: result.matches.length,
+        matchFlag: result.flag,
+        eligibleObservers: result.matches
+      }
     ]);
 
-    setMatchedObservers(matches);
-    setActiveTab('observee-status'); // Renamed per instructions
+    alert("Signed up successfully! View your eligible observers on the Observee Status tab.");
+    setActiveTab('observee-status');
   };
 
   const handleSendRequest = (observer) => {
     const newRequest = {
       id: Date.now(),
-      observeeId: user.professor_id,
-      observeeName: user.name,
-      observerId: observer.professor_id,
-      observerName: observer.name,
-      courseCode: courseInput,
-      timing: timeInput,
+      observeeId: user.professor_id, observeeName: user.name,
+      observerId: observer.professor_id, observerName: observer.name,
+      courseCode: mySignup.courseCode, timing: mySignup.timing,
       status: 'Pending'
     };
     setGlobalRequests([...globalRequests, newRequest]);
     alert(`Request Sent to ${observer.name}!`);
   };
 
-  const updateRequestStatus = (reqId, newStatus) => {
-    setGlobalRequests(globalRequests.map(req => 
-      req.id === reqId ? { ...req, status: newStatus } : req
-    ));
+  const handleObserverAction = (reqId, action) => {
+    setGlobalRequests(globalRequests.map(req => req.id === reqId ? { ...req, status: action } : req));
   };
 
-  // Filter requests for the current user's views
+  const handleFinalConfirm = (acceptedRequest) => {
+    const newObservation = {
+      id: Date.now(),
+      observeeId: user.professor_id, observeeName: user.name,
+      observerId: acceptedRequest.observerId, observerName: acceptedRequest.observerName,
+      courseCode: acceptedRequest.courseCode, timing: acceptedRequest.timing,
+      status: 'Scheduled',
+    };
+    setGlobalObservations(prev => [...(prev || []), newObservation]);
+
+    setGlobalRequests(globalRequests.map(req => 
+      req.observeeId === user.professor_id ? { ...req, status: req.id === acceptedRequest.id ? 'Confirmed' : 'Cancelled' } : req
+    ));
+    alert(`${acceptedRequest.observerName} is now confirmed as your observer!`);
+  };
+
   const mySentRequests = globalRequests.filter(req => req.observeeId === user.professor_id);
   const myIncomingDuties = globalRequests.filter(req => req.observerId === user.professor_id);
+  const myAssignedObservations = globalObservations?.filter(o => o.observerId === user.professor_id) || [];
 
   return (
     <div className="dashboard-layout">
       <div className="sidebar premium-glass-dark">
         <div className="sidebar-header">
           <div className="logo-small">UTD</div>
-          <div>
-            <h3>Professor Portal</h3>
-            <small>Assessment System</small>
-          </div>
+          <div><h3>Professor Portal</h3><small>Assessment System</small></div>
         </div>
         <ul className="nav-menu">
           <NavItem id="home" icon={() => <span>🏠</span>} label="My Cycle" />
@@ -379,9 +375,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
             <h2>Welcome back, {user.name}</h2>
             <p>Spring 2027 Evaluation Cycle</p>
           </div>
-          <div className="user-profile">
-            <div className="avatar">{user.name.charAt(4)}</div>
-          </div>
+          <div className="user-profile"><div className="avatar">{user.name.charAt(4)}</div></div>
         </header>
 
         <div className="content-scroll">
@@ -390,83 +384,131 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
               <div className="bento-card highlight-card">
                 <div className="card-icon">!</div>
                 <div>
-                  <h3>Action Required</h3>
-                  <p>You are <strong style={{color: '#e87500'}}>DUE</strong> for an evaluation this semester.</p>
+                  <h3>Evaluation Status: {myStatus.status === 'Overdue' ? <span style={{color: '#ef4444'}}>OVERDUE</span> : myStatus.status}</h3>
+                  <p>Last Evaluated: <strong>{user.last_evaluation || 'Never'}</strong> | Next Due: <strong>{myStatus.next_eval}</strong></p>
                 </div>
               </div>
               
-              <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)' }}>
-                <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
-                <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Course & Section #</label>
-                    <input type="text" placeholder="e.g., CS 1000" value={courseInput} onChange={(e) => setCourseInput(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold' }}>Meeting Days & Time</label>
-                    <input type="text" placeholder="e.g., MW 8:30 AM" value={timeInput} onChange={(e) => setTimeInput(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                  </div>
-                  
-                  <button type="button" onClick={handleGenerate} style={{ gridColumn: '1 / -1', padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    Submit & Generate Observers
-                  </button>
-                </form>
-              </div>
+              {(myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup && (
+                <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)' }}>
+                  <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
+                  <form style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Select Course to be Observed</label>
+                    <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                      <option value="">-- Choose a Course --</option>
+                      {myCourses.map(c => (
+                        <option key={c.section_id} value={c.section_id}>{c.course_code} Sec {c.section} ({c.timing})</option>
+                      ))}
+                    </select>
+                    <button type="button" onClick={handleSignup} className="btn-primary btn-3d" style={{ marginTop: '15px' }}>Submit & Enter Observer Pool</button>
+                  </form>
+                </div>
+              )}
+
+              {mySignup && (
+                <div className="bento-card" style={{ gridColumn: '1 / -1', background: '#f0fdf4', border: '1px solid #16a34a' }}>
+                  <h3 style={{color: '#16a34a'}}>✓ Signed Up for {currentSemester}</h3>
+                  <p>Course: {mySignup.courseCode} ({mySignup.timing}). Head to <strong>Observee Status</strong> to manage your observers.</p>
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'observee-status' && (
             <div className="bento-grid">
-              <div className="bento-card full-span">
-                <h3>Step 2: Request Observers</h3>
-                <p className="subtitle">Eligible colleagues generated for {courseInput || "your course"}.</p>
-                <div className="modern-table-wrapper">
-                  <table className="data-table">
-                    <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
-                    <tbody>
-                      {matchedObservers.length === 0 ? (
-                        <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No observers generated yet. Submit a course from the 'My Cycle' tab.</td></tr>
-                      ) : (
-                        matchedObservers.map(observer => {
-                          const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
-                          return (
-                            <tr key={observer.professor_id}>
-                              <td><strong>{observer.name}</strong></td>
-                              <td>
-                                {hasRequested ? (
-                                  <span className="badge badge-warning">Request Sent</span>
-                                ) : (
-                                  <button className="btn-secondary btn-3d sm" onClick={() => handleSendRequest(observer)}>
-                                    Send Request
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+              {myConfirmedObservation ? (
+                <div className="bento-card full-span" style={{borderLeft: '5px solid #10b981'}}>
+                  <h3>Final Confirmed Observer</h3>
+                  <p><strong>{myConfirmedObservation.observerName}</strong> is confirmed to observe <strong>{myConfirmedObservation.courseCode}</strong> on {myConfirmedObservation.timing}.</p>
+                  <p style={{marginBottom: '15px'}}>Status: <span className="badge badge-success">{myConfirmedObservation.status}</span></p>
+                  
+                  {myConfirmedObservation.status === 'Completed' && (
+                     <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
+                        <h4>Observation Completed!</h4>
+                        <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>The observer has completed their observation. Please proceed to the final survey.</p>
+                        <button className="btn-primary sm" onClick={() => setActiveTab('survey')}>Take Survey</button>
+                     </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="bento-card full-span">
+                    <h3>Step 2: Request Observers</h3>
+                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : (
+                      <div className="modern-table-wrapper">
+                        <table className="data-table">
+                          <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
+                          <tbody>
+                            {mySignup.eligibleObservers.length === 0 ? (
+                              <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No eligible observers found.</td></tr>
+                            ) : (
+                              mySignup.eligibleObservers.map(observer => {
+                                const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
+                                return (
+                                  <tr key={observer.professor_id}>
+                                    <td><strong>{observer.name}</strong></td>
+                                    <td>{hasRequested ? <span className="badge badge-warning">Request Sent</span> : <button className="btn-secondary btn-3d sm" onClick={() => handleSendRequest(observer)}>Send Request</button>}</td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
 
+                  <div className="bento-card full-span">
+                    <h3>Step 3: Track & Confirm</h3>
+                    <div className="modern-table-wrapper">
+                      <table className="data-table">
+                        <thead><tr><th>Observer</th><th>Status</th><th>Final Action</th></tr></thead>
+                        <tbody>
+                          {mySentRequests.length === 0 ? <tr><td colSpan="3" style={{textAlign: 'center'}}>No requests sent yet.</td></tr> : (
+                            mySentRequests.map(req => (
+                              <tr key={req.id}>
+                                <td><strong>{req.observerName}</strong></td>
+                                <td>
+                                  {req.status === 'Pending' && <span className="badge badge-warning">Pending</span>}
+                                  {req.status === 'Accepted' && <span className="badge badge-success">Accepted</span>}
+                                  {req.status === 'Declined' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Declined</span>}
+                                  {req.status === 'Cancelled' && <span>Cancelled</span>}
+                                </td>
+                                <td>
+                                  {req.status === 'Accepted' && <button className="btn-primary sm" onClick={() => handleFinalConfirm(req)}>Confirm Final Match</button>}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'observer-duties' && (
+            <div className="bento-grid">
               <div className="bento-card full-span">
-                <h3>Step 3: Track My Requests</h3>
+                <h3>Incoming Observation Requests</h3>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Requested Observer</th><th>Course</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Requesting Professor</th><th>Course to Observe</th><th>Status/Action</th></tr></thead>
                     <tbody>
-                      {mySentRequests.length === 0 ? (
-                        <tr><td colSpan="3" style={{textAlign: 'center'}}>No requests sent yet.</td></tr>
+                      {myIncomingDuties.filter(r => r.status === 'Pending').length === 0 ? (
+                        <tr><td colSpan="3" style={{textAlign: 'center'}}>No pending duties.</td></tr>
                       ) : (
-                        mySentRequests.map(req => (
+                        myIncomingDuties.filter(r => r.status === 'Pending').map(req => (
                           <tr key={req.id}>
-                            <td><strong>{req.observerName}</strong></td>
+                            <td><strong>{req.observeeName}</strong></td>
                             <td>{req.courseCode} ({req.timing})</td>
                             <td>
-                              {req.status === 'Pending' && <span className="badge badge-warning">Pending</span>}
-                              {req.status === 'Accepted' && <span className="badge badge-success">Accepted</span>}
-                              {req.status === 'Rejected' && <span className="badge badge-danger" style={{background: '#ef4444', color: 'white'}}>Rejected</span>}
+                              <div style={{display: 'flex', gap: '10px'}}>
+                                <button className="btn-primary sm" onClick={() => handleObserverAction(req.id, 'Accepted')} style={{background: '#16a34a', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Accept</button>
+                                <button className="btn-danger sm" onClick={() => handleObserverAction(req.id, 'Declined')} style={{background: '#ef4444', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Decline</button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -475,34 +517,29 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   </table>
                 </div>
               </div>
-            </div>
-          )}
 
-          {activeTab === 'observer-duties' && (
-            <div className="bento-grid">
               <div className="bento-card full-span">
-                <h3>Incoming Observation Requests</h3>
-                <p className="subtitle">Colleagues requesting you as an observer.</p>
+                <h3>My Confirmed Observation Appointments</h3>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Requesting Professor</th><th>Course to Observe</th><th>Status/Action</th></tr></thead>
+                    <thead><tr><th>Observee</th><th>Course</th><th>Time</th><th>Status & Upload</th></tr></thead>
                     <tbody>
-                      {myIncomingDuties.length === 0 ? (
-                        <tr><td colSpan="3" style={{textAlign: 'center'}}>No pending duties.</td></tr>
+                      {myAssignedObservations.length === 0 ? (
+                        <tr><td colSpan="4" style={{textAlign: 'center'}}>No confirmed duties.</td></tr>
                       ) : (
-                        myIncomingDuties.map(req => (
-                          <tr key={req.id}>
-                            <td><strong>{req.observeeName}</strong></td>
-                            <td>{req.courseCode} ({req.timing})</td>
+                        myAssignedObservations.map(obs => (
+                          <tr key={obs.id}>
+                            <td><strong>{obs.observeeName}</strong></td>
+                            <td>{obs.courseCode}</td>
+                            <td>{obs.timing}</td>
                             <td>
-                              {req.status === 'Pending' ? (
-                                <div style={{display: 'flex', gap: '10px'}}>
-                                  <button className="btn-primary sm" onClick={() => updateRequestStatus(req.id, 'Accepted')} style={{background: '#16a34a', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Accept</button>
-                                  <button className="btn-danger sm" onClick={() => updateRequestStatus(req.id, 'Rejected')} style={{background: '#ef4444', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Reject</button>
-                                </div>
-                              ) : (
-                                <span className={req.status === 'Accepted' ? "badge badge-success" : "badge badge-danger"}>{req.status}</span>
-                              )}
+                              {obs.status === 'Scheduled' ? (
+                                <button className="btn-primary sm" onClick={() => {
+                                  setGlobalObservations(globalObservations.map(o => o.id === obs.id ? {...o, status: 'Completed'} : o));
+                                  alert("Observation marked Completed! Taking you to the final survey.");
+                                  setActiveTab('survey');
+                                }}>Upload Form & Complete</button>
+                              ) : <span className="badge badge-success">Completed</span>}
                             </td>
                           </tr>
                         ))
