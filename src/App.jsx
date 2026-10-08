@@ -11,14 +11,42 @@ export default function App() {
   // GLOBAL STATE: This holds the requests so they don't disappear when you log out
   const [globalRequests, setGlobalRequests] = useState([]);
 
+  // SURVEY STATE. Two separate lists on purpose, to keep responses anonymous:
+  //  surveySubmissions = WHO finished (professor_id only, no answers)
+  //  surveyResponses   = WHAT they answered (no professor_id, random id, no timestamp)
+  const [surveySubmissions, setSurveySubmissions] = useState([]);
+  const [surveyResponses, setSurveyResponses] = useState([]);
+
+  const handleSurveySubmit = (professorId, answers) => {
+  if (surveySubmissions.some(s => s.professor_id === professorId)) return; // one per professor
+      setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
+      setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
+  };
+
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
-  
+
+  // Committee members see the admin portal, everyone else sees the professor portal
+  if (currentUser.is_ac_member) {
+    return (
+      <AdminDashboard
+        user={currentUser}
+        onLogout={() => setCurrentUser(null)}
+        globalRequests={globalRequests}
+        surveyResponses={surveyResponses}
+        submittedCount={surveySubmissions.length}
+        totalProfessors={mockProfessors.length}
+      />
+    );
+  }
+
   return (
-    <ProfessorDashboard 
-      user={currentUser} 
-      onLogout={() => setCurrentUser(null)} 
+    <ProfessorDashboard
+      user={currentUser}
+      onLogout={() => setCurrentUser(null)}
       globalRequests={globalRequests}
       setGlobalRequests={setGlobalRequests}
+      hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
+      onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
     />
   );
 }
@@ -88,7 +116,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD (My Portion)
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines }) {
+function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors }) {
   const [activeTab, setActiveTab] = useState('metrics');
 
   const allFacultyStatus = mockProfessors.map(prof => ({
@@ -114,6 +142,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
           <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
           <NavItem id="signups" label="📝 Signup & Matching Monitor" />
           <NavItem id="deadlines" label="📅 Deadline Management" />
+          <NavItem id="surveys" label="📋 Survey Responses" />
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
         </ul>
       </div>
@@ -139,6 +168,12 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                 </div>
                 <div className="bento-card" style={{ textAlign: 'center', background: '#10b981', color: 'white' }}>
                   <h4>Completed Observations</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalObservations.filter(o => o.status === 'Completed').length}</h1>
+                </div>
+                <div className="bento-card" style={{ textAlign: 'center', background: '#ef4444', color: 'white' }}>
+                  <h4>Survey Complete Rate</h4>
+                  <h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>
+                    {globalSignups.length ? Math.round((surveyResponses.length / globalSignups.length) * 100) : 0}%
+                  </h1>
                 </div>
               </div>
               
@@ -210,6 +245,14 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
               </div>
             </div>
           )}
+
+          {activeTab === 'surveys' && (
+            <AdminSurveyResults
+              surveyResponses={surveyResponses}
+              submittedCount={submittedCount}
+              totalCount={totalProfessors}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -218,7 +261,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit }) {
   const [activeTab, setActiveTab] = useState('home');
   const [matchedObservers, setMatchedObservers] = useState([]); 
   
@@ -428,10 +471,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests 
           )}
 
           {activeTab === 'survey' && (
-            <div className="bento-card full-span">
-              <h3>End of Cycle Survey</h3>
-              <p>Survey form temporarily hidden for workflow testing.</p>
-            </div>
+            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
           )}
         </div>
       </div>
