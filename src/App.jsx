@@ -411,14 +411,19 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
               {myConfirmedObservation ? (
                 <div className="bento-card full-span" style={{borderLeft: '5px solid #10b981'}}>
                   <h3>Final Confirmed Observer</h3>
-                  <p><strong>{myConfirmedObservation.observerName}</strong> is confirmed to observe <strong>{myConfirmedObservation.courseCode}</strong> on {myConfirmedObservation.timing}.</p>
+                  <p style={{ marginTop: '0.5rem', lineHeight: 1.6 }}>
+                    <strong>{myConfirmedObservation.courseCode}</strong> is confirmed to observe <strong>({myConfirmedObservation.timing}).</strong> on {myConfirmedObservation.timing}.
+                  </p>
 
-                  <p style={{marginBottom: '15px'}}>Status: <span className={`badge ${myConfirmedObservation.status === 'Completed' ? 'badge-success' : myConfirmedObservation.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{myConfirmedObservation.status}</span></p>
+                  <p style={{ marginTop: '0.75rem', marginBottom: '15px'}}>Status: <span className={`badge ${myConfirmedObservation.status === 'Completed' ? 'badge-success' : myConfirmedObservation.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{myConfirmedObservation.status}</span></p>
                   {(myConfirmedObservation.status === 'Scheduled' || myConfirmedObservation.status === 'Awaiting Confirmation') && (
                     <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '15px'}}>
                       <h4>Pair Confirmation</h4>
-                      <p style={{fontSize: '0.9rem', color: '#64748b', margin: '6px 0 10px'}}>
-                        Observer: {myConfirmedObservation.observerConfirmed ? '✓ confirmed' : '✗ Not confirmed'} · You: {myConfirmedObservation.youConfirmed ? '✓ confirmed' : '✗ Not confirmed'}
+                      <p style={{fontSize: '0.9rem', color: '#64748b', marginTop: '6px'}}>
+                        Observer: {myConfirmedObservation.observerConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
+                      </p>
+                      <p style={{fontSize: '0.9rem', color: '#64748b', margin: '4px 0 10px'}}>
+                        You: {myConfirmedObservation.observeeConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
                       </p>
                       {!myConfirmedObservation.observeeConfirmed && (
                         <div style={{display: 'flex', gap: '10px'}}>
