@@ -40,7 +40,7 @@ export default function App() {
         globalObservations={globalObservations}
         globalDeadlines={globalDeadlines}
         setGlobalDeadlines={setGlobalDeadlines}
-        completedRequiredSurveys={surveySubmissions}
+        surveySubmissions={surveySubmissions}
       />
     );
   }
