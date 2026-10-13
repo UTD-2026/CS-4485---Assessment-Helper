@@ -48,10 +48,17 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit }) {
         </h2>
 
         {hasSubmitted ? (
-          <div className="success-message" style={{ textAlign: 'center', padding: '2rem' }}>
-            <h3 style={{ color: '#16a34a' }}>✓ Survey Submitted Successfully</h3>
-            <p>Thank you. Your feedback has been recorded in the system.</p>
-            <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
+          <div className="success-message" style={{ 
+            textAlign: 'center', 
+            padding: '2rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <h3 style={{ color: '#16a34a', marginBottom: '0.25rem' }}>✓ Survey Submitted Successfully</h3>
+            <p style={{ lineHeight: 1.6}}>Thank you. Your feedback has been recorded in the system.</p>
+            <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.6, maxWidth: '560px', marginTop: '0.5rem' }}>
               Your answers are anonymous. The Assessment Committee can see that you completed the survey,
               but not which responses are yours.
             </p>
