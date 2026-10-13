@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { generateObserverMatches } from './matchmaker.js';
 import './App.css';
 import FeedbackSurvey from './FeedbackSurvey.jsx';
-import AdminSurveyResults from './AdminSurveyResults.jsx';
+import AdminSurveyResults from './Adminsurveyresults.jsx';
+import AdminKpiDashboard from './AdminKpiDashboard.jsx';
 // BIG FIX: Added the missing imports here!
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines } from './mockDatabase.js';
 
@@ -23,9 +24,6 @@ export default function App() {
       setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
   };
 
-  const completedRequiredSurveys = surveySubmissions.filter(sub =>
-    globalSignups.some(signup => signup.observeeId === sub.professor_id)).length;
-
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
 
   if (currentUser.role === 'admin') {
@@ -42,7 +40,7 @@ export default function App() {
         globalObservations={globalObservations}
         globalDeadlines={globalDeadlines}
         setGlobalDeadlines={setGlobalDeadlines}
-        completedRequiredSurveys={completedRequiredSurveys}
+        completedRequiredSurveys={suverySubmissions}
       />
     );
   }
@@ -131,7 +129,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, completedRequiredSurveys }) {
+function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions }) {
   const [activeTab, setActiveTab] = useState('metrics');
 
   const allFacultyStatus = mockProfessors.map(prof => ({
@@ -140,7 +138,6 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
   }));
 
   const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
-  const overdueFaculty = allFacultyStatus.filter(f => f.status === 'Overdue');
 
   const NavItem = ({ id, label }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
@@ -169,36 +166,13 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 
         <div className="content-scroll">
           {activeTab === 'metrics' && (
-            <div>
-              <h3>Real-Time Operational Metrics</h3>
-              <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                <div className="bento-card" style={{ textAlign: 'center', background: '#3b82f6', color: 'white' }}>
-                  <h4>Total Faculty Due</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{dueFaculty.length}</h1>
-                </div>
-                <div className="bento-card" style={{ textAlign: 'center', background: '#8b5cf6', color: 'white' }}>
-                  <h4>Total Signups</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalSignups.length}</h1>
-                </div>
-                <div className="bento-card" style={{ textAlign: 'center', background: '#f59e0b', color: 'white' }}>
-                  <h4>Confirmed Observations</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalObservations.length}</h1>
-                </div>
-                <div className="bento-card" style={{ textAlign: 'center', background: '#10b981', color: 'white' }}>
-                  <h4>Completed Observations</h4><h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{globalObservations.filter(o => o.status === 'Completed').length}</h1>
-                </div>
-                <div className="bento-card" style={{ textAlign: 'center', background: '#ef4444', color: 'white' }}>
-                  <h4>Survey Complete Rate</h4>
-                  <h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>
-                    {/*will use surveyResponse.length later for numerator*/}
-                    {globalSignups.length ? Math.round((completedRequiredSurveys / globalSignups.length) * 100) : 0}%
-                  </h1>
-                </div>
-              </div>
-              
-              {/* TEAMMATE HANDOFF POINT FOR ANALYTICS */}
-              <div className="bento-card" style={{ marginTop: '20px', border: '2px dashed #94a3b8', background: '#f8fafc' }}>
-                <h3 style={{color: '#64748b'}}>Teammate Integration Zone: Executive KPIs</h3>
-                <p style={{color: '#64748b', fontSize: '0.9rem'}}>*Survey participation metrics, utilization KPIs, and executive reporting components will be injected here.*</p>
-              </div>
-            </div>
+            <AdminKpiDashboard
+              signups={globalSignups}
+              requests={globalRequests}
+              observations={globalObservations}
+              surveySubmissions={surveySubmissions}
+              deadlines={globalDeadlines}
+            />
           )}
 
           {activeTab === 'faculty' && (
@@ -238,7 +212,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                             {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
                             {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
                           </td>
-                          <td>{obs ? <strong>{obs.observerName}</strong> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
+                          <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
                         </tr>
                       );
                     })
@@ -340,6 +314,9 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       observerId: acceptedRequest.observerId, observerName: acceptedRequest.observerName,
       courseCode: acceptedRequest.courseCode, timing: acceptedRequest.timing,
       status: 'Scheduled',
+      // Pair-confirmation: the observation only counts as Completed once BOTH sides confirm it happened
+      observerConfirmed: false,
+      observeeConfirmed: false,
     };
     setGlobalObservations(prev => [...(prev || []), newObservation]);
 
@@ -347,6 +324,21 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       req.observeeId === user.professor_id ? { ...req, status: req.id === acceptedRequest.id ? 'Confirmed' : 'Cancelled' } : req
     ));
     alert(`${acceptedRequest.observerName} is now confirmed as your observer!`);
+  };
+
+  // Pair-confirmation helpers
+  const confirmObservation = (obsId, side) => {
+    setGlobalObservations(prev => prev.map(o => {
+      if (o.id !== obsId) return o;
+      const next = { ...o, [side === 'observer' ? 'observerConfirmed' : 'observeeConfirmed']: true };
+      next.status = (next.observerConfirmed && next.observeeConfirmed) ? 'Completed' : 'Awaiting Confirmation';
+      return next;
+    }));
+  }
+
+  const reportMissedObservation = (obsId) => {
+    if (!window.confirm("Report that this observation did NOT take place?")) return;
+    setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Missed', missedReportedBy: user.name } : o));
   };
 
   const mySentRequests = globalRequests.filter(req => req.observeeId === user.professor_id);
@@ -420,12 +412,30 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                 <div className="bento-card full-span" style={{borderLeft: '5px solid #10b981'}}>
                   <h3>Final Confirmed Observer</h3>
                   <p><strong>{myConfirmedObservation.observerName}</strong> is confirmed to observe <strong>{myConfirmedObservation.courseCode}</strong> on {myConfirmedObservation.timing}.</p>
-                  <p style={{marginBottom: '15px'}}>Status: <span className="badge badge-success">{myConfirmedObservation.status}</span></p>
-                  
+
+                  <p style={{marginBottom: '15px'}}>Status: <span className={`badge ${myConfirmedObservation.status === 'Completed' ? 'badge-success' : myConfirmedObservation.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{myConfirmedObservation.status}</span></p>
+                  {(myConfirmedObservation.status === 'Scheduled' || myConfirmedObservation.status === 'Awaiting Confirmation') && (
+                    <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '15px'}}>
+                      <h4>Pair Confirmation</h4>
+                      <p style={{fontSize: '0.9rem', color: '#64748b', margin: '6px 0 10px'}}>
+                        Observer: {myConfirmedObservation.observerConfirmed ? '✓ confirmed' : '✗ Not confirmed'} · You: {myConfirmedObservation.youConfirmed ? '✓ confirmed' : '✗ Not confirmed'}
+                      </p>
+                      {!myConfirmedObservation.observeeConfirmed && (
+                        <div style={{display: 'flex', gap: '10px'}}>
+                          <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
+                          <button className="btn-danger sm" onClick={() => reportMissedObservation(myConfirmedObservation.id)}>Did Not Happen</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {myConfirmedObservation.status === 'Missed' && (
+                    <p style={{color: '#b91c1c', fontSize: '0.9rem'}}>This observation was reported as not held by {myConfirmedObservation.missedReportedBy}. Please contact the Assessment Committee.</p>
+                  )}
                   {myConfirmedObservation.status === 'Completed' && (
                      <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
                         <h4>Observation Completed!</h4>
-                        <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>The observer has completed their observation. Please proceed to the final survey.</p>
+                        <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. Please proceed to the final survey.</p>
                         <button className="btn-primary sm" onClick={() => setActiveTab('survey')}>Take Survey</button>
                      </div>
                   )}
@@ -533,13 +543,21 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                             <td>{obs.courseCode}</td>
                             <td>{obs.timing}</td>
                             <td>
-                              {obs.status === 'Scheduled' ? (
-                                <button className="btn-primary sm" onClick={() => {
-                                  setGlobalObservations(globalObservations.map(o => o.id === obs.id ? {...o, status: 'Completed'} : o));
-                                  alert("Observation marked Completed! Taking you to the final survey.");
-                                  setActiveTab('survey');
-                                }}>Upload Form & Complete</button>
-                              ) : <span className="badge badge-success">Completed</span>}
+                              {obs.status === 'Missed' ? (
+                                <span className="badge badge-error">Missed</span>
+                              ) : obs.status === 'Completed' ? (
+                                <span className="badge badge-success">Completed</span>
+                              ) : obs.observerConfirmed ? (
+                                <span className="badge badge-warning">Awaiting observee confirmation</span>
+                              ) : (
+                                <div style={{display: 'flex', gap: '10px'}}>
+                                  <button className="btn-primary sm" onClick={() => {
+                                    confirmObservation(obs.id, 'observer');
+                                    alert("Form uploaded and observation confirmed. It will be marked Completed once the observee also confirms.");
+                                  }}>Upload Form & Confirm</button>
+                                  <button className="btn-danger sm" onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))
