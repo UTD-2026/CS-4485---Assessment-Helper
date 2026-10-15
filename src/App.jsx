@@ -6,7 +6,8 @@ import AdminSurveyResults from './Adminsurveyresults.jsx';
 import AdminKpiDashboard from './AdminKpiDashboard.jsx';
 // Added mockEvaluationTemplate here
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './mockDatabase.js';
-
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -62,6 +63,8 @@ export default function App() {
       setGlobalObservations={setGlobalObservations}
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
       onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
+      // NEW: Pass the template data to the professor dashboard
+      evaluationTemplate={evaluationTemplate} 
     />
   );
 }
@@ -320,7 +323,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   
@@ -328,6 +331,94 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const myCourses = mockCourses.filter(c => c.instructor_id === user.professor_id);
   const mySignup = globalSignups.find(s => s.observeeId === user.professor_id);
   const myConfirmedObservation = globalObservations?.find(o => o.observeeId === user.professor_id);
+
+  // NEW: PDF Generator Function
+  const handleDownloadPDF = (obs) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(18);
+      doc.text("Peer Observation Evaluation Rubric", 14, 22);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text("Use this rubric to evaluate the observee during the scheduled session.", 14, 30);
+
+      // Dynamic Names & Course Info
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text(`Observer: ${obs.observerName}`, 14, 45);
+      doc.text(`Observee: ${obs.observeeName}`, 14, 52);
+      doc.text(`Course: ${obs.courseCode} (${obs.timing})`, 14, 59);
+
+      const tableColumn = ["Evaluation Criteria", "Rating Scale", "Observer Notes"];
+      
+      // Pass an empty string for the rating scale so we can draw the circles ourselves
+      const tableRows = evaluationTemplate.map(item => [
+        item.criteria,
+        "", 
+        "" 
+      ]);
+
+      autoTable(doc, {
+        startY: 65,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [30, 41, 59] }, 
+        styles: { cellPadding: 6, fontSize: 10, minCellHeight: 25 }, 
+        columnStyles: { 
+          0: { cellWidth: 65 },
+          1: { cellWidth: 55 }, 
+          2: { cellWidth: 'auto' } 
+        },
+        // This hook draws custom shapes inside the cells after the text is placed
+        didDrawCell: (data) => {
+          if (data.column.index === 1 && data.cell.section === 'body') {
+            const ratingType = evaluationTemplate[data.row.index].ratingScale;
+            const x = data.cell.x;
+            const y = data.cell.y;
+            
+            if (ratingType.includes('1 to 5')) {
+              doc.setFontSize(9);
+              // Draw 5 circles with numbers right underneath them
+              for(let i = 0; i < 5; i++) {
+                 const circleX = x + 8 + (i * 10);
+                 const circleY = y + 10;
+                 doc.circle(circleX, circleY, 2.5); // x, y, radius
+                 doc.text((i + 1).toString(), circleX - 1, circleY + 7);
+              }
+            } else if (ratingType.includes('Yes / No')) {
+               doc.setFontSize(9);
+               doc.circle(x + 8, y + 10, 2.5); doc.text("Yes", x + 13, y + 11);
+               doc.circle(x + 28, y + 10, 2.5); doc.text("No", x + 33, y + 11);
+               doc.circle(x + 48, y + 10, 2.5); doc.text("N/A", x + 53, y + 11);
+            } else {
+               doc.setFontSize(10);
+               doc.text("Written Feedback", x + 5, y + 12);
+            }
+          }
+        }
+      });
+
+      // Signatures & Dates at the bottom (dynamically placed after the table ends)
+      const finalY = doc.lastAutoTable.finalY + 25; 
+      
+      doc.setFontSize(11);
+      doc.text("Observer Signature: ___________________________", 14, finalY);
+      doc.text("Date: ____________", 130, finalY);
+      
+      doc.text("Observee Signature: ___________________________", 14, finalY + 20);
+      doc.text("Date: ____________", 130, finalY + 20);
+
+      // Save the file dynamically named after the observee
+      doc.save(`Evaluation_${obs.observeeName.replace(/\s+/g, '')}.pdf`);
+    } catch (error) {
+      console.error("PDF Generation Error: ", error);
+      alert("There was an error generating the PDF. Please check the console.");
+    }
+  };
 
   const NavItem = ({ id, icon: Icon, label }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
@@ -625,10 +716,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                 <span className="badge badge-warning">Awaiting observee confirmation</span>
                               ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                                  {/* NEW: Download Template Button */}
-                                  <button className="btn-secondary sm" style={{background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} onClick={() => alert("Downloading EvaluationTemplate.pdf...")}>
-                                    📥 Download Template
-                                  </button>
+                                  {/* UPDATED: Download Template Button passes the 'obs' object */}
+                                  <button 
+                                      className="btn-secondary sm" 
+                                      style={{background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
+                                      onClick={() => handleDownloadPDF(obs)}
+                                    >
+                                      📥 Download Template
+                                    </button>
                                   
                                   <button className="btn-primary sm" style={{padding: '5px 10px', borderRadius: '4px'}} onClick={() => {
                                   confirmObservation(obs.id, 'observer');
