@@ -59,3 +59,10 @@ export const initialDeadlines = {
   observation: "2027-04-15",
   survey: "2027-05-01" 
 };
+
+export const mockEvaluationTemplate = [
+  { id: 1, criteria: "Clear presentation of course objectives", ratingScale: "1 to 5 (Poor to Excellent)" },
+  { id: 2, criteria: "Effective use of class time and pacing", ratingScale: "1 to 5 (Poor to Excellent)" },
+  { id: 3, criteria: "Encourages student participation and questions", ratingScale: "1 to 5 (Poor to Excellent)" },
+  { id: 4, criteria: "Overall effectiveness of instructional delivery", ratingScale: "1 to 5 (Poor to Excellent)" }
+];

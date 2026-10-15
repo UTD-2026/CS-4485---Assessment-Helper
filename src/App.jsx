@@ -4,8 +4,8 @@ import './App.css';
 import FeedbackSurvey from './FeedbackSurvey.jsx';
 import AdminSurveyResults from './Adminsurveyresults.jsx';
 import AdminKpiDashboard from './AdminKpiDashboard.jsx';
-// BIG FIX: Added the missing imports here!
-import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines } from './mockDatabase.js';
+// Added mockEvaluationTemplate here
+import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './mockDatabase.js';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -17,6 +17,8 @@ export default function App() {
   const [globalSignups, setGlobalSignups] = useState([]);
   const [globalObservations, setGlobalObservations] = useState([]);
   const [globalDeadlines, setGlobalDeadlines] = useState(initialDeadlines);
+  // NEW: Template State
+  const [evaluationTemplate, setEvaluationTemplate] = useState(mockEvaluationTemplate);
 
   const handleSurveySubmit = (professorId, answers) => {
     if (surveySubmissions.some(s => s.professor_id === professorId)) return;
@@ -41,6 +43,9 @@ export default function App() {
         globalDeadlines={globalDeadlines}
         setGlobalDeadlines={setGlobalDeadlines}
         surveySubmissions={surveySubmissions}
+        // NEW: Pass template state to Admin
+        evaluationTemplate={evaluationTemplate}
+        setEvaluationTemplate={setEvaluationTemplate}
       />
     );
   }
@@ -53,7 +58,6 @@ export default function App() {
       setGlobalRequests={setGlobalRequests}
       globalSignups={globalSignups}
       setGlobalSignups={setGlobalSignups}
-      /* BIG FIX: Passed these down so your dashboard can use them! */
       globalObservations={globalObservations}
       setGlobalObservations={setGlobalObservations}
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
@@ -129,8 +133,11 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions }) {
+function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate }) {
   const [activeTab, setActiveTab] = useState('metrics');
+  // Local state for the new criterion form
+  const [newCriteria, setNewCriteria] = useState('');
+  const [newRating, setNewRating] = useState('1 to 5 (Poor to Excellent)');
 
   const allFacultyStatus = mockProfessors.map(prof => ({
     ...prof,
@@ -145,6 +152,16 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
     </li>
   );
 
+  const handleAddCriteria = () => {
+    if (!newCriteria) return;
+    setEvaluationTemplate([...evaluationTemplate, { id: Date.now(), criteria: newCriteria, ratingScale: newRating }]);
+    setNewCriteria('');
+  };
+
+  const handleDeleteCriteria = (id) => {
+    setEvaluationTemplate(evaluationTemplate.filter(item => item.id !== id));
+  };
+
   return (
     <div className="dashboard-layout">
       <div className="sidebar premium-glass-dark" style={{ background: '#1e293b' }}>
@@ -152,8 +169,9 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
         <ul className="nav-menu">
           <NavItem id="metrics" label="📊 Live Metrics & KPIs" />
           <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
-          <NavItem id="signups" label="📝 Signup & Matching Monitor" />
-          <NavItem id="deadlines" label="📅 Deadline Management" />
+          <NavItem id="signups" label="📝 Signup Monitor" />
+          <NavItem id="deadlines" label="📅 Deadlines" />
+          <NavItem id="template" label="⚙️ Template Editor" />
           <NavItem id="surveys" label="📋 Survey Responses" />
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
         </ul>
@@ -232,6 +250,57 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={globalDeadlines.survey} onChange={e => setGlobalDeadlines({...globalDeadlines, survey: e.target.value})} /></div>
                   <button type="button" className="btn-primary" onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'template' && (
+            <div className="bento-grid">
+              <div className="bento-card full-span">
+                <h3>Evaluation Template Editor</h3>
+                <p className="subtitle">Configure the criteria and rating scales that observers will use during in-person evaluations.</p>
+                
+                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ marginBottom: '15px' }}>Add New Criterion</h4>
+                  <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 2 }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Criteria Description</label>
+                      <input type="text" value={newCriteria} onChange={(e) => setNewCriteria(e.target.value)} placeholder="e.g., Uses multimedia effectively" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Rating Scale</label>
+                      <select value={newRating} onChange={(e) => setNewRating(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                        <option value="1 to 5 (Poor to Excellent)">1 to 5 (Poor to Excellent)</option>
+                        <option value="Yes / No / N/A">Yes / No / N/A</option>
+                        <option value="Text Feedback Only">Text Feedback Only</option>
+                      </select>
+                    </div>
+                    <button className="btn-primary btn-3d" onClick={handleAddCriteria} style={{ padding: '10px 20px' }}>Add</button>
+                  </div>
+                </div>
+
+                <div className="modern-table-wrapper">
+                  <table className="data-table">
+                    <thead><tr><th>Evaluation Criteria</th><th>Rating Scale</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {evaluationTemplate.length === 0 ? (
+                        <tr><td colSpan="3" style={{ textAlign: 'center' }}>No criteria defined. Template is empty.</td></tr>
+                      ) : (
+                        evaluationTemplate.map(item => (
+                          <tr key={item.id}>
+                            <td><strong>{item.criteria}</strong></td>
+                            <td><span className="badge badge-neutral">{item.ratingScale}</span></td>
+                            <td><button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)} style={{ background: '#ef4444', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Remove</button></td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                  <button className="btn-primary btn-3d" onClick={() => alert("Template saved and published to Observer Portals!")}>Save & Publish Template</button>
+                </div>
               </div>
             </div>
           )}
@@ -504,7 +573,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
             </div>
           )}
 
-          {activeTab === 'observer-duties' && (
+{activeTab === 'observer-duties' && (
             <div className="bento-grid">
               <div className="bento-card full-span">
                 <h3>Incoming Observation Requests</h3>
@@ -537,7 +606,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                 <h3>My Confirmed Observation Appointments</h3>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Observee</th><th>Course</th><th>Time</th><th>Status & Upload</th></tr></thead>
+                    <thead><tr><th>Observee</th><th>Course</th><th>Time</th><th>Status & Action</th></tr></thead>
                     <tbody>
                       {myAssignedObservations.length === 0 ? (
                         <tr><td colSpan="4" style={{textAlign: 'center'}}>No confirmed duties.</td></tr>
@@ -555,12 +624,18 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                               ) : obs.observerConfirmed ? (
                                 <span className="badge badge-warning">Awaiting observee confirmation</span>
                               ) : (
-                                <div style={{display: 'flex', gap: '10px'}}>
-                                  <button className="btn-primary sm" onClick={() => {
-                                    confirmObservation(obs.id, 'observer');
-                                    alert("Form uploaded and observation confirmed. It will be marked Completed once the observee also confirms.");
-                                  }}>Upload Form & Confirm</button>
-                                  <button className="btn-danger sm" onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
+                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
+                                  {/* NEW: Download Template Button */}
+                                  <button className="btn-secondary sm" style={{background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} onClick={() => alert("Downloading EvaluationTemplate.pdf...")}>
+                                    📥 Download Template
+                                  </button>
+                                  
+                                  <button className="btn-primary sm" style={{padding: '5px 10px', borderRadius: '4px'}} onClick={() => {
+                                  confirmObservation(obs.id, 'observer');
+                                  alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
+                                  }}>Evaluation Completed</button>
+                                  
+                                  <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
                                 </div>
                               )}
                             </td>
