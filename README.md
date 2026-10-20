@@ -22,18 +22,6 @@ A centralized platform for managing faculty evaluations, course histories, and p
 - **Metrics (KPIs):** participation rate, list sufficiency, and overdue evaluations
 - **Deadlines:** faculty due report with reminders
 
-## Tech Stack
-
-| Layer | Current | Planned |
-|---|---|---|
-| Front end | React 19, Vite | – |
-| Back end | – | Node.js |
-| Database | – | MySQL |
-| Scheduled jobs | – | Python cron jobs |
-| Auth | Mock login | - |
-| External data | Sample data | - |
-| Linting | oxlint | – |
-
 ## Getting Started
 
 **Prerequisites:** [Node.js](https://nodejs.org/) (LTS recommended) and Git.
@@ -43,7 +31,7 @@ A centralized platform for managing faculty evaluations, course histories, and p
 git clone https://github.com/<owner>/CS-4485---Assessment-Helper.git
 cd CS-4485---Assessment-Helper
 
-# 2. Install dependencies
+# 2. Install workspace dependencies from the repository root
 npm install
 
 # 3. Start the dev server
@@ -72,21 +60,12 @@ The login screen is a front-end placeholder. It does not check passwords; the us
 
 The password field must be filled in, but any value is accepted.
 
-## Project Structure
-
-```
-├── public/               # Static assets (favicon, icons)
-├── src/
-│   ├── assets/           # Images and SVGs
-│   ├── App.jsx           # Login, Professor dashboard, and Admin dashboard
-│   ├── App.css           # Global styles and component styling
-│   ├── FeedbackSurvey.jsx# End-of-process survey component
-│   ├── index.css
-│   └── main.jsx          # React entry point
-├── index.html
-├── package.json
-└── vite.config.js
-```
+## Database Setup
+1. Install dependencies `npm install`
+2. Create .env ```cd backend
+cp .env.example .env```
+3. Update .env with the correct MongoDB URI (Do not commit .env)
+4. Verify the connection `npm run test-db`
 
 ## Roadmap
 

@@ -3,7 +3,7 @@
 // Every function takes the app's global state and returns plain numbers/lists,
 // so the same logic can later run on the Node/MySQL back end unchanged.
  
-import { mockProfessors, mockCourses, calculateEvaluationStatus } from './mockDatabase.js';
+import { mockProfessors, mockCourses, calculateEvaluationStatus } from '../data/mockDatabase.js';
  
 export const TARGET_LIST_SIZE = 5; // matchmaker.js returns up to 5 observers per sign-up
  
