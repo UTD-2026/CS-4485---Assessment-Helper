@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "The Node.js API is planned for this directory but is not implemented yet. Keep server-only code here when the backend is introduced, separated by responsibility—for example, routes/controllers, services, middleware, and configuration. The frontend prototype currently has no API to call.",
+  "main": "index.js",
+  "scripts": {
+    "setup-db": "node setup-database.js",
+    "test-db": "node test-database.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "mongoose": "^9.11.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

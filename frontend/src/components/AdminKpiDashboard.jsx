@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { computeAllKpis, VIOLATION_TYPES, TARGET_LIST_SIZE } from './kpis.js';
+import { computeAllKpis, VIOLATION_TYPES, TARGET_LIST_SIZE } from '../utils/kpis.js';
 
 /**
  * Committee KPI dashboard: implements the 4 KPI groups from the project spec.

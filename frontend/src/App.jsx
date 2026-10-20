@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { generateObserverMatches } from './matchmaker.js';
-import './App.css';
-import FeedbackSurvey from './FeedbackSurvey.jsx';
-import AdminSurveyResults from './Adminsurveyresults.jsx';
-import AdminKpiDashboard from './AdminKpiDashboard.jsx';
+import { generateObserverMatches } from './utils/matchmaker.js';
+import './styles/App.css';
+import FeedbackSurvey from './components/FeedbackSurvey.jsx';
+import AdminSurveyResults from './components/AdminSurveyResults.jsx';
+import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
 // Added mockEvaluationTemplate here
-import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './mockDatabase.js';
+import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 export default function App() {

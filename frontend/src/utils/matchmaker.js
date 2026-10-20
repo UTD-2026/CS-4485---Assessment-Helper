@@ -1,5 +1,5 @@
 // matchmaker.js
-import { mockProfessors, mockCourses } from './mockDatabase.js';
+import { mockProfessors, mockCourses } from '../data/mockDatabase.js';
 
 export const generateObserverMatches = (observeeId, inputCourseCode, inputTiming) => {
   const observee = mockProfessors.find(p => p.professor_id === observeeId);
