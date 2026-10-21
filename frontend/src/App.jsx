@@ -6,8 +6,6 @@ import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
 // Added mockEvaluationTemplate here
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -389,6 +387,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
   
   const myStatus = calculateEvaluationStatus(user);
   const myCourses = mockCourses.filter(c => c.instructor_id === user.professor_id);
@@ -792,13 +791,16 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                 <span className="badge badge-warning">Awaiting observee confirmation</span>
                               ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                                  {/* UPDATED: Download Template Button passes the 'obs' object */}
+                                  {/* NEW: Live Evaluation Button replaces Download Template */}
                                   <button 
                                       className="btn-secondary sm" 
-                                      style={{background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
-                                      onClick={() => handleDownloadPDF(obs)}
+                                      style={{background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
+                                      onClick={() => {
+                                        setActiveEvaluationTarget(obs);
+                                        setActiveTab('live-evaluation');
+                                      }}
                                     >
-                                      📥 Download Template
+                                      📝 Begin Evaluation
                                     </button>
                                   
                                   <button className="btn-primary sm" style={{padding: '5px 10px', borderRadius: '4px'}} onClick={() => {
@@ -819,7 +821,71 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
               </div>
             </div>
           )}
+          {activeTab === 'live-evaluation' && activeEvaluationTarget && (
+            <div className="bento-grid">
+              <div className="bento-card full-span">
+                <div className="card-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.4rem', color: 'var(--utd-green)' }}>Live Observation: {activeEvaluationTarget.observeeName}</h3>
+                    <p className="subtitle" style={{ marginTop: '5px' }}>Evaluating {activeEvaluationTarget.courseCode} ({activeEvaluationTarget.timing})</p>
+                  </div>
+                  <button className="btn-secondary sm" onClick={() => { setActiveEvaluationTarget(null); setActiveTab('observer-duties'); }}>Cancel & Return</button>
+                </div>
 
+                <form className="modern-form" onSubmit={(e) => {
+                  e.preventDefault();
+                  alert("Digital evaluation successfully recorded!");
+                  setActiveEvaluationTarget(null);
+                  setActiveTab('observer-duties');
+                }}>
+                  {evaluationTemplate.map((item, index) => (
+                    <div key={item.id} style={{ marginBottom: '30px', paddingBottom: '25px', borderBottom: '1px solid #f1f5f9' }}>
+                      <label style={{ fontSize: '1.1rem', marginBottom: '15px', display: 'block', color: '#0f172a' }}>
+                        <strong>{index + 1}.</strong> {item.criteria}
+                      </label>
+                      
+                      <div style={{ marginBottom: '15px', paddingLeft: '20px' }}>
+                        {item.ratingScale.includes('1 to 5') && (
+                          <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
+                            {[1, 2, 3, 4, 5].map(num => (
+                              <label key={num} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
+                                <input type="radio" name={`rating-${item.id}`} value={num} required style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {num}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {item.ratingScale.includes('Yes / No') && (
+                          <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
+                            {['Yes', 'No', 'N/A'].map(opt => (
+                              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
+                                <input type="radio" name={`rating-${item.id}`} value={opt} required style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {opt}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ paddingLeft: '20px' }}>
+                        <textarea 
+                          placeholder="Observer notes and feedback..." 
+                          rows="3" 
+                          required 
+                          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
+                        ></textarea>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
+                    <button type="submit" className="btn-primary btn-3d" style={{ padding: '12px 30px', fontSize: '1.1rem' }}>
+                      Submit Digital Evaluation
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
           {activeTab === 'survey' && (
             <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
           )}
