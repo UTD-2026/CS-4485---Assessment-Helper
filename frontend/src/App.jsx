@@ -65,6 +65,7 @@ export default function App() {
       onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
       // NEW: Pass the template data to the professor dashboard
       evaluationTemplate={evaluationTemplate} 
+      globalDeadlines={globalDeadlines}
     />
   );
 }
@@ -138,9 +139,32 @@ function Login({ onLogin }) {
 ========================================= */
 function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate }) {
   const [activeTab, setActiveTab] = useState('metrics');
+  
   // Local state for the new criterion form
   const [newCriteria, setNewCriteria] = useState('');
   const [newRating, setNewRating] = useState('1 to 5 (Poor to Excellent)');
+
+  // NEW: State for inline editing
+  const [editingId, setEditingId] = useState(null);
+  const [editCriteria, setEditCriteria] = useState('');
+  const [editRating, setEditRating] = useState('1 to 5 (Poor to Excellent)');
+
+  const startEditing = (item) => {
+    setEditingId(item.id);
+    setEditCriteria(item.criteria);
+    setEditRating(item.ratingScale);
+  };
+
+  const saveEdit = (id) => {
+    setEvaluationTemplate(evaluationTemplate.map(item => 
+      item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating } : item
+    ));
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
 
   const allFacultyStatus = mockProfessors.map(prof => ({
     ...prof,
@@ -291,9 +315,48 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                       ) : (
                         evaluationTemplate.map(item => (
                           <tr key={item.id}>
-                            <td><strong>{item.criteria}</strong></td>
-                            <td><span className="badge badge-neutral">{item.ratingScale}</span></td>
-                            <td><button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)} style={{ background: '#ef4444', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Remove</button></td>
+                            {editingId === item.id ? (
+                              <>
+                                {/* EDIT MODE */}
+                                <td>
+                                  <input 
+                                    type="text" 
+                                    value={editCriteria} 
+                                    onChange={(e) => setEditCriteria(e.target.value)} 
+                                    style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1'}} 
+                                  />
+                                </td>
+                                <td>
+                                  <select 
+                                    value={editRating} 
+                                    onChange={(e) => setEditRating(e.target.value)} 
+                                    style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1'}}
+                                  >
+                                    <option value="1 to 5 (Poor to Excellent)">1 to 5 (Poor to Excellent)</option>
+                                    <option value="Yes / No / N/A">Yes / No / N/A</option>
+                                    <option value="Text Feedback Only">Text Feedback Only</option>
+                                  </select>
+                                </td>
+                                <td>
+                                  <div style={{display: 'flex', gap: '8px'}}>
+                                    <button className="btn-primary sm" onClick={() => saveEdit(item.id)} style={{padding: '6px 12px', borderRadius: '6px', border: 'none'}}>Save</button>
+                                    <button className="btn-secondary sm" onClick={cancelEdit} style={{padding: '6px 12px', borderRadius: '6px', cursor: 'pointer'}}>Cancel</button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                {/* VIEW MODE */}
+                                <td><strong>{item.criteria}</strong></td>
+                                <td><span className="badge badge-neutral">{item.ratingScale}</span></td>
+                                <td>
+                                  <div style={{display: 'flex', gap: '8px'}}>
+                                    <button className="btn-secondary sm" onClick={() => startEditing(item)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: '#0f172a', fontWeight: 'bold' }}>Edit</button>
+                                    <button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)} style={{ background: '#ef4444', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Remove</button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
                           </tr>
                         ))
                       )}
@@ -323,7 +386,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   
@@ -331,6 +394,9 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const myCourses = mockCourses.filter(c => c.instructor_id === user.professor_id);
   const mySignup = globalSignups.find(s => s.observeeId === user.professor_id);
   const myConfirmedObservation = globalObservations?.find(o => o.observeeId === user.professor_id);
+  const isPastSignupDeadline = globalDeadlines && globalDeadlines.signup 
+    ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
+    : false;
 
   // NEW: PDF Generator Function
   const handleDownloadPDF = (obs) => {
@@ -609,7 +675,17 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                 <>
                   <div className="bento-card full-span">
                     <h3>Step 2: Request Observers</h3>
-                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : (
+                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : 
+                      !isPastSignupDeadline ? (
+                        <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
+                          <h4 style={{ color: '#0f172a', marginBottom: '5px' }}>List Hidden</h4>
+                          <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '500' }}>
+                            {/* SAFE VERSION: Uses globalDeadlines?.signup */}
+                            Potential observers will show up once the Signup Deadline ({globalDeadlines?.signup || 'TBD'}) passes.
+                          </p>
+                        </div>
+                      ) : (
                       <div className="modern-table-wrapper">
                         <table className="data-table">
                           <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
