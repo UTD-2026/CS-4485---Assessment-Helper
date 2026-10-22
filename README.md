@@ -18,11 +18,15 @@ A centralized platform for managing faculty evaluations, course histories, and p
 - **End Survey:** end-of-cycle feedback form
 
 **Committee / Admin Portal**
+- **Faculty Search:** name search, department/status filters, and export of filtered results to CSV
+- **Committee Reports:** due/overdue counts by hiring level, unmatched faculty, outstanding observations, and observer workload, each exportable to CSV
 - **Matchmaking:** generate observer lists, notify faculty, and flag faculty with no eligible observers
 - **Metrics (KPIs):** participation rate, list sufficiency, and overdue evaluations
 - **Deadlines:** faculty due report with reminders
 
 ## Tech Stack
+
+Committee reports use the current semester and live in-memory workflow state. Unmatched faculty are due/overdue professors without a non-missed observer assignment. Outstanding observations include every assignment not marked Completed. Average workload is total assignments (including missed sessions) divided by observers with at least one assignment; faculty with zero assignments remain visible in the workload table. Workflow data resets when the page refreshes.
 
 | Layer | Current | Planned |
 |---|---|---|
@@ -120,3 +124,13 @@ The password field must be filled in, but any value is accepted.
 - Mikael Sagarwala
 - Srikrupaa Sathiyanarayanan
 - Kavyadharshini Seenuvasan
+
+## Process document workflow
+
+- Assistant professors are due in the calendar year following their last evaluation (either semester) and overdue after that year. Associate/full professors are due in the same semester two years later.
+- Signup adds a professor to this cycle’s observer pool. After the signup deadline, the committee uses **Signup Monitor → Generate Observer Lists**, then **Notify Observee: List Ready** for each signup. Lists contain up to five signed-up, same-department, same-course-level professors with no shared meeting-day/time conflict.
+- Observees choose a class meeting date before the observation deadline, request colleagues, and choose one accepted observer. Other requests are cancelled. Observers see accepted requests awaiting final selection as well as final appointments.
+- Observers upload a signed PDF (maximum 5 MB) before confirming completion. Observees can download it. Both participants must still confirm that the observation happened.
+- The survey opens after the observation deadline for observees and assigned observers.
+- Deadline checks use the browser’s current local date. The sample semester remains Spring 2027. For a demonstration, sign up faculty first, then set the signup deadline to a past date; keep the observation deadline and requested class meeting date in the future. Set the observation deadline to a past date to demonstrate surveys.
+- Notifications are in-app list-release messages, not email. All workflow data and signed PDFs remain in browser memory and reset on refresh. Historical records, actual email delivery, and server-enforced access controls still require a backend.

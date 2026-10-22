@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { generateObserverMatches } from './matchmaker.js';
+import { localDate, validObservationDate } from './workflow.js';
+import { createFacultyCsv } from './facultyCsv.js';
 import './App.css';
 import FeedbackSurvey from './FeedbackSurvey.jsx';
 import AdminSurveyResults from './Adminsurveyresults.jsx';
 import AdminKpiDashboard from './AdminKpiDashboard.jsx';
+import CommitteeReports from './CommitteeReports.jsx';
 // Added mockEvaluationTemplate here
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './mockDatabase.js';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  
+
   // GLOBAL STATE
   const [globalRequests, setGlobalRequests] = useState([]);
   const [surveySubmissions, setSurveySubmissions] = useState([]);
@@ -55,6 +58,7 @@ export default function App() {
     <ProfessorDashboard
       user={currentUser}
       onLogout={() => setCurrentUser(null)}
+      globalDeadlines={globalDeadlines}
       globalRequests={globalRequests}
       setGlobalRequests={setGlobalRequests}
       globalSignups={globalSignups}
@@ -64,7 +68,7 @@ export default function App() {
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
       onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
       // NEW: Pass the template data to the professor dashboard
-      evaluationTemplate={evaluationTemplate} 
+      evaluationTemplate={evaluationTemplate}
     />
   );
 }
@@ -80,7 +84,7 @@ function Login({ onLogin }) {
     e.preventDefault();
     const user = mockProfessors.find(p => p.username === username)
           || mockAdmins.find(a => a.username === username);
-    
+
     if (!user) {
       setError("Professor not found.");
       return;
@@ -89,7 +93,7 @@ function Login({ onLogin }) {
       setError("Incorrect password.");
       return;
     }
-    
+
     setError('');
     onLogin(user);
   };
@@ -136,8 +140,11 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate }) {
+function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate }) {
   const [activeTab, setActiveTab] = useState('metrics');
+  const [facultySearch, setFacultySearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('due-overdue');
   // Local state for the new criterion form
   const [newCriteria, setNewCriteria] = useState('');
   const [newRating, setNewRating] = useState('1 to 5 (Poor to Excellent)');
@@ -147,13 +154,49 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
     ...calculateEvaluationStatus(prof)
   }));
 
-  const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
+  const departments = [...new Set(allFacultyStatus.map(f => f.department))].sort();
+  const searchQuery = facultySearch.trim().toLowerCase();
+  const filteredFaculty = allFacultyStatus.filter(f => (
+    f.name.toLowerCase().includes(searchQuery)
+    && (departmentFilter === 'all' || f.department === departmentFilter)
+    && (statusFilter === 'all'
+      || (statusFilter === 'due-overdue' ? f.status === 'Due' || f.status === 'Overdue' : f.status === statusFilter))
+  ));
+
+  const clearFacultyFilters = () => {
+    setFacultySearch('');
+    setDepartmentFilter('all');
+    setStatusFilter('all');
+  };
+
+  const exportFacultyCsv = () => {
+    if (filteredFaculty.length === 0) return;
+    const blob = new Blob([createFacultyCsv(filteredFaculty)], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `faculty-${currentSemester.toLowerCase().replaceAll(' ', '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const NavItem = ({ id, label }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
       <span>{label}</span>
     </li>
   );
+
+  const generateLists = () => {
+    if (localDate() <= globalDeadlines.signup) { alert('Observer selection opens after the signup deadline.'); return; }
+    const poolIds = globalSignups.map(s => s.observeeId);
+    setGlobalSignups(previous => previous.map(signup => {
+      if (signup.selectionGenerated) return signup;
+      const result = generateObserverMatches(signup.observeeId, signup.courseCode, signup.timing, poolIds);
+      return { ...signup, eligibleObservers: result.matches, matchesCount: result.matches.length, matchFlag: result.flag, selectionGenerated: true, listReady: false };
+    }));
+  };
 
   const handleAddCriteria = () => {
     if (!newCriteria) return;
@@ -171,7 +214,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
         <div className="sidebar-header"><div className="logo-small">AC</div><div><h3>Committee</h3><small>Executive Portal</small></div></div>
         <ul className="nav-menu">
           <NavItem id="metrics" label="📊 Live Metrics & KPIs" />
-          <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
+          <NavItem id="faculty" label="👥 Faculty Search" />
+          <NavItem id="reports" label="📑 Committee Reports" />
           <NavItem id="signups" label="📝 Signup Monitor" />
           <NavItem id="deadlines" label="📅 Deadlines" />
           <NavItem id="template" label="⚙️ Template Editor" />
@@ -186,6 +230,9 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
         </header>
 
         <div className="content-scroll">
+          {activeTab === 'reports' && (
+            <CommitteeReports signups={globalSignups} observations={globalObservations} />
+          )}
           {activeTab === 'metrics' && (
             <AdminKpiDashboard
               signups={globalSignups}
@@ -198,40 +245,83 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 
           {activeTab === 'faculty' && (
             <div className="bento-card full-span">
-              <h3>Faculty Due for Evaluation ({currentSemester})</h3>
+              <h3>Faculty Search ({currentSemester})</h3>
+              <div className="faculty-filters" role="search" aria-label="Faculty search and filters">
+                <div className="faculty-filter faculty-search-field">
+                  <label htmlFor="faculty-search">Professor name</label>
+                  <input id="faculty-search" type="search" placeholder="Search professors…" value={facultySearch} onChange={e => setFacultySearch(e.target.value)} />
+                </div>
+                <div className="faculty-filter">
+                  <label htmlFor="faculty-department">Department</label>
+                  <select id="faculty-department" value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}>
+                    <option value="all">All departments</option>
+                    {departments.map(department => <option key={department} value={department}>{department}</option>)}
+                  </select>
+                </div>
+                <div className="faculty-filter">
+                  <label htmlFor="faculty-status">Evaluation status</label>
+                  <select id="faculty-status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                    <option value="all">All statuses</option>
+                    <option value="due-overdue">Due / Overdue</option>
+                    <option value="Due">Due</option>
+                    <option value="Overdue">Overdue</option>
+                    <option value="Not Due">Not Due</option>
+                  </select>
+                </div>
+                <button type="button" className="btn-secondary btn-3d" onClick={clearFacultyFilters}>Clear filters</button>
+                <button type="button" className="btn-primary btn-3d faculty-export" onClick={exportFacultyCsv} disabled={filteredFaculty.length === 0}>Export CSV</button>
+              </div>
+              <p className="faculty-result-count" role="status">Showing {filteredFaculty.length} of {allFacultyStatus.length} professors</p>
+              <div className="faculty-table-wrapper">
               <table className="data-table">
                 <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
                 <tbody>
-                  {dueFaculty.map(f => (
+                  {filteredFaculty.length === 0 && (
+                    <tr><td colSpan="5" className="faculty-empty">No professors match your search and filters.</td></tr>
+                  )}
+                  {filteredFaculty.map(f => (
                     <tr key={f.professor_id}>
                       <td><strong>{f.name}</strong></td><td>{f.hire_level}</td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
                       <td>
-                        {f.status === 'Overdue' ? <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Overdue ({f.overdue_by} sem)</span> : <span className="badge badge-warning">Due</span>}
+                        {f.status === 'Overdue' ? <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Overdue ({f.overdue_by} sem)</span> : <span className={`badge ${f.status === 'Due' ? 'badge-warning' : 'badge-success'}`}>{f.status}</span>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
           {activeTab === 'signups' && (
             <div className="bento-card full-span">
               <h3>Signup & Matching Monitor</h3>
+              <p className="subtitle">Signups enter the observer pool automatically. Generate lists after {globalDeadlines.signup}, then release each list to its observee. Notifications appear in Observee Status.</p>
+              <button type="button" className="btn-primary btn-3d" onClick={generateLists} disabled={localDate() <= globalDeadlines.signup || globalSignups.length === 0}>Generate Observer Lists</button>
               <table className="data-table">
-                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
+                <thead><tr><th>Observee</th><th>Course</th><th>Section / Schedule</th><th>Matches Found</th><th>Match Status</th><th>Observer List / Release</th><th>Confirmed Observer</th></tr></thead>
                 <tbody>
-                  {globalSignups.length === 0 ? <tr><td colSpan="5" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
+                  {globalSignups.length === 0 ? <tr><td colSpan="7" style={{textAlign: 'center'}}>No signups yet.</td></tr> :
                     globalSignups.map(signup => {
                       const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
                       return (
                         <tr key={signup.id}>
                           <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
-                          <td>{signup.matchesCount} Observers</td>
+                          <td>{signup.section} / {signup.timing}</td>
+                          <td>{signup.selectionGenerated ? `${signup.matchesCount} Observers` : 'Awaiting selection'}</td>
                           <td>
                             {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
                             {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
+                            {!signup.selectionGenerated && <span>Awaiting committee selection</span>}
                             {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
+                          </td>
+                          <td>
+                            <p>{signup.eligibleObservers.map(o => o.name).join(', ') || 'No observers selected'}</p>
+                            {signup.selectionGenerated && !signup.listReady && <button type="button" className="btn-secondary btn-3d sm" onClick={() => {
+                              if (localDate() <= globalDeadlines.signup) return;
+                              setGlobalSignups(previous => previous.map(s => s.id === signup.id ? { ...s, listReady: true } : s));
+                            }}>Notify Observee: List Ready</button>}
+                            {signup.listReady && <span className="badge badge-success">List released</span>}
                           </td>
                           <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
                         </tr>
@@ -251,7 +341,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   <div className="form-group"><label>Signup Deadline</label><input type="date" value={globalDeadlines.signup} onChange={e => setGlobalDeadlines({...globalDeadlines, signup: e.target.value})} /></div>
                   <div className="form-group"><label>Observation Period Ends</label><input type="date" value={globalDeadlines.observation} onChange={e => setGlobalDeadlines({...globalDeadlines, observation: e.target.value})} /></div>
                   <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={globalDeadlines.survey} onChange={e => setGlobalDeadlines({...globalDeadlines, survey: e.target.value})} /></div>
-                  <button type="button" className="btn-primary" onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
+                  <button type="button" className="btn-primary" onClick={() => alert("Deadlines saved for this session. Email delivery is not connected.")}>Update Deadlines</button>
                 </form>
               </div>
             </div>
@@ -262,7 +352,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
               <div className="bento-card full-span">
                 <h3>Evaluation Template Editor</h3>
                 <p className="subtitle">Configure the criteria and rating scales that observers will use during in-person evaluations.</p>
-                
+
                 <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #e2e8f0' }}>
                   <h4 style={{ marginBottom: '15px' }}>Add New Criterion</h4>
                   <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
@@ -300,7 +390,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                     </tbody>
                   </table>
                 </div>
-                
+
                 <div style={{ marginTop: '20px', textAlign: 'right' }}>
                   <button className="btn-primary btn-3d" onClick={() => alert("Template saved and published to Observer Portals!")}>Save & Publish Template</button>
                 </div>
@@ -321,12 +411,14 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
   )
 }
 /* =========================================
-   PROFESSOR DASHBOARD 
+   PROFESSOR DASHBOARD
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate }) {
+function ProfessorDashboard({ user, onLogout, globalDeadlines, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  
+  const [observationDate, setObservationDate] = useState('');
+  const today = localDate();
+
   const myStatus = calculateEvaluationStatus(user);
   const myCourses = mockCourses.filter(c => c.instructor_id === user.professor_id);
   const mySignup = globalSignups.find(s => s.observeeId === user.professor_id);
@@ -336,11 +428,11 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const handleDownloadPDF = (obs) => {
     try {
       const doc = new jsPDF();
-      
+
       // Header
       doc.setFontSize(18);
       doc.text("Peer Observation Evaluation Rubric", 14, 22);
-      
+
       doc.setFontSize(11);
       doc.setTextColor(100);
       doc.text("Use this rubric to evaluate the observee during the scheduled session.", 14, 30);
@@ -353,12 +445,12 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       doc.text(`Course: ${obs.courseCode} (${obs.timing})`, 14, 59);
 
       const tableColumn = ["Evaluation Criteria", "Rating Scale", "Observer Notes"];
-      
+
       // Pass an empty string for the rating scale so we can draw the circles ourselves
       const tableRows = evaluationTemplate.map(item => [
         item.criteria,
-        "", 
-        "" 
+        "",
+        ""
       ]);
 
       autoTable(doc, {
@@ -366,12 +458,12 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
         head: [tableColumn],
         body: tableRows,
         theme: 'grid',
-        headStyles: { fillColor: [30, 41, 59] }, 
-        styles: { cellPadding: 6, fontSize: 10, minCellHeight: 25 }, 
-        columnStyles: { 
+        headStyles: { fillColor: [30, 41, 59] },
+        styles: { cellPadding: 6, fontSize: 10, minCellHeight: 25 },
+        columnStyles: {
           0: { cellWidth: 65 },
-          1: { cellWidth: 55 }, 
-          2: { cellWidth: 'auto' } 
+          1: { cellWidth: 55 },
+          2: { cellWidth: 'auto' }
         },
         // This hook draws custom shapes inside the cells after the text is placed
         didDrawCell: (data) => {
@@ -379,7 +471,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
             const ratingType = evaluationTemplate[data.row.index].ratingScale;
             const x = data.cell.x;
             const y = data.cell.y;
-            
+
             if (ratingType.includes('1 to 5')) {
               doc.setFontSize(9);
               // Draw 5 circles with numbers right underneath them
@@ -403,12 +495,12 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       });
 
       // Signatures & Dates at the bottom (dynamically placed after the table ends)
-      const finalY = doc.lastAutoTable.finalY + 25; 
-      
+      const finalY = doc.lastAutoTable.finalY + 25;
+
       doc.setFontSize(11);
       doc.text("Observer Signature: ___________________________", 14, finalY);
       doc.text("Date: ____________", 130, finalY);
-      
+
       doc.text("Observee Signature: ___________________________", 14, finalY + 20);
       doc.text("Date: ____________", 130, finalY + 20);
 
@@ -429,15 +521,18 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const handleSignup = () => {
     if (!selectedCourseId) { alert("Select a course first."); return; }
     const course = myCourses.find(c => c.section_id.toString() === selectedCourseId);
-    
-    const result = generateObserverMatches(user.professor_id, course.course_code, course.timing);
-    
+
+    if (today > globalDeadlines.signup) { alert('Signup has closed. Please contact the committee.'); return; }
+    const result = { matches: [], flag: 'AWAITING SELECTION' };
+
     setGlobalSignups(prev => [
       ...prev.filter(s => s.observeeId !== user.professor_id),
       {
         id: Date.now(),
         observeeId: user.professor_id,
         observeeName: user.name,
+        listReady: false,
+        selectionGenerated: false,
         courseCode: course.course_code,
         section: course.section,
         timing: course.timing,
@@ -447,16 +542,22 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       }
     ]);
 
-    alert("Signed up successfully! View your eligible observers on the Observee Status tab.");
+    alert("Signed up and added to the observer pool. The committee will release your observer list after signup closes.");
     setActiveTab('observee-status');
   };
 
   const handleSendRequest = (observer) => {
+    if (!mySignup?.listReady || today <= globalDeadlines.signup) return;
+    if (!validObservationDate(observationDate, globalDeadlines.observation, mySignup.timing)) {
+      alert('Select a future or current class meeting date before the observation deadline.'); return;
+    }
+    if (globalRequests.some(r => r.observeeId === user.professor_id && r.observerId === observer.professor_id)) return;
     const newRequest = {
       id: Date.now(),
       observeeId: user.professor_id, observeeName: user.name,
       observerId: observer.professor_id, observerName: observer.name,
       courseCode: mySignup.courseCode, timing: mySignup.timing,
+      observationDate,
       status: 'Pending'
     };
     setGlobalRequests([...globalRequests, newRequest]);
@@ -464,15 +565,25 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   };
 
   const handleObserverAction = (reqId, action) => {
+    const request = globalRequests.find(r => r.id === reqId && r.observerId === user.professor_id && r.status === 'Pending');
+    if (!request) return;
+    if (action === 'Accepted' && !validObservationDate(request.observationDate, globalDeadlines.observation, request.timing)) {
+      alert('This requested date is no longer available. Please decline or contact the observee.'); return;
+    }
     setGlobalRequests(globalRequests.map(req => req.id === reqId ? { ...req, status: action } : req));
   };
 
   const handleFinalConfirm = (acceptedRequest) => {
+    if (myConfirmedObservation || acceptedRequest.status !== 'Accepted') return;
+    if (!validObservationDate(acceptedRequest.observationDate, globalDeadlines.observation, acceptedRequest.timing)) {
+      alert('This requested date has passed or is outside the observation period. Please contact the committee.'); return;
+    }
     const newObservation = {
       id: Date.now(),
       observeeId: user.professor_id, observeeName: user.name,
       observerId: acceptedRequest.observerId, observerName: acceptedRequest.observerName,
       courseCode: acceptedRequest.courseCode, timing: acceptedRequest.timing,
+      observationDate: acceptedRequest.observationDate,
       status: 'Scheduled',
       // Pair-confirmation: the observation only counts as Completed once BOTH sides confirm it happened
       observerConfirmed: false,
@@ -480,16 +591,30 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     };
     setGlobalObservations(prev => [...(prev || []), newObservation]);
 
-    setGlobalRequests(globalRequests.map(req => 
+    setGlobalRequests(globalRequests.map(req =>
       req.observeeId === user.professor_id ? { ...req, status: req.id === acceptedRequest.id ? 'Confirmed' : 'Cancelled' } : req
     ));
     alert(`${acceptedRequest.observerName} is now confirmed as your observer!`);
   };
 
+  const uploadSignedObservation = (obsId, file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' || file.size > 5 * 1024 * 1024) {
+      alert('Choose a signed PDF no larger than 5 MB.'); return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => alert('The PDF could not be read. Please try again.');
+    reader.onload = () => setGlobalObservations(previous => previous.map(o =>
+      o.id === obsId && o.observerId === user.professor_id
+        ? { ...o, signedPdf: reader.result, signedPdfName: file.name } : o));
+    reader.readAsDataURL(file);
+  };
+
   // Pair-confirmation helpers
   const confirmObservation = (obsId, side) => {
     setGlobalObservations(prev => prev.map(o => {
-      if (o.id !== obsId) return o;
+      if (o.id !== obsId || o.status === 'Missed') return o;
+      if (side === 'observer' && !o.signedPdf) { alert('Upload the signed observation PDF before confirming.'); return o; }
       const next = { ...o, [side === 'observer' ? 'observerConfirmed' : 'observeeConfirmed']: true };
       next.status = (next.observerConfirmed && next.observeeConfirmed) ? 'Completed' : 'Awaiting Confirmation';
       return next;
@@ -540,7 +665,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   <p>Last Evaluated: <strong>{user.last_evaluation || 'Never'}</strong> | Next Due: <strong>{myStatus.next_eval}</strong></p>
                 </div>
               </div>
-              
+
               {(myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup && (
                 <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)' }}>
                   <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
@@ -572,7 +697,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                 <div className="bento-card full-span" style={{borderLeft: '5px solid #10b981'}}>
                   <h3>Final Confirmed Observer</h3>
                   <p style={{ marginTop: '0.5rem', lineHeight: 1.6 }}>
-                    <strong>{myConfirmedObservation.courseCode}</strong> is confirmed to observe <strong>({myConfirmedObservation.timing}).</strong> on {myConfirmedObservation.timing}.
+                    <strong>{myConfirmedObservation.observerName}</strong> will observe <strong>{myConfirmedObservation.courseCode}</strong> on {myConfirmedObservation.observationDate} ({myConfirmedObservation.timing}).
                   </p>
 
                   <p style={{ marginTop: '0.75rem', marginBottom: '15px'}}>Status: <span className={`badge ${myConfirmedObservation.status === 'Completed' ? 'badge-success' : myConfirmedObservation.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{myConfirmedObservation.status}</span></p>
@@ -594,13 +719,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                     </div>
                   )}
 
+                  {myConfirmedObservation.signedPdf && <p><a href={myConfirmedObservation.signedPdf} download={myConfirmedObservation.signedPdfName}>Download signed observation</a></p>}
                   {myConfirmedObservation.status === 'Missed' && (
                     <p style={{color: '#b91c1c', fontSize: '0.9rem'}}>This observation was reported as not held by {myConfirmedObservation.missedReportedBy}. Please contact the Assessment Committee.</p>
                   )}
                   {myConfirmedObservation.status === 'Completed' && (
                      <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
                         <h4>Observation Completed!</h4>
-                        <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. Please proceed to the final survey.</p>
+                        <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. The final survey opens after the observation period ends.</p>
                         <button className="btn-primary sm" onClick={() => setActiveTab('survey')}>Take Survey</button>
                      </div>
                   )}
@@ -609,8 +735,12 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                 <>
                   <div className="bento-card full-span">
                     <h3>Step 2: Request Observers</h3>
-                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : (
+                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : !mySignup.listReady ? <p>Your signup is in the observer pool. Waiting for the committee to release your list after {globalDeadlines.signup}.</p> : (
                       <div className="modern-table-wrapper">
+                        <div style={{padding: '16px'}}>
+                          <label htmlFor="observation-date">Requested observation date ({mySignup.timing}; before {globalDeadlines.observation})</label>
+                          <input id="observation-date" type="date" min={today} max={globalDeadlines.observation} value={observationDate} onChange={e => setObservationDate(e.target.value)} />
+                        </div>
                         <table className="data-table">
                           <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
                           <tbody>
@@ -678,7 +808,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                         myIncomingDuties.filter(r => r.status === 'Pending').map(req => (
                           <tr key={req.id}>
                             <td><strong>{req.observeeName}</strong></td>
-                            <td>{req.courseCode} ({req.timing})</td>
+                            <td>{req.courseCode} ({req.timing}) — {req.observationDate}</td>
                             <td>
                               <div style={{display: 'flex', gap: '10px'}}>
                                 <button className="btn-primary sm" onClick={() => handleObserverAction(req.id, 'Accepted')} style={{background: '#16a34a', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Accept</button>
@@ -694,7 +824,11 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
               </div>
 
               <div className="bento-card full-span">
-                <h3>My Confirmed Observation Appointments</h3>
+                <h3>Accepted Requests Awaiting Final Selection</h3>
+                {myIncomingDuties.filter(r => r.status === 'Accepted').length === 0 ? <p>No accepted requests awaiting selection.</p> : (
+                  <ul>{myIncomingDuties.filter(r => r.status === 'Accepted').map(r => <li key={r.id}>{r.observeeName} — {r.courseCode}, {r.observationDate} ({r.timing})</li>)}</ul>
+                )}
+                <h3 style={{marginTop: '24px'}}>My Confirmed Observation Appointments</h3>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
                     <thead><tr><th>Observee</th><th>Course</th><th>Time</th><th>Status & Action</th></tr></thead>
@@ -706,8 +840,13 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                           <tr key={obs.id}>
                             <td><strong>{obs.observeeName}</strong></td>
                             <td>{obs.courseCode}</td>
-                            <td>{obs.timing}</td>
+                            <td>{obs.observationDate} — {obs.timing}</td>
                             <td>
+                              {obs.status !== 'Missed' && <div style={{marginBottom: '12px'}}>
+                                <label htmlFor={`signed-pdf-${obs.id}`}>Upload signed observation (PDF, up to 5 MB)</label>
+                                <input id={`signed-pdf-${obs.id}`} type="file" accept="application/pdf,.pdf" onChange={e => uploadSignedObservation(obs.id, e.target.files[0])} />
+                                {obs.signedPdf && <a href={obs.signedPdf} download={obs.signedPdfName}>Download submitted PDF</a>}
+                              </div>}
                               {obs.status === 'Missed' ? (
                                 <span className="badge badge-error">Missed</span>
                               ) : obs.status === 'Completed' ? (
@@ -717,19 +856,19 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                               ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
                                   {/* UPDATED: Download Template Button passes the 'obs' object */}
-                                  <button 
-                                      className="btn-secondary sm" 
-                                      style={{background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
+                                  <button
+                                      className="btn-secondary sm"
+                                      style={{background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}}
                                       onClick={() => handleDownloadPDF(obs)}
                                     >
                                       📥 Download Template
                                     </button>
-                                  
+
                                   <button className="btn-primary sm" style={{padding: '5px 10px', borderRadius: '4px'}} onClick={() => {
                                   confirmObservation(obs.id, 'observer');
                                   alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
                                   }}>Evaluation Completed</button>
-                                  
+
                                   <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
                                 </div>
                               )}
@@ -745,7 +884,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           )}
 
           {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
+            today <= globalDeadlines.observation ? <div className="bento-card"><h3>Survey opens after {globalDeadlines.observation}</h3><p>The end-of-process survey becomes available after the observation period ends.</p></div> : !mySignup && myAssignedObservations.length === 0 ? <div className="bento-card">The survey is available to this cycle’s observees and assigned observers.</div> : <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
           )}
         </div>
       </div>

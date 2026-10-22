@@ -1,30 +1,20 @@
 // mockDatabase.js
 
 export const currentSemester = "Spring 2027";
-const semesterIndex = {
-  "Spring 2024": 1, "Fall 2024": 2, "Spring 2025": 3, "Fall 2025": 4, 
-  "Spring 2026": 5, "Fall 2026": 6, "Spring 2027": 7, "Fall 2027": 8
-};
-
 // Restored: Centralized Evaluation Logic 
-export const calculateEvaluationStatus = (professor) => {
-  if (!professor.last_evaluation) return { status: "Due", next_eval: currentSemester, overdue_by: 0 };
+export const calculateEvaluationStatus = (professor, semester = currentSemester) => {
+  if (!professor.last_evaluation) return { status: "Due", next_eval: semester, overdue_by: 0 };
   
-  const lastIndex = semesterIndex[professor.last_evaluation];
-  const currentIndex = semesterIndex[currentSemester];
-  
-  const requiredInterval = professor.hire_level === "Assistant" ? 2 : 4;
-  const nextEvalIndex = lastIndex + requiredInterval;
-  
-  const next_eval = Object.keys(semesterIndex).find(key => semesterIndex[key] === nextEvalIndex) || "Future";
-  
-  if (currentIndex > nextEvalIndex) {
-    return { status: "Overdue", next_eval, overdue_by: currentIndex - nextEvalIndex };
-  } else if (currentIndex === nextEvalIndex) {
-    return { status: "Due", next_eval, overdue_by: 0 };
-  } else {
-    return { status: "Not Due", next_eval, overdue_by: 0 };
-  }
+  const [lastSeason, lastYearText] = professor.last_evaluation.split(' ');
+  const [season, yearText] = semester.split(' ');
+  const dueYear = Number(lastYearText) + (professor.hire_level === 'Assistant' ? 1 : 2);
+  const year = Number(yearText);
+  const next_eval = `${professor.hire_level === 'Assistant' ? 'Spring' : lastSeason} ${dueYear}`;
+  const dueIndex = dueYear * 2 + (professor.hire_level === 'Assistant' ? 1 : lastSeason === 'Fall' ? 1 : 0);
+  const currentIndex = year * 2 + (season === 'Fall' ? 1 : 0);
+  if (currentIndex > dueIndex) return { status: 'Overdue', next_eval, overdue_by: currentIndex - dueIndex };
+  const isDue = professor.hire_level === 'Assistant' ? year === dueYear : currentIndex === dueIndex;
+  return { status: isDue ? 'Due' : 'Not Due', next_eval, overdue_by: 0 };
 };
 
 // Kept teammate's Admin array

@@ -1,7 +1,7 @@
 // matchmaker.js
 import { mockProfessors, mockCourses } from './mockDatabase.js';
 
-export const generateObserverMatches = (observeeId, inputCourseCode, inputTiming) => {
+export const generateObserverMatches = (observeeId, inputCourseCode, inputTiming, observerPoolIds = []) => {
   const observee = mockProfessors.find(p => p.professor_id === observeeId);
   if (!observee || !inputCourseCode) return { matches: [], flag: "NO ELIGIBLE OBSERVER" };
 
@@ -9,6 +9,7 @@ export const generateObserverMatches = (observeeId, inputCourseCode, inputTiming
   const courseLevelNumber = courseParts.length > 1 ? courseParts[1].charAt(0) : "1";
 
   const eligibleObservers = mockProfessors.filter(prof => {
+    if (!observerPoolIds.includes(prof.professor_id)) return false;
     if (prof.professor_id === observeeId) return false; 
     if (prof.department !== observee.department) return false; 
 
@@ -17,7 +18,11 @@ export const generateObserverMatches = (observeeId, inputCourseCode, inputTiming
     const teachesSameLevel = profCourses.some(c => c.course_code.split(" ")[1].charAt(0) === courseLevelNumber);
     if (!teachesSameLevel) return false;
 
-    const isBusyAtThatTime = profCourses.some(c => c.timing.toLowerCase() === inputTiming.toLowerCase());
+    const [days, ...time] = inputTiming.toUpperCase().trim().split(/\s+/);
+    const isBusyAtThatTime = profCourses.some(c => {
+      const [otherDays, ...otherTime] = c.timing.toUpperCase().trim().split(/\s+/);
+      return otherTime.join(' ') === time.join(' ') && [...days].some(day => otherDays.includes(day));
+    });
     if (isBusyAtThatTime) return false;
 
     return true; 

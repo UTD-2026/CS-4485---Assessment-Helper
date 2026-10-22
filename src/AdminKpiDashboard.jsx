@@ -96,7 +96,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           value={overdue.count}
           tone={overdue.count === 0 ? 'good' : overdue.notSignedUp ? 'bad' : 'warn'}
           detail={`${overdue.count} overdue · ${overdue.notSignedUp} of them not signed up yet`}
-          formula="Evaluation Cycle: Assistant every 2 semesters, Associate/Full every 4. Overdue = past the semester it was due."
+          formula="Evaluation Cycle: Assistant: due throughout the following calendar year. Associate/Full: due in the same semester two years later; overdue after that semester."
         >
           {overdue.overdue.length === 0 ? <Empty>No overdue faculty.</Empty> : (
             <table className="kpi-mini-table">
