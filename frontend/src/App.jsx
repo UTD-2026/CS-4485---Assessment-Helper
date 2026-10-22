@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateObserverMatches } from './utils/matchmaker.js';
 import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
-// Added mockEvaluationTemplate here
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -14,6 +14,7 @@ export default function App() {
   const [surveySubmissions, setSurveySubmissions] = useState([]);
   const [surveyResponses, setSurveyResponses] = useState([]);
   const [globalSignups, setGlobalSignups] = useState([]);
+  const [globalEvaluations, setGlobalEvaluations] = useState([]);
   const [globalObservations, setGlobalObservations] = useState([]);
   const [globalDeadlines, setGlobalDeadlines] = useState(initialDeadlines);
   // NEW: Template State
@@ -49,6 +50,7 @@ export default function App() {
         // NEW: Pass notifications to Professor
       globalNotifications={globalNotifications}
       setGlobalNotifications={setGlobalNotifications}
+      globalEvaluations={globalEvaluations}
       />
     );
   }
@@ -65,11 +67,12 @@ export default function App() {
       setGlobalObservations={setGlobalObservations}
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
       onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
-      // NEW: Pass the template data to the professor dashboard
       evaluationTemplate={evaluationTemplate} 
       globalDeadlines={globalDeadlines}
       globalNotifications={globalNotifications}
       setGlobalNotifications={setGlobalNotifications}
+      globalEvaluations={globalEvaluations}
+      setGlobalEvaluations={setGlobalEvaluations}
     />
   );
 }
@@ -141,7 +144,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate }) {
+function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations }) {
   const [activeTab, setActiveTab] = useState('metrics');
   
   // Local state for the new criterion form
@@ -203,6 +206,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
           <NavItem id="signups" label="📝 Signup Monitor" />
           <NavItem id="deadlines" label="📅 Deadlines" />
           <NavItem id="template" label="⚙️ Template Editor" />
+          <NavItem id="evaluations" label="📄 Digital Evaluations" />
           <NavItem id="surveys" label="📋 Survey Responses" />
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
         </ul>
@@ -374,6 +378,31 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
               </div>
             </div>
           )}
+          {activeTab === 'evaluations' && (
+            <div className="bento-card full-span">
+              <h3>Submitted Digital Evaluations</h3>
+              <div className="modern-table-wrapper">
+                <table className="data-table">
+                  <thead><tr><th>Date Submitted</th><th>Observer</th><th>Observee</th><th>Course</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {!globalEvaluations || globalEvaluations.length === 0 ? (
+                      <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No evaluations submitted yet.</td></tr>
+                    ) : (
+                      globalEvaluations.map(ev => (
+                        <tr key={ev.id}>
+                          <td>{ev.dateSubmitted}</td>
+                          <td>{ev.observerName}</td>
+                          <td><strong>{ev.observeeName}</strong></td>
+                          <td>{ev.courseCode}</td>
+                          <td><span className="badge badge-success">Recorded</span></td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'surveys' && (
             <AdminSurveyResults
@@ -390,31 +419,42 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines, globalNotifications, setGlobalNotifications }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines, globalNotifications, setGlobalNotifications, globalEvaluations, setGlobalEvaluations }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
-const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
+  const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
+  const [toastNotif, setToastNotif] = useState(null);
 
-  const myStatus = calculateEvaluationStatus(user);
-  const myCourses = mockCourses.filter(c => c.instructor_id === user.professor_id);
-  const mySignup = globalSignups.find(s => s.observeeId === user.professor_id);
-  const myConfirmedObservation = globalObservations?.find(o => o.observeeId === user.professor_id);
-  const isPastSignupDeadline = globalDeadlines && globalDeadlines.signup 
+  // SAFE DEFAULTS: Added fallbacks (|| []) to prevent null-reference crashes
+  const myStatus = calculateEvaluationStatus(user) || { status: 'Unknown', next_eval: 'TBD' };
+  const myCourses = (mockCourses || []).filter(c => c.instructor_id === user?.professor_id);
+  const mySignup = (globalSignups || []).find(s => s.observeeId === user?.professor_id);
+  const myConfirmedObservation = (globalObservations || []).find(o => o.observeeId === user?.professor_id);
+  const isPastSignupDeadline = globalDeadlines?.signup 
     ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
     : false;
 
-  // 1. Dynamic Notification Injection (Replaces the UI Banner)
   const dynamicSystemNotifs = [];
   if ((myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup) {
     dynamicSystemNotifs.push({
-      id: 'sys-due', recipientId: user.professor_id,
+      id: 'sys-due', recipientId: user?.professor_id,
       message: `System Alert: You are ${myStatus.status} for an evaluation this cycle. Please sign up for a course.`,
       read: false, timestamp: new Date().toLocaleDateString()
     });
   }
   
-  const myNotifications = [...dynamicSystemNotifs, ...(globalNotifications?.filter(n => n.recipientId === user.professor_id) || [])];
+  const myNotifications = [...dynamicSystemNotifs, ...((globalNotifications || []).filter(n => n.recipientId === user?.professor_id))];
   const unreadCount = myNotifications.filter(n => !n.read).length;
+
+  // SAFE EFFECT: Locked dependency to length to prevent infinite loops
+  useEffect(() => {
+    const unread = myNotifications.filter(n => !n.read);
+    if (unread.length > 0) {
+      setToastNotif(unread[unread.length - 1]);
+      const timer = setTimeout(() => setToastNotif(null), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [globalNotifications?.length]);
 
   const NavItem = ({ id, icon: Icon, label, badge }) => (
     <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
@@ -427,31 +467,42 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
     </li>
   );
 
-  const handleSignup = () => {
-    if (!selectedCourseId) { alert("Select a course first."); return; }
-    const course = myCourses.find(c => c.section_id.toString() === selectedCourseId);
-    const result = generateObserverMatches(user.professor_id, course.course_code, course.timing);
-    setGlobalSignups(prev => [
-      ...prev.filter(s => s.observeeId !== user.professor_id),
-      {
-        id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
-        courseCode: course.course_code, section: course.section, timing: course.timing,
-        matchesCount: result.matches.length, matchFlag: result.flag, eligibleObservers: result.matches
-      }
-    ]);
-    alert("Signed up successfully! View your eligible observers on the Observee Status tab.");
-    setActiveTab('observee-status');
-  };
+  const confirmObservation = (obsId, side) => {
+    setGlobalObservations(prev => {
+      let justCompleted = false;
+      let observeeId, observerId;
+      const nextObs = prev.map(o => {
+        if (o.id !== obsId) return o;
+        const next = { ...o, [side === 'observer' ? 'observerConfirmed' : 'observeeConfirmed']: true };
+        if (next.observerConfirmed && next.observeeConfirmed && o.status !== 'Completed') {
+          next.status = 'Completed';
+          justCompleted = true;
+          observeeId = o.observeeId;
+          observerId = o.observerId;
+        } else {
+          next.status = 'Awaiting Confirmation';
+        }
+        return next;
+      });
 
-  // 2. Notification: Request Sent
+      if (justCompleted) {
+        const completionNotifs = [
+          { id: Math.random().toString(), recipientId: observeeId, message: `Observation Completed: Both parties successfully confirmed the observation!`, read: false, timestamp: new Date().toLocaleDateString() },
+          { id: Math.random().toString(), recipientId: observerId, message: `Observation Completed: Both parties successfully confirmed the observation!`, read: false, timestamp: new Date().toLocaleDateString() }
+        ];
+        setGlobalNotifications(n => [...(n || []), ...completionNotifs]);
+      }
+      return nextObs;
+    });
+  }
+
   const handleSendRequest = (observer) => {
     const newRequest = {
       id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
       observerId: observer.professor_id, observerName: observer.name,
       courseCode: mySignup.courseCode, timing: mySignup.timing, status: 'Pending'
     };
-    setGlobalRequests([...globalRequests, newRequest]);
-    
+    setGlobalRequests([...(globalRequests || []), newRequest]);
     setGlobalNotifications(prev => [...(prev || []), {
       id: Math.random().toString(), recipientId: observer.professor_id,
       message: `${user.name} sent you a request to observe ${mySignup.courseCode}.`,
@@ -460,11 +511,10 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
     alert(`Request Sent to ${observer.name}!`);
   };
 
-  // 3. Notification: Observer Accepts/Declines
   const handleObserverAction = (reqId, action) => {
     const req = globalRequests.find(r => r.id === reqId);
+    if (!req) return;
     setGlobalRequests(globalRequests.map(r => r.id === reqId ? { ...r, status: action } : r));
-    
     setGlobalNotifications(prev => [...(prev || []), {
       id: Math.random().toString(), recipientId: req.observeeId,
       message: `${user.name} has ${action.toLowerCase()} your request to observe ${req.courseCode}.`,
@@ -472,29 +522,27 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
     }]);
   };
 
-  // 4. Notification: Final Confirm + Graceful Declines
   const handleFinalConfirm = (acceptedRequest) => {
     const newObservation = {
       id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
       observerId: acceptedRequest.observerId, observerName: acceptedRequest.observerName,
       courseCode: acceptedRequest.courseCode, timing: acceptedRequest.timing,
-      status: 'Pending Scheduling', // CHANGED: Now waits for a date to be picked
+      status: 'Pending Scheduling',
       scheduledDate: null, observerConfirmed: false, observeeConfirmed: false,
     };
     setGlobalObservations(prev => [...(prev || []), newObservation]);
 
     const newNotifs = [];
-    // Notification for the winning observer
     newNotifs.push({
       id: Math.random().toString(), recipientId: acceptedRequest.observerId,
       message: `${user.name} confirmed you as their official observer for ${acceptedRequest.courseCode}! They will set a specific date soon.`,
       read: false, timestamp: new Date().toLocaleDateString()
     });
 
-    globalRequests.forEach(req => {
+    (globalRequests || []).forEach(req => {
       if (req.observeeId === user.professor_id && req.id !== acceptedRequest.id && req.status === 'Accepted') {
         newNotifs.push({
-          id: Math.random().toString(), recipientId: req.observerId,
+          id: Math.random().toString(36).substr(2, 9), recipientId: req.observerId,
           message: `${user.name} finalized their observer match. Your offer to observe ${req.courseCode} was respectfully declined. Thank you for volunteering!`,
           read: false, timestamp: new Date().toLocaleDateString()
         });
@@ -508,15 +556,14 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
     alert(`${acceptedRequest.observerName} is confirmed! Please set the specific observation date.`);
   };
 
-  // 5. NEW: Scheduling logic & Notifications
   const handleScheduleDate = (obsId, dateStr) => {
-    const obs = globalObservations.find(o => o.id === obsId);
+    const obs = (globalObservations || []).find(o => o.id === obsId);
+    if (!obs) return;
     setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Scheduled', scheduledDate: dateStr } : o));
     
     const schedulingNotifs = [
       { id: Math.random().toString(), recipientId: obs.observeeId, message: `Meeting Set: Your observation with ${obs.observerName} is scheduled for ${dateStr} during class (${obs.timing}).`, read: false, timestamp: new Date().toLocaleDateString() },
       { id: Math.random().toString(), recipientId: obs.observerId, message: `Meeting Set: You are scheduled to observe ${obs.observeeName} on ${dateStr} during class (${obs.timing}).`, read: false, timestamp: new Date().toLocaleDateString() },
-      // Simulated Reminders
       { id: Math.random().toString(), recipientId: obs.observeeId, message: `Reminder: Your evaluation with ${obs.observerName} is coming up on ${dateStr}.`, read: false, timestamp: new Date().toLocaleDateString() },
       { id: Math.random().toString(), recipientId: obs.observerId, message: `Reminder: You have an upcoming observation duty for ${obs.observeeName} on ${dateStr}.`, read: false, timestamp: new Date().toLocaleDateString() }
     ];
@@ -524,28 +571,47 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
     alert("Date confirmed! Both parties have been notified and reminders are set.");
   };
 
-
-  // Pair-confirmation helpers
-  const confirmObservation = (obsId, side) => {
-    setGlobalObservations(prev => prev.map(o => {
-      if (o.id !== obsId) return o;
-      const next = { ...o, [side === 'observer' ? 'observerConfirmed' : 'observeeConfirmed']: true };
-      next.status = (next.observerConfirmed && next.observeeConfirmed) ? 'Completed' : 'Awaiting Confirmation';
-      return next;
-    }));
-  }
+  const handleSignup = () => {
+    if (!selectedCourseId) { alert("Select a course first."); return; }
+    const course = myCourses.find(c => c.section_id.toString() === selectedCourseId);
+    const result = generateObserverMatches(user.professor_id, course.course_code, course.timing);
+    setGlobalSignups(prev => [
+      ...(prev || []).filter(s => s.observeeId !== user.professor_id),
+      {
+        id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
+        courseCode: course.course_code, section: course.section, timing: course.timing,
+        matchesCount: result.matches.length, matchFlag: result.flag, eligibleObservers: result.matches
+      }
+    ]);
+    alert("Signed up successfully! View your eligible observers on the Observee Status tab.");
+    setActiveTab('observee-status');
+  };
 
   const reportMissedObservation = (obsId) => {
     if (!window.confirm("Report that this observation did NOT take place?")) return;
     setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Missed', missedReportedBy: user.name } : o));
   };
 
-  const mySentRequests = globalRequests.filter(req => req.observeeId === user.professor_id);
-  const myIncomingDuties = globalRequests.filter(req => req.observerId === user.professor_id);
-  const myAssignedObservations = globalObservations?.filter(o => o.observerId === user.professor_id) || [];
+  const mySentRequests = (globalRequests || []).filter(req => req.observeeId === user?.professor_id);
+  const myIncomingDuties = (globalRequests || []).filter(req => req.observerId === user?.professor_id);
+  const myAssignedObservations = (globalObservations || []).filter(o => o.observerId === user?.professor_id);
 
   return (
     <div className="dashboard-layout">
+      {toastNotif && (
+        <div 
+          onClick={() => { setActiveTab('notifications'); setToastNotif(null); }}
+          style={{ position: 'fixed', top: '24px', right: '24px', background: 'white', borderLeft: '4px solid var(--utd-orange)', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', zIndex: 9999, cursor: 'pointer', maxWidth: '320px', transition: 'all 0.3s ease' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', alignItems: 'center' }}>
+            <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>New Notification ({unreadCount} pending)</strong>
+            <span onClick={(e) => { e.stopPropagation(); setToastNotif(null); }} style={{ color: '#94a3b8', fontSize: '1.2rem', paddingLeft: '10px' }}>&times;</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {toastNotif?.message}
+          </p>
+        </div>
+      )}
       <div className="sidebar premium-glass-dark">
         <div className="sidebar-header">
           <div className="logo-small">UTD</div>
@@ -564,16 +630,16 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
       <div className="main-content">
         <header className="top-header premium-glass">
           <div className="header-title">
-            <h2>Welcome back, {user.name}</h2>
+            <h2>Welcome back, {user?.name}</h2>
             <p>Spring 2027 Evaluation Cycle</p>
           </div>
-          <div className="user-profile"><div className="avatar">{user.name.charAt(4)}</div></div>
+          {/* SAFE UI: Changed charAt(4) to charAt(0) to prevent render crashes on short names */}
+          <div className="user-profile"><div className="avatar">{user?.name?.charAt(0) || 'U'}</div></div>
         </header>
 
         <div className="content-scroll">
           {activeTab === 'home' && (
             <div className="bento-grid">
-              
               {(myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup && (
                 <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)' }}>
                   <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
@@ -667,7 +733,6 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                           <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
                           <h4 style={{ color: '#0f172a', marginBottom: '5px' }}>List Hidden</h4>
                           <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '500' }}>
-                            {/* SAFE VERSION: Uses globalDeadlines?.signup */}
                             Potential observers will show up once the Signup Deadline ({globalDeadlines?.signup || 'TBD'}) passes.
                           </p>
                         </div>
@@ -676,10 +741,10 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                         <table className="data-table">
                           <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
                           <tbody>
-                            {mySignup.eligibleObservers.length === 0 ? (
+                            {mySignup.eligibleObservers?.length === 0 ? (
                               <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No eligible observers found.</td></tr>
                             ) : (
-                              mySignup.eligibleObservers.map(observer => {
+                              (mySignup.eligibleObservers || []).map(observer => {
                                 const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
                                 return (
                                   <tr key={observer.professor_id}>
@@ -726,7 +791,7 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
             </div>
           )}
 
-{activeTab === 'observer-duties' && (
+          {activeTab === 'observer-duties' && (
             <div className="bento-grid">
               <div className="bento-card full-span">
                 <h3>Incoming Observation Requests</h3>
@@ -778,8 +843,11 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                                 <span className="badge badge-warning">Awaiting observee confirmation</span>
                               ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                                  {/* NEW: Live Evaluation Button replaces Download Template */}
-                                  <button 
+                                  {/* SAFE UI: Added default array for evaluation check */}
+                                  {(globalEvaluations || []).some(e => e.observationId === obs.id) ? (
+                                    <span className="badge badge-success">✓ Evaluation Submitted</span>
+                                  ) : (
+                                    <button 
                                       className="btn-secondary sm" 
                                       style={{background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
                                       onClick={() => {
@@ -789,6 +857,7 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                                     >
                                       📝 Begin Evaluation
                                     </button>
+                                  )}
                                   
                                   <button className="btn-primary sm" style={{padding: '5px 10px', borderRadius: '4px'}} onClick={() => {
                                   confirmObservation(obs.id, 'observer');
@@ -821,11 +890,17 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
 
                 <form className="modern-form" onSubmit={(e) => {
                   e.preventDefault();
-                  alert("Digital evaluation successfully recorded!");
+                  setGlobalEvaluations(prev => [...(prev || []), {
+                    id: Date.now(), observationId: activeEvaluationTarget.id,
+                    observerId: user.professor_id, observerName: user.name,
+                    observeeName: activeEvaluationTarget.observeeName, courseCode: activeEvaluationTarget.courseCode,
+                    dateSubmitted: new Date().toLocaleDateString()
+                  }]);
+                  alert("Digital evaluation successfully recorded and sent to the Committee!");
                   setActiveEvaluationTarget(null);
                   setActiveTab('observer-duties');
                 }}>
-                  {evaluationTemplate.map((item, index) => (
+                  {(evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester).map((item, index) => (
                     <div key={item.id} style={{ marginBottom: '30px', paddingBottom: '25px', borderBottom: '1px solid #f1f5f9' }}>
                       <label style={{ fontSize: '1.1rem', marginBottom: '15px', display: 'block', color: '#0f172a' }}>
                         <strong>{index + 1}.</strong> {item.criteria}
@@ -854,20 +929,12 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                       </div>
                       
                       <div style={{ paddingLeft: '20px' }}>
-                        <textarea 
-                          placeholder="Observer notes and feedback..." 
-                          rows="3" 
-                          required 
-                          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
-                        ></textarea>
+                        <textarea placeholder="Observer notes and feedback..." rows="3" required style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}></textarea>
                       </div>
                     </div>
                   ))}
-                  
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
-                    <button type="submit" className="btn-primary btn-3d" style={{ padding: '12px 30px', fontSize: '1.1rem' }}>
-                      Submit Digital Evaluation
-                    </button>
+                    <button type="submit" className="btn-primary btn-3d" style={{ padding: '12px 30px', fontSize: '1.1rem' }}>Submit Digital Evaluation</button>
                   </div>
                 </form>
               </div>
@@ -881,7 +948,7 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                   <h3 style={{ margin: 0 }}>My Notifications</h3>
                   {unreadCount > 0 && (
                     <button className="btn-secondary sm" onClick={() => {
-                      setGlobalNotifications(globalNotifications.map(n => n.recipientId === user.professor_id ? { ...n, read: true } : n));
+                      setGlobalNotifications((globalNotifications || []).map(n => n.recipientId === user.professor_id ? { ...n, read: true } : n));
                     }}>Mark all as read</button>
                   )}
                 </div>
@@ -902,7 +969,7 @@ const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
                         </div>
                         {!notif.read && (
                           <button className="btn-secondary sm" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => {
-                            setGlobalNotifications(globalNotifications.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                            setGlobalNotifications((globalNotifications || []).map(n => n.id === notif.id ? { ...n, read: true } : n));
                           }}>Dismiss</button>
                         )}
                       </li>
