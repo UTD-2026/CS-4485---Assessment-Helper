@@ -209,7 +209,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
         <ul className="nav-menu">
           <NavItem id="metrics" label="📊 Live Metrics & KPIs" />
           <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
-          <NavItem id="signups" label="📝 Signup Monitor" />
+          <NavItem id="signups" label="📝 Signup Requests" />
           <NavItem id="deadlines" label="📅 Deadlines" />
           <NavItem id="template" label="⚙️ Template Editor" />
           <NavItem id="evaluations" label="📄 Digital Evaluations" />
@@ -253,12 +253,12 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
             </div>
           )}
 
-                    {activeTab === 'signups' && (
+          {activeTab === 'signups' && (
             <div className="bento-card full-span">
               <h3>All Signup Requests ({globalSignups.length})</h3>
               <p className="subtitle">Every observee who signed up this cycle, with the course they want observed and their contact email.</p>
               <div className="modern-table-wrapper">
-              <table className="data-table">
+              <table className="data-table compact">
                 <thead><tr><th>Observee Name</th><th>Observee Email</th><th>Course #</th><th>Section #</th><th>Meeting Days</th><th>Meeting Time</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
                 <tbody>
                   {globalSignups.length === 0 ? <tr><td colSpan="9" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
@@ -267,14 +267,14 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                       const { days, time } = splitTiming(signup.timing);
                       const email = signup.observeeEmail || mockProfessors.find(p => p.professor_id === signup.observeeId)?.email;
                       return (
-                        <tr key={signup.id}>
+                         <tr key={signup.id}>
                           <td><strong>{signup.observeeName}</strong></td>
-                          <td>{email ? <a href={`mailto:${email}`}>{email}</a> : '—'}</td>
-                          <td>{signup.courseCode}</td>
+                          <td className="nowrap">{email ? <a href={`mailto:${email}`}>{email}</a> : '—'}</td>
+                          <td className="nowrap">{signup.courseCode}</td>
                           <td>{signup.section}</td>
-                          <td>{days}</td>
-                          <td>{time}</td>
-                          <td>{signup.matchesCount} Observers</td>
+                          <td className="nowrap">{days}</td>
+                          <td className="nowrap">{time}</td>
+                          <td className="nowrap">{signup.matchesCount} Observers</td>
                           <td>
                             {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
                             {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
