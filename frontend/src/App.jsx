@@ -238,11 +238,11 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
             <div className="bento-card full-span">
               <h3>Faculty Due for Evaluation ({currentSemester})</h3>
               <table className="data-table">
-                <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
+                <thead><tr><th>Professor</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
                 <tbody>
                   {dueFaculty.map(f => (
                     <tr key={f.professor_id}>
-                      <td><strong>{f.name}</strong></td><td>{f.hire_level}</td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
+                      <td><strong>{f.name}</strong></td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
                       <td>
                         {f.status === 'Overdue' ? <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Overdue ({f.overdue_by} sem)</span> : <span className="badge badge-warning">Due</span>}
                       </td>

@@ -107,7 +107,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
               <tbody>
                 {overdue.overdue.map(f => (
                   <tr key={f.professor_id}>
-                    <td>{f.name} <small>({f.hire_level})</small></td>
+                    <td>{f.name}</td>
                     <td>{f.last_evaluation || 'Never'}</td>
                     <td><span className="badge badge-error">{f.overdue_by} sem</span></td>
                     <td>{f.signedUp ? <span className="badge badge-success">Yes</span> : <span className="badge badge-warning">No</span>}</td>
@@ -154,8 +154,8 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
         >
           <div className="kpi-chips">
             <span className="badge badge-success">{sufficiency.fullLists} full list</span>
-            <span className="badge badge-warning">{sufficiency.insufficient} insufficient</span>
-            <span className="badge badge-error">{sufficiency.none} no eligible observer</span>
+            <span className="badge badge-warning">{sufficiency.insufficient} insufficient observer{sufficiency.insufficient === 1 ? '' : 's'}</span>
+            <span className="badge badge-error">{sufficiency.none} ineligible observer{sufficiency.none === 1 ? '' : 's'}</span>
           </div>
         </Metric>
       </KpiGroup>
