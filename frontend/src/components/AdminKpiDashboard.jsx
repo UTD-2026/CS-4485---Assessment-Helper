@@ -62,7 +62,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
         <Metric
           id="1a"
           title="Evaluation Eligibility Accuracy"
-          value={eligibility.rate == null ? '—' : `${eligibility.rate}%`}
+          value={eligibility.rate == null ? '0' : `${eligibility.rate}%`}
           rate={eligibility.rate ?? 0}
           tone={eligibility.rate == null ? 'neutral' : eligibility.incorrect.length ? 'bad' : 'good'}
           detail={eligibility.total

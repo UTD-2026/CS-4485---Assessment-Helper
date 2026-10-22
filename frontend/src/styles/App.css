@@ -32,48 +32,81 @@ body {
 /* --- 3D Liquid Buttons --- */
 button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); cursor: pointer; }
 
-.btn-3d {
+/* --- Buttons ---
+   Every button variant gets the same clean shape, so a button looks right even
+   without .btn-3d. Each color has a matching darker "lip" shadow underneath. */
+.btn-3d,
+.btn-primary, .btn-secondary, .btn-danger, .btn-success, .btn-info {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 12px 24px;
   border-radius: 14px;
   font-weight: 600;
   font-size: 0.95rem;
+  line-height: 1.2;
+  white-space: nowrap;
   border: none;
   position: relative;
   letter-spacing: 0.3px;
 }
 
-.btn-3d.sm { padding: 8px 16px; font-size: 0.85rem; border-radius: 10px; }
+/* Small size (tables, cards, inline actions) */
+.sm, .btn-3d.sm { padding: 8px 16px; font-size: 0.85rem; border-radius: 10px; }
 
+/* Hover: lift slightly. Active: press down onto the lip. */
+.btn-primary:hover, .btn-secondary:hover, .btn-danger:hover, .btn-success:hover, .btn-info:hover { transform: translateY(-1px); filter: brightness(1.04); }
+.btn-primary:active, .btn-secondary:active, .btn-danger:active, .btn-success:active, .btn-info:active { transform: translateY(3px); filter: none; }
+
+/* Primary: UTD orange (main call-to-action) */
 .btn-primary {
   background: linear-gradient(135deg, var(--utd-orange-light), var(--utd-orange));
   color: white;
-  box-shadow: 0 4px 0 #b35900, 0 8px 20px rgba(232, 117, 0, 0.3);
+  box-shadow: 0 4px 0 #b35900, 0 8px 20px rgba(232, 117, 0, 0.25);
 }
-.btn-primary:active {
-  transform: translateY(4px);
-  box-shadow: 0 0 0 #b35900, 0 4px 10px rgba(232, 117, 0, 0.2);
-}
+.btn-primary:active { box-shadow: 0 1px 0 #b35900, 0 3px 8px rgba(232, 117, 0, 0.2); }
 
+/* Secondary: white / neutral (cancel, dismiss, low-priority) */
 .btn-secondary {
   background: linear-gradient(135deg, #ffffff, #f1f5f9);
   color: var(--utd-green);
-  box-shadow: 0 4px 0 #cbd5e1, 0 8px 20px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 0 #cbd5e1, 0 8px 20px rgba(0, 0, 0, 0.05);
 }
-.btn-secondary:active {
-  transform: translateY(4px);
-  box-shadow: 0 0 0 #cbd5e1, 0 4px 10px rgba(0, 0, 0, 0.02);
-}
+.btn-secondary:active { box-shadow: 0 1px 0 #cbd5e1, 0 3px 8px rgba(0, 0, 0, 0.03); }
 
+/* Success: green (accept, confirm, completed) */
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  box-shadow: 0 4px 0 #166534, 0 8px 20px rgba(22, 163, 74, 0.25);
+}
+.btn-success:active { box-shadow: 0 1px 0 #166534, 0 3px 8px rgba(22, 163, 74, 0.2); }
+
+/* Danger: red (decline, remove, did not happen) */
 .btn-danger {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
-  box-shadow: 0 4px 0 #991b1b, 0 8px 20px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 4px 0 #991b1b, 0 8px 20px rgba(220, 38, 38, 0.25);
 }
-.btn-danger:active {
-  transform: translateY(4px);
-  box-shadow: 0 0 0 #991b1b;
+.btn-danger:active { box-shadow: 0 1px 0 #991b1b, 0 3px 8px rgba(220, 38, 38, 0.2); }
+
+/* Info: light blue (open / view something, e.g. Begin Evaluation) */
+.btn-info {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  box-shadow: 0 4px 0 #7dd3fc, 0 8px 20px rgba(2, 132, 199, 0.12);
 }
+.btn-info:active { box-shadow: 0 1px 0 #7dd3fc, 0 3px 8px rgba(2, 132, 199, 0.1); }
+
+/* Small buttons get a thinner lip so they don't look chunky */
+.sm.btn-primary   { box-shadow: 0 3px 0 #b35900, 0 6px 14px rgba(232, 117, 0, 0.2); }
+.sm.btn-secondary { box-shadow: 0 3px 0 #cbd5e1, 0 6px 14px rgba(0, 0, 0, 0.04); }
+.sm.btn-success   { box-shadow: 0 3px 0 #166534, 0 6px 14px rgba(22, 163, 74, 0.2); }
+.sm.btn-danger    { box-shadow: 0 3px 0 #991b1b, 0 6px 14px rgba(220, 38, 38, 0.2); }
+.sm.btn-info      { box-shadow: 0 3px 0 #7dd3fc, 0 6px 14px rgba(2, 132, 199, 0.1); }
+
+/* Row of buttons that wraps neatly */
+.btn-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
 .btn-secondary.disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: 0 2px 0 #cbd5e1; }
 
@@ -310,6 +343,8 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 .modern-form label { display: block; font-weight: 600; color: var(--text-main); margin-bottom: 10px; }
 .modern-form textarea, .modern-form input[type="file"] { width: 100%; padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 1rem; transition: all 0.3s; resize: vertical; }
 .modern-form textarea:focus { background: #fff; border-color: var(--utd-green); outline: none; box-shadow: 0 0 0 4px rgba(21, 71, 52, 0.1); }
+.modern-form input[type="date"] { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #f8fafc; font-size: 1rem; color: var(--text-main); transition: all 0.2s; }
+.modern-form input[type="date"]:focus { background: #fff; border-color: var(--utd-green); outline: none; box-shadow: 0 0 0 4px rgba(21, 71, 52, 0.1); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 
 .radio-group { display: flex; gap: 16px; }

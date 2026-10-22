@@ -26,7 +26,7 @@ export default function App() {
     if (surveySubmissions.some(s => s.professor_id === professorId)) return;
     // Survey is closed once the survey/feddback deadline passes
     if (isPastDeadline(globalDeadlines.survey)) {
-      alert('The sruvey closed on ${globalDeadlines.survey}. Submissions are no longer accepted.');
+      alert('The survey closed on ${globalDeadlines.survey}. Submissions are no longer accepted.');
       return;
     }
     setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
@@ -299,7 +299,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   <div className="form-group"><label>Signup Deadline</label><input type="date" value={globalDeadlines.signup} onChange={e => setGlobalDeadlines({...globalDeadlines, signup: e.target.value})} /></div>
                   <div className="form-group"><label>Observation Period Ends</label><input type="date" value={globalDeadlines.observation} onChange={e => setGlobalDeadlines({...globalDeadlines, observation: e.target.value})} /></div>
                   <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={globalDeadlines.survey} onChange={e => setGlobalDeadlines({...globalDeadlines, survey: e.target.value})} /></div>
-                  <button type="button" className="btn-primary" onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
+                  <button type="button" className="btn-primary btn-3d" style={{ width: '100%', padding: '14px' }} onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
                 </form>
               </div>
             </div>
@@ -363,8 +363,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                                 </td>
                                 <td>
                                   <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn-primary sm" onClick={() => saveEdit(item.id)} style={{padding: '6px 12px', borderRadius: '6px', border: 'none'}}>Save</button>
-                                    <button className="btn-secondary sm" onClick={cancelEdit} style={{padding: '6px 12px', borderRadius: '6px', cursor: 'pointer'}}>Cancel</button>
+                                    <button className="btn-success sm" onClick={() => saveEdit(item.id)}>Save</button>
+                                    <button className="btn-secondary sm" onClick={cancelEdit}>Cancel</button>
                                   </div>
                                 </td>
                               </>
@@ -375,8 +375,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                                 <td><span className="badge badge-neutral">{item.ratingScale}</span></td>
                                 <td>
                                   <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn-secondary sm" onClick={() => startEditing(item)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: '#0f172a', fontWeight: 'bold' }}>Edit</button>
-                                    <button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)} style={{ background: '#ef4444', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Remove</button>
+                                    <button className="btn-secondary sm" onClick={() => startEditing(item)}>Edit</button>
+                                    <button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)}>Remove</button>
                                   </div>
                                 </td>
                               </>
@@ -722,7 +722,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                       </p>
                       {!myConfirmedObservation.observeeConfirmed && (
                         <div style={{display: 'flex', gap: '10px'}}>
-                          <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
+                          <button className="btn-success sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>✓ I Was Observed</button>
                           <button className="btn-danger sm" onClick={() => reportMissedObservation(myConfirmedObservation.id)}>Did Not Happen</button>
                         </div>
                       )}
@@ -825,8 +825,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                             <td>{req.courseCode} ({req.timing})</td>
                             <td>
                               <div style={{display: 'flex', gap: '10px'}}>
-                                <button className="btn-primary sm" onClick={() => handleObserverAction(req.id, 'Accepted')} style={{background: '#16a34a', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Accept</button>
-                                <button className="btn-danger sm" onClick={() => handleObserverAction(req.id, 'Declined')} style={{background: '#ef4444', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'}}>Decline</button>
+                                <button className="btn-success sm" onClick={() => handleObserverAction(req.id, 'Accepted')}>Accept</button>
+                                <button className="btn-danger sm" onClick={() => handleObserverAction(req.id, 'Declined')}>Decline</button>
                               </div>
                             </td>
                           </tr>
@@ -865,8 +865,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                     <span className="badge badge-success">✓ Evaluation Submitted</span>
                                   ) : (
                                     <button 
-                                      className="btn-secondary sm" 
-                                      style={{background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
+                                      className="btn-info sm" 
                                       onClick={() => {
                                         setActiveEvaluationTarget(obs);
                                         setActiveTab('live-evaluation');
@@ -875,13 +874,11 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                       📝 Begin Evaluation
                                     </button>
                                   )}
-                                  
-                                  <button className="btn-primary sm" style={{padding: '5px 10px', borderRadius: '4px'}} onClick={() => {
+                                  <button className="btn-success sm" onClick={() => {
                                   confirmObservation(obs.id, 'observer');
                                   alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
                                   }}>Evaluation Completed</button>
-                                  
-                                  <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
+                                  <button className="btn-danger sm" onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
                                 </div>
                               )}
                             </td>
@@ -985,7 +982,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                           <small style={{ color: '#64748b', marginTop: '5px', display: 'block' }}>{notif.timestamp}</small>
                         </div>
                         {!notif.read && (
-                          <button className="btn-secondary sm" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => {
+                          <button className="btn-secondary sm" onClick={() => {
                             setGlobalNotifications((globalNotifications || []).map(n => n.id === notif.id ? { ...n, read: true } : n));
                           }}>Dismiss</button>
                         )}
