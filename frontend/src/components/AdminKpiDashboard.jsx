@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { computeAllKpis, VIOLATION_TYPES, TARGET_LIST_SIZE } from '../utils/kpis.js';
+import { isPastDeadline } from '../utils/deadlines.js';
 
 /**
  * Committee KPI dashboard: implements the 4 KPI groups from the project spec.
@@ -51,6 +52,8 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
     [signups, requests, observations, surveySubmissions, deadlines]
   );
   const { eligibility, overdue, participation, utilization, sufficiency, missing, survey } = k;
+  // The Survey KPI is only generated/shown once the survey (feedback) deadline has passed
+  const surveyKpiReady = isPastDeadline(deadlines?.survey);
 
   return (
     <div className="kpi-dashboard">
@@ -158,7 +161,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
       </KpiGroup>
 
       {/* ---------- 4. SURVEY & OBSERVATION COMPLETION ---------- */}
-      <KpiGroup number="4" title="Survey & Observation Completion KPI">
+            <KpiGroup number="4" title="Survey & Observation Completion KPI">
         <Metric
           id="4a"
           title="Missing Observation Count"
@@ -176,27 +179,38 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           )}
         </Metric>
 
-        <Metric
-          id="4b"
-          title="Survey Completion Rate"
-          value={`${survey.rate}%`}
-          rate={survey.rate}
-          tone={survey.denominator ? toneFor(survey.rate) : 'neutral'}
-          detail={`${survey.numerator} of ${survey.denominator} sign-up(s) completed the entire process`}
-          formula="# of submitted surveys (full process) ÷ # of sign-ups. Process = Sign up AND sent request(s) AND 1 request confirmed AND was observed AND took the final survey"
-        >
-          <div className="kpi-funnel">
-            {survey.funnel.map(step => (
-              <div className="kpi-funnel-row" key={step.key}>
-                <span className="kpi-funnel-label">{step.label}</span>
-                <div className="kpi-funnel-track">
-                  <div className="kpi-funnel-fill" style={{ width: `${survey.denominator ? (step.count / survey.denominator) * 100 : 0}%` }} />
+        {!surveyKpiReady ? (
+          <Metric
+            id="4b"
+            title="Survey Completion Rate"
+            value="🔒"
+            tone="neutral"
+            detail={`Locked until the survey deadline${deadlines?.survey ? ` (${deadlines.survey})` : ''} passes. This KPI is generated once the survey window closes.`}
+            formula="# of submitted surveys (full process) ÷ # of sign-ups"
+          />
+        ) : (
+          <Metric
+            id="4b"
+            title="Survey Completion Rate"
+            value={`${survey.rate}%`}
+            rate={survey.rate}
+            tone={survey.denominator ? toneFor(survey.rate) : 'neutral'}
+            detail={`${survey.numerator} of ${survey.denominator} sign-up(s) completed the entire process`}
+            formula="# of submitted surveys (full process) ÷ # of sign-ups. Process = Sign up AND sent request(s) AND 1 request confirmed AND was observed AND took the final survey"
+          >
+            <div className="kpi-funnel">
+              {survey.funnel.map(step => (
+                <div className="kpi-funnel-row" key={step.key}>
+                  <span className="kpi-funnel-label">{step.label}</span>
+                  <div className="kpi-funnel-track">
+                    <div className="kpi-funnel-fill" style={{ width: `${survey.denominator ? (step.count / survey.denominator) * 100 : 0}%` }} />
+                  </div>
+                  <span className="kpi-funnel-count">{step.count}</span>
                 </div>
-                <span className="kpi-funnel-count">{step.count}</span>
-              </div>
-            ))}
-          </div>
-        </Metric>
+              ))}
+            </div>
+          </Metric>
+        )}
       </KpiGroup>
     </div>
   );

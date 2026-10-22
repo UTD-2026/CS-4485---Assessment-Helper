@@ -17,7 +17,7 @@ const inputStyle = {
  *  - onSubmit({ processOk, difficulties, improvements, hasAttachment }): hands the
  *    answers to App, which stores them WITHOUT any professor identity.
  */
-export default function FeedbackSurvey({ hasSubmitted, onSubmit }) {
+export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = false, deadline }) {
   const [processOk, setProcessOk] = useState('');
   const [difficulties, setDifficulties] = useState('');
   const [improvements, setImprovements] = useState('');
@@ -25,6 +25,7 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isClosed) return; // deadline passed--block submission
     onSubmit({
       process_ok: processOk === 'ok',
       difficulties: difficulties.trim(),
@@ -63,11 +64,34 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit }) {
               but not which responses are yours.
             </p>
           </div>
+        ) : isClosed ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '2rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <div style={{ fontSize: '2rem' }}>🔒</div>
+            <h3 style={{ color: '#b91c1c', marginBottom: '0.25rem' }}>Survey Closed</h3>
+            <p style={{ lineHeight: 1.6 }}>
+              The feedback/survey deadline{deadline ? ` (${deadline})` : ''} has passed, so new responses can no longer be submitted.
+            </p>
+            <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
+              Please contact the Assessment Committee if you believe this is an error.
+            </p>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
             <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
               🔒 Your responses are anonymous to the Assessment Committee.
             </p>
+            {deadline && (
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#b45309', fontWeight: 600 }}>
+                ⏰ Survey closes at the end of {deadline}.
+              </p>
+            )}
 
             <div className="form-group">
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Was this observation process OK?</label>

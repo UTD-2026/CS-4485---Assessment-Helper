@@ -4,6 +4,7 @@ import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
+import { isPastDeadline, splitTiming } from './utils/deadlines.js'; // new import from new file called deadlines.js
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
 
 export default function App() {
@@ -23,8 +24,13 @@ export default function App() {
 
   const handleSurveySubmit = (professorId, answers) => {
     if (surveySubmissions.some(s => s.professor_id === professorId)) return;
-      setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
-      setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
+    // Survey is closed once the survey/feddback deadline passes
+    if (isPastDeadline(globalDeadlines.survey)) {
+      alert('The sruvey closed on ${globalDeadlines.survey}. Submissions are no longer accepted.');
+      return;
+    }
+    setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
+    setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
   };
 
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
@@ -247,18 +253,27 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
             </div>
           )}
 
-          {activeTab === 'signups' && (
+                    {activeTab === 'signups' && (
             <div className="bento-card full-span">
-              <h3>Signup & Matching Monitor</h3>
+              <h3>All Signup Requests ({globalSignups.length})</h3>
+              <p className="subtitle">Every observee who signed up this cycle, with the course they want observed and their contact email.</p>
+              <div className="modern-table-wrapper">
               <table className="data-table">
-                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
+                <thead><tr><th>Observee Name</th><th>Observee Email</th><th>Course #</th><th>Section #</th><th>Meeting Days</th><th>Meeting Time</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
                 <tbody>
-                  {globalSignups.length === 0 ? <tr><td colSpan="5" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
+                  {globalSignups.length === 0 ? <tr><td colSpan="9" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
                     globalSignups.map(signup => {
                       const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
+                      const { days, time } = splitTiming(signup.timing);
+                      const email = signup.observeeEmail || mockProfessors.find(p => p.professor_id === signup.observeeId)?.email;
                       return (
                         <tr key={signup.id}>
-                          <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
+                          <td><strong>{signup.observeeName}</strong></td>
+                          <td>{email ? <a href={`mailto:${email}`}>{email}</a> : '—'}</td>
+                          <td>{signup.courseCode}</td>
+                          <td>{signup.section}</td>
+                          <td>{days}</td>
+                          <td>{time}</td>
                           <td>{signup.matchesCount} Observers</td>
                           <td>
                             {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
@@ -272,6 +287,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   }
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -433,6 +449,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const isPastSignupDeadline = globalDeadlines?.signup 
     ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
     : false;
+  const isPastSurveyDeadline = isPastDeadline(globalDeadlines?.survey);
 
   const dynamicSystemNotifs = [];
   if ((myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup) {
@@ -578,7 +595,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     setGlobalSignups(prev => [
       ...(prev || []).filter(s => s.observeeId !== user.professor_id),
       {
-        id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
+        id: Date.now(), observeeId: user.professor_id, observeeName: user.name, observeeEmail: user.email,
         courseCode: course.course_code, section: course.section, timing: course.timing,
         matchesCount: result.matches.length, matchFlag: result.flag, eligibleObservers: result.matches
       }
@@ -981,7 +998,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           )}
 
           {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
+            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isPastSurveyDeadline} deadline={globalDeadlines?.survey}/>
           )}
         </div>
       </div>

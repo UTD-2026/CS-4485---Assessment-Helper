@@ -28,19 +28,21 @@ export const calculateEvaluationStatus = (professor) => {
 };
 
 // Kept teammate's Admin array
+// Added email to admin committee
 export const mockAdmins = [
-  { professor_id: 0, username: "admin", password: "123", name: "Assessment Committee Admin", role: "admin" }, 
+  { professor_id: 0, username: "admin", password: "123", name: "Assessment Committee Admin", email: "assessment.committee@utdallas.edu", role: "admin",  }, 
 ];
 
 // Restored your expanded professors
+// Added emails for professors to have
 export const mockProfessors = [
-  { professor_id: 1, username: "asmith", password: "123", name: "Dr. Alice Smith", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" },
-  { professor_id: 2, username: "bjones", password: "123", name: "Dr. Bob Jones", department: "CS", hire_level: "Associate", is_ac_member: true, last_evaluation: "Spring 2025" },
-  { professor_id: 3, username: "cwhite", password: "123", name: "Dr. Carol White", department: "CS", hire_level: "Full", is_ac_member: false, last_evaluation: "Spring 2024" },
-  { professor_id: 4, username: "dbrown", password: "123", name: "Dr. David Brown", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2026" },
-  { professor_id: 5, username: "stran", password: "123", name: "Dr. Scott Tran", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2025" },
-  { professor_id: 6, username: "fgreen", password: "123", name: "Dr. Frank Green", department: "CS", hire_level: "Associate", is_ac_member: false, last_evaluation: "Spring 2026" },
-  { professor_id: 7, username: "msagar", password: "123", name: "Dr. Mikael Sagar", department: "CS", hire_level: "Full", is_ac_member: true, last_evaluation: "Spring 2026" },
+  { professor_id: 1, username: "asmith", password: "123", name: "Dr. Alice Smith", email: "asmith@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" },
+  { professor_id: 2, username: "bjones", password: "123", name: "Dr. Bob Jones", email: "bjones@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: true, last_evaluation: "Spring 2025" },
+  { professor_id: 3, username: "cwhite", password: "123", name: "Dr. Carol White", email: "cwhite@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: false, last_evaluation: "Spring 2024" },
+  { professor_id: 4, username: "dbrown", password: "123", name: "Dr. David Brown", email: "dbrown@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2026" },
+  { professor_id: 5, username: "stran", password: "123", name: "Dr. Scott Tran", email: "stran@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2025" },
+  { professor_id: 6, username: "fgreen", password: "123", name: "Dr. Frank Green", email: "fgreen@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: false, last_evaluation: "Spring 2026" },
+  { professor_id: 7, username: "msagar", password: "123", name: "Dr. Mikael Sagar", email: "msagar@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: true, last_evaluation: "Spring 2026" },
 ];
 
 // Restored your expanded courses
