@@ -8,6 +8,32 @@ import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
 
+// Builds avatar initials from a person's first + last name, skipping titles like "Dr." / "Prof."
+const TITLE_PREFIXES = ['dr', 'prof', 'professor', 'mr', 'mrs', 'ms', 'mx'];
+function getInitials(fullName) {
+  if (!fullName) return 'U';
+  const parts = fullName.trim().split(/\s+/).filter(p => !TITLE_PREFIXES.includes(p.replace(/\./g, '').toLowerCase()));
+  if (parts.length === 0) return 'U';
+  const first = parts[0].charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+  return (first + last).toUpperCase();
+}
+
+// Explains what each rating option means for a criterion's rating scale
+// (matches the scale options available in the admin Evaluation Template Editor)
+function getRatingLegend(ratingScale = '') {
+  if (ratingScale.includes('1 to 5')) {
+    return '1 = Poor · 2 = Fair · 3 = Good · 4 = Very Good · 5 = Excellent';
+  }
+  if (ratingScale.includes('Yes / No')) {
+    return 'Yes = Criterion observed/met · No = Criterion not observed/met · N/A = Not applicable to this class session';
+  }
+  if (ratingScale.includes('Text Feedback')) {
+    return 'No numeric rating for this item, so provide written feedback in the notes box below.';
+  }
+  return ratingScale ? `Rating scale: ${ratingScale}` : '';
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -256,7 +282,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
           {activeTab === 'signups' && (
             <div className="bento-card full-span">
               <h3>Signup & Matching Monitor</h3>
-              <table className="data-table">
+              <div className="table-scroll-x">
+              <table className="data-table nowrap-table">
                 <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
                 <tbody>
                   {globalSignups.length === 0 ? <tr><td colSpan="5" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
@@ -278,6 +305,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   }
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -688,8 +716,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
             <h2>Welcome back, {user?.name}</h2>
             <p>Spring 2027 Evaluation Cycle</p>
           </div>
-          {/* SAFE UI: Changed charAt(4) to charAt(0) to prevent render crashes on short names */}
-          <div className="user-profile"><div className="avatar">{user?.name?.charAt(0) || 'U'}</div></div>
+          {/* Shows first + last name initials (e.g. "Dr. Alice Smith" -> "AS"); hover shows full name */}
+          <div className="user-profile"><div className="avatar" title={user?.name || ''}>{getInitials(user?.name)}</div></div>
         </header>
 
         <div className="content-scroll">
@@ -986,6 +1014,9 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                       </label>
                       
                       <div style={{ marginBottom: '15px', paddingLeft: '20px' }}>
+                        {getRatingLegend(item.ratingScale) && (
+                          <p className="rating-legend">{getRatingLegend(item.ratingScale)}</p>
+                        )}
                         {item.ratingScale.includes('1 to 5') && (
                           <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
                             {[1, 2, 3, 4, 5].map(num => (

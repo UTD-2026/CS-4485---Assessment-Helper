@@ -331,6 +331,10 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 .data-table.compact td { padding: 14px; font-size: 0.9rem; }
 .data-table.compact .nowrap, .data-table.compact .badge { white-space: nowrap; }
 
+/* Single-line table (e.g. Signup & Matching Monitor): no cell wraps; scrolls sideways if too wide */
+.table-scroll-x { width: 100%; overflow-x: auto; }
+.data-table.nowrap-table th, .data-table.nowrap-table td { white-space: nowrap; }
+
 /* --- Badges --- */
 .badge { display: inline-block; white-space: nowrap; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .badge-neutral { background: #f1f5f9; color: #475569; }
@@ -391,3 +395,6 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 .kpi-funnel-fill { height: 100%; background: linear-gradient(90deg, var(--utd-green), #206d4e); border-radius: 999px; transition: width 0.4s ease; }
 .kpi-funnel-count { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kpi-unit { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-left: 6px; }
+
+/* --- Evaluation form: rating scale legend --- */
+.rating-legend { font-size: 0.85rem; color: var(--text-muted); background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 0 0 12px 0; display: inline-block; }
