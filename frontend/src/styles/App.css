@@ -398,3 +398,9 @@ button { font-family: inherit; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.6
 
 /* --- Evaluation form: rating scale legend --- */
 .rating-legend { font-size: 0.85rem; color: var(--text-muted); background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 0 0 12px 0; display: inline-block; }
+
+/* --- Read-only submitted evaluation view (professor "My Evaluations" tab) --- */
+.eval-view-item { padding: 20px 0; border-bottom: 1px solid #f1f5f9; }
+.eval-view-item:last-child { border-bottom: none; }
+.eval-view-criteria { font-size: 1.05rem; color: #0f172a; margin: 0 0 10px 0; }
+.eval-view-notes { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; color: #334155; white-space: pre-wrap; }

@@ -34,6 +34,40 @@ function getRatingLegend(ratingScale = '') {
   return ratingScale ? `Rating scale: ${ratingScale}` : '';
 }
 
+// Read-only view of a submitted evaluation form (used on the professor "My Evaluations" tab)
+function EvaluationDetail({ evaluation, evaluationTemplate, onBack }) {
+  // Prefer the criteria snapshot saved at submission time, so later template edits don't change old forms
+  const items = evaluation.items || (evaluationTemplate || []).filter(t => evaluation.answers?.[t.id]);
+  return (
+    <div className="bento-card full-span">
+      <div className="card-header-flex" style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' }}>
+        <div>
+          <h3 style={{ fontSize: '1.4rem', color: 'var(--utd-green)' }}>Evaluation: {evaluation.observeeName}</h3>
+          <p className="subtitle" style={{ marginTop: '5px' }}>
+            {evaluation.courseCode}{evaluation.timing ? ` (${evaluation.timing})` : ''} · Observed by {evaluation.observerName} · Submitted {evaluation.dateSubmitted}
+          </p>
+        </div>
+        <button type="button" className="btn-secondary sm" onClick={onBack}>← Back</button>
+      </div>
+      {items.length === 0 ? (
+        <p style={{ color: '#64748b' }}>No answers were recorded for this evaluation.</p>
+      ) : items.map((item, index) => {
+        const answer = evaluation.answers?.[item.id] || {};
+        return (
+          <div key={item.id} className="eval-view-item">
+            <p className="eval-view-criteria"><strong>{index + 1}.</strong> {item.criteria}</p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              Rating: {answer.rating ? <span className="badge badge-neutral">{answer.rating}</span> : <span style={{ color: '#94a3b8' }}>Not rated</span>}
+            </p>
+            {getRatingLegend(item.ratingScale) && <p className="rating-legend">{getRatingLegend(item.ratingScale)}</p>}
+            <div className="eval-view-notes">{answer.notes || <span style={{ color: '#94a3b8' }}>No notes provided.</span>}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -460,6 +494,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const [toastNotif, setToastNotif] = useState(null);
   // NEW: Answers for the evaluation form currently open: { [criteriaId]: { rating, notes } }
   const [evalAnswers, setEvalAnswers] = useState({});
+  // NEW: Submitted evaluation currently opened (read-only) on the "My Evaluations" tab
+  const [viewingEvaluation, setViewingEvaluation] = useState(null);
 
   // Open the evaluation form, restoring any saved progress for this observation
   const openEvaluation = (obs) => {
@@ -526,8 +562,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   }, [globalNotifications?.length]);
 
   const NavItem = ({ id, icon: Icon, label, badge }) => (
-    <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
-      <Icon /> <span>{label}</span>
+  <li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); }}>
+    <Icon /> <span>{label}</span>
       {badge > 0 && (
         <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '999px' }}>
           {badge > 5 ? '5+' : badge}
@@ -678,6 +714,12 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const mySentRequests = (globalRequests || []).filter(req => req.observeeId === user?.professor_id);
   const myIncomingDuties = (globalRequests || []).filter(req => req.observerId === user?.professor_id);
   const myAssignedObservations = (globalObservations || []).filter(o => o.observerId === user?.professor_id);
+  // NEW: Evaluations this professor submitted as an observer, and evaluations submitted about them as an observee
+  const mySubmittedEvaluations = (globalEvaluations || []).filter(ev => ev.observerId === user?.professor_id);
+  const evaluationsOfMe = (globalEvaluations || []).filter(ev => {
+  const observeeId = ev.observeeId ?? (globalObservations || []).find(o => o.id === ev.observationId)?.observeeId;
+  return observeeId === user?.professor_id;
+});
 
   return (
     <div className="dashboard-layout">
@@ -704,6 +746,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           <NavItem id="home" icon={() => <span>🏠</span>} label="My Cycle" />
           <NavItem id="observee-status" icon={() => <span>👥</span>} label="Observee Status" />
           <NavItem id="observer-duties" icon={() => <span>✅</span>} label="My Duties" />
+          <NavItem id="my-evaluations" icon={() => <span>📋</span>} label="My Evaluations" />
           <NavItem id="survey" icon={() => <span>📄</span>} label="End Survey" />
           <NavItem id="notifications" icon={() => <span>🔔</span>} label="Notifications" badge={unreadCount} />
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
@@ -995,13 +1038,23 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
 
                 <form className="modern-form" onSubmit={(e) => {
                   e.preventDefault();
+                  const activeItems = (evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester);
                   setGlobalEvaluations(prev => [...(prev || []), {
                     id: Date.now(), observationId: activeEvaluationTarget.id,
                     observerId: user.professor_id, observerName: user.name,
+                    observeeId: activeEvaluationTarget.observeeId,
                     observeeName: activeEvaluationTarget.observeeName, courseCode: activeEvaluationTarget.courseCode,
+                    timing: activeEvaluationTarget.timing,
                     dateSubmitted: new Date().toLocaleDateString(),
+                    // Snapshot of the criteria as they were when submitted (so later template edits don't alter this form)
+                    items: activeItems.map(({ id, criteria, ratingScale }) => ({ id, criteria, ratingScale })),
                     answers: evalAnswers
                   }]);
+                  // NEW: Notify the submitter (observer) and the observee that the evaluation was submitted
+                  setGlobalNotifications(prev => [...(prev || []),
+                    { id: Math.random().toString(), recipientId: user.professor_id, message: `Evaluation Submitted: Your evaluation of ${activeEvaluationTarget.observeeName} (${activeEvaluationTarget.courseCode}) was submitted successfully. You can view it under My Evaluations.`, read: false, timestamp: new Date().toLocaleDateString() },
+                    { id: Math.random().toString(), recipientId: activeEvaluationTarget.observeeId, message: `Evaluation Received: ${user.name} submitted the evaluation for your ${activeEvaluationTarget.courseCode} class. You can view it under My Evaluations.`, read: false, timestamp: new Date().toLocaleDateString() }
+                  ]);
                   // Submitted, so the saved draft is no longer needed
                   setEvaluationDrafts(prev => { const next = { ...prev }; delete next[activeEvaluationTarget.id]; return next; });
                   alert("Digital evaluation successfully recorded and sent to the Committee!");
@@ -1048,6 +1101,58 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   </div>
                 </form>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'my-evaluations' && (
+            <div className="bento-grid">
+              {viewingEvaluation ? (
+                <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} />
+              ) : (
+                <>
+                  <div className="bento-card full-span">
+                    <h3>Evaluations I Submitted (as Observer)</h3>
+                    <div className="modern-table-wrapper">
+                      <table className="data-table nowrap-table">
+                        <thead><tr><th>Date Submitted</th><th>Observee</th><th>Course</th><th>Action</th></tr></thead>
+                        <tbody>
+                          {mySubmittedEvaluations.length === 0 ? (
+                            <tr><td colSpan="4" style={{ textAlign: 'center' }}>You haven't submitted any evaluations yet.</td></tr>
+                          ) : mySubmittedEvaluations.slice().reverse().map(ev => (
+                            <tr key={ev.id}>
+                              <td>{ev.dateSubmitted}</td>
+                              <td><strong>{ev.observeeName}</strong></td>
+                              <td>{ev.courseCode}</td>
+                              <td><button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bento-card full-span">
+                    <h3>Evaluations of My Teaching (as Observee)</h3>
+                    <div className="modern-table-wrapper">
+                      <table className="data-table nowrap-table">
+                        <thead><tr><th>Date Submitted</th><th>Observer</th><th>Course</th><th>Action</th></tr></thead>
+                        <tbody>
+                          {evaluationsOfMe.length === 0 ? (
+                            <tr><td colSpan="4" style={{ textAlign: 'center' }}>No evaluations have been submitted for you yet.</td></tr>
+                          ) : evaluationsOfMe.slice().reverse().map(ev => (
+                            <tr key={ev.id}>
+                              <td>{ev.dateSubmitted}</td>
+                              <td><strong>{ev.observerName}</strong></td>
+                              <td>{ev.courseCode}</td>
+                              <td><button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
