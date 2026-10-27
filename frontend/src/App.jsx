@@ -4,7 +4,8 @@ import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
-import { isPastDeadline, splitTiming } from './utils/deadlines.js'; // new import from new file called deadlines.js
+import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
+import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
 
 export default function App() {
@@ -21,16 +22,13 @@ export default function App() {
   // NEW: Template State
   const [evaluationTemplate, setEvaluationTemplate] = useState(mockEvaluationTemplate);
   const [globalNotifications, setGlobalNotifications] = useState([]);
+  // NEW: Saved (unsubmitted) evaluation progress, keyed by observation id
+  const [evaluationDrafts, setEvaluationDrafts] = useState({});
 
   const handleSurveySubmit = (professorId, answers) => {
     if (surveySubmissions.some(s => s.professor_id === professorId)) return;
-    // Survey is closed once the survey/feddback deadline passes
-    if (isPastDeadline(globalDeadlines.survey)) {
-      alert('The survey closed on ${globalDeadlines.survey}. Submissions are no longer accepted.');
-      return;
-    }
-    setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
-    setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
+      setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
+      setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
   };
 
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
@@ -79,6 +77,8 @@ export default function App() {
       setGlobalNotifications={setGlobalNotifications}
       globalEvaluations={globalEvaluations}
       setGlobalEvaluations={setGlobalEvaluations}
+      evaluationDrafts={evaluationDrafts}
+      setEvaluationDrafts={setEvaluationDrafts}
     />
   );
 }
@@ -209,7 +209,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
         <ul className="nav-menu">
           <NavItem id="metrics" label="📊 Live Metrics & KPIs" />
           <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
-          <NavItem id="signups" label="📝 Signup Requests" />
+          <NavItem id="signups" label="📝 Signup Monitor" />
           <NavItem id="deadlines" label="📅 Deadlines" />
           <NavItem id="template" label="⚙️ Template Editor" />
           <NavItem id="evaluations" label="📄 Digital Evaluations" />
@@ -238,11 +238,11 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
             <div className="bento-card full-span">
               <h3>Faculty Due for Evaluation ({currentSemester})</h3>
               <table className="data-table">
-                <thead><tr><th>Professor</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
+                <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
                 <tbody>
                   {dueFaculty.map(f => (
                     <tr key={f.professor_id}>
-                      <td><strong>{f.name}</strong></td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
+                      <td><strong>{f.name}</strong></td><td>{f.hire_level}</td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
                       <td>
                         {f.status === 'Overdue' ? <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Overdue ({f.overdue_by} sem)</span> : <span className="badge badge-warning">Due</span>}
                       </td>
@@ -255,26 +255,17 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 
           {activeTab === 'signups' && (
             <div className="bento-card full-span">
-              <h3>All Signup Requests ({globalSignups.length})</h3>
-              <p className="subtitle">Every observee who signed up this cycle, with the course they want observed and their contact email.</p>
-              <div className="modern-table-wrapper">
-              <table className="data-table compact">
-                <thead><tr><th>Observee Name</th><th>Observee Email</th><th>Course #</th><th>Section #</th><th>Meeting Days</th><th>Meeting Time</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
+              <h3>Signup & Matching Monitor</h3>
+              <table className="data-table">
+                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
                 <tbody>
-                  {globalSignups.length === 0 ? <tr><td colSpan="9" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
+                  {globalSignups.length === 0 ? <tr><td colSpan="5" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
                     globalSignups.map(signup => {
                       const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
-                      const { days, time } = splitTiming(signup.timing);
-                      const email = signup.observeeEmail || mockProfessors.find(p => p.professor_id === signup.observeeId)?.email;
                       return (
-                         <tr key={signup.id}>
-                          <td><strong>{signup.observeeName}</strong></td>
-                          <td className="nowrap">{email ? <a href={`mailto:${email}`}>{email}</a> : '—'}</td>
-                          <td className="nowrap">{signup.courseCode}</td>
-                          <td>{signup.section}</td>
-                          <td className="nowrap">{days}</td>
-                          <td className="nowrap">{time}</td>
-                          <td className="nowrap">{signup.matchesCount} Observers</td>
+                        <tr key={signup.id}>
+                          <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
+                          <td>{signup.matchesCount} Observers</td>
                           <td>
                             {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
                             {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
@@ -287,7 +278,6 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   }
                 </tbody>
               </table>
-              </div>
             </div>
           )}
 
@@ -299,7 +289,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                   <div className="form-group"><label>Signup Deadline</label><input type="date" value={globalDeadlines.signup} onChange={e => setGlobalDeadlines({...globalDeadlines, signup: e.target.value})} /></div>
                   <div className="form-group"><label>Observation Period Ends</label><input type="date" value={globalDeadlines.observation} onChange={e => setGlobalDeadlines({...globalDeadlines, observation: e.target.value})} /></div>
                   <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={globalDeadlines.survey} onChange={e => setGlobalDeadlines({...globalDeadlines, survey: e.target.value})} /></div>
-                  <button type="button" className="btn-primary btn-3d" style={{ width: '100%', padding: '14px' }} onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
+                  <button type="button" className="btn-primary" onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
                 </form>
               </div>
             </div>
@@ -363,8 +353,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                                 </td>
                                 <td>
                                   <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn-success sm" onClick={() => saveEdit(item.id)}>Save</button>
-                                    <button className="btn-secondary sm" onClick={cancelEdit}>Cancel</button>
+                                    <button className="btn-primary sm" onClick={() => saveEdit(item.id)} style={{padding: '6px 12px', borderRadius: '6px', border: 'none'}}>Save</button>
+                                    <button className="btn-secondary sm" onClick={cancelEdit} style={{padding: '6px 12px', borderRadius: '6px', cursor: 'pointer'}}>Cancel</button>
                                   </div>
                                 </td>
                               </>
@@ -375,8 +365,8 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
                                 <td><span className="badge badge-neutral">{item.ratingScale}</span></td>
                                 <td>
                                   <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn-secondary sm" onClick={() => startEditing(item)}>Edit</button>
-                                    <button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)}>Remove</button>
+                                    <button className="btn-secondary sm" onClick={() => startEditing(item)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: '#0f172a', fontWeight: 'bold' }}>Edit</button>
+                                    <button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)} style={{ background: '#ef4444', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Remove</button>
                                   </div>
                                 </td>
                               </>
@@ -435,11 +425,46 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines, globalNotifications, setGlobalNotifications, globalEvaluations, setGlobalEvaluations }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines, globalNotifications, setGlobalNotifications, globalEvaluations, setGlobalEvaluations, evaluationDrafts, setEvaluationDrafts }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
   const [toastNotif, setToastNotif] = useState(null);
+  // NEW: Answers for the evaluation form currently open: { [criteriaId]: { rating, notes } }
+  const [evalAnswers, setEvalAnswers] = useState({});
+
+  // Open the evaluation form, restoring any saved progress for this observation
+  const openEvaluation = (obs) => {
+    setActiveEvaluationTarget(obs);
+    setEvalAnswers(evaluationDrafts?.[obs.id]?.answers || {});
+    setActiveTab('live-evaluation');
+  };
+
+  const updateEvalAnswer = (criteriaId, field, value) => {
+    setEvalAnswers(prev => ({ ...prev, [criteriaId]: { ...prev[criteriaId], [field]: value } }));
+  };
+
+  const closeEvaluation = () => {
+    setActiveEvaluationTarget(null);
+    setEvalAnswers({});
+    setActiveTab('observer-duties');
+  };
+
+  // Save & Return: keep progress without requiring every field to be filled in
+  const handleSaveDraft = () => {
+    const obsId = activeEvaluationTarget.id;
+    setEvaluationDrafts(prev => ({ ...prev, [obsId]: { answers: evalAnswers, savedAt: new Date().toLocaleString() } }));
+    alert("Progress saved. You can come back and finish this evaluation later.");
+    closeEvaluation();
+  };
+
+  // Cancel & Return: discard changes made since the last save (asks first if there are any)
+  const handleCancelEvaluation = () => {
+    const saved = evaluationDrafts?.[activeEvaluationTarget.id]?.answers || {};
+    const hasUnsavedChanges = JSON.stringify(saved) !== JSON.stringify(evalAnswers);
+    if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Leave without saving?")) return;
+    closeEvaluation();
+  };
 
   // SAFE DEFAULTS: Added fallbacks (|| []) to prevent null-reference crashes
   const myStatus = calculateEvaluationStatus(user) || { status: 'Unknown', next_eval: 'TBD' };
@@ -449,7 +474,6 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const isPastSignupDeadline = globalDeadlines?.signup 
     ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
     : false;
-  const isPastSurveyDeadline = isPastDeadline(globalDeadlines?.survey);
 
   const dynamicSystemNotifs = [];
   if ((myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup) {
@@ -485,6 +509,11 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   );
 
   const confirmObservation = (obsId, side) => {
+    // VALIDATION: the observer can't mark the observation complete until the evaluation form is submitted
+    if (side === 'observer' && !(globalEvaluations || []).some(e => e.observationId === obsId)) {
+      alert("Please complete and submit the evaluation form (Begin Evaluation) before marking this evaluation as completed.");
+      return false;
+    }
     setGlobalObservations(prev => {
       let justCompleted = false;
       let observeeId, observerId;
@@ -511,6 +540,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       }
       return nextObs;
     });
+    return true;
   }
 
   const handleSendRequest = (observer) => {
@@ -573,16 +603,24 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     alert(`${acceptedRequest.observerName} is confirmed! Please set the specific observation date.`);
   };
 
-  const handleScheduleDate = (obsId, dateStr) => {
+  const handleScheduleDate = (obsId, dateStr, timeStr) => {
     const obs = (globalObservations || []).find(o => o.id === obsId);
     if (!obs) return;
-    setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Scheduled', scheduledDate: dateStr } : o));
-    
+
+    // VALIDATION: date must be a day the class meets and time must be the class meeting time
+    const slotError = validateObservationSlot(dateStr, timeStr, obs.timing, {
+      minDate: todayLocalISO(),
+      maxDate: globalDeadlines?.observation || undefined,
+    });
+    if (slotError) { alert(slotError); return; }
+
+    setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Scheduled', scheduledDate: dateStr, scheduledTime: timeStr } : o));
+
     const schedulingNotifs = [
-      { id: Math.random().toString(), recipientId: obs.observeeId, message: `Meeting Set: Your observation with ${obs.observerName} is scheduled for ${dateStr} during class (${obs.timing}).`, read: false, timestamp: new Date().toLocaleDateString() },
-      { id: Math.random().toString(), recipientId: obs.observerId, message: `Meeting Set: You are scheduled to observe ${obs.observeeName} on ${dateStr} during class (${obs.timing}).`, read: false, timestamp: new Date().toLocaleDateString() },
-      { id: Math.random().toString(), recipientId: obs.observeeId, message: `Reminder: Your evaluation with ${obs.observerName} is coming up on ${dateStr}.`, read: false, timestamp: new Date().toLocaleDateString() },
-      { id: Math.random().toString(), recipientId: obs.observerId, message: `Reminder: You have an upcoming observation duty for ${obs.observeeName} on ${dateStr}.`, read: false, timestamp: new Date().toLocaleDateString() }
+      { id: Math.random().toString(), recipientId: obs.observeeId, message: `Meeting Set: Your observation with ${obs.observerName} is scheduled for ${dateStr} at ${timeStr} during class (${obs.timing}).`, read: false, timestamp: new Date().toLocaleDateString() },
+      { id: Math.random().toString(), recipientId: obs.observerId, message: `Meeting Set: You are scheduled to observe ${obs.observeeName} on ${dateStr} at ${timeStr} during class (${obs.timing}).`, read: false, timestamp: new Date().toLocaleDateString() },
+      { id: Math.random().toString(), recipientId: obs.observeeId, message: `Reminder: Your evaluation with ${obs.observerName} is coming up on ${dateStr} at ${timeStr}.`, read: false, timestamp: new Date().toLocaleDateString() },
+      { id: Math.random().toString(), recipientId: obs.observerId, message: `Reminder: You have an upcoming observation duty for ${obs.observeeName} on ${dateStr} at ${timeStr}.`, read: false, timestamp: new Date().toLocaleDateString() }
     ];
     setGlobalNotifications(prev => [...(prev || []), ...schedulingNotifs]);
     alert("Date confirmed! Both parties have been notified and reminders are set.");
@@ -595,7 +633,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     setGlobalSignups(prev => [
       ...(prev || []).filter(s => s.observeeId !== user.professor_id),
       {
-        id: Date.now(), observeeId: user.professor_id, observeeName: user.name, observeeEmail: user.email,
+        id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
         courseCode: course.course_code, section: course.section, timing: course.timing,
         matchesCount: result.matches.length, matchFlag: result.flag, eligibleObservers: result.matches
       }
@@ -693,21 +731,17 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   <p style={{ marginTop: '0.75rem', marginBottom: '15px'}}>Status: <span className={`badge ${myConfirmedObservation.status === 'Completed' ? 'badge-success' : myConfirmedObservation.status === 'Missed' ? 'badge-error' : myConfirmedObservation.status === 'Scheduled' ? 'badge-neutral' : 'badge-warning'}`}>{myConfirmedObservation.status}</span></p>
                   
                   {myConfirmedObservation.status === 'Pending Scheduling' && (
-                    <div style={{padding: '15px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '15px'}}>
-                      <h4 style={{ color: '#b45309' }}>📅 Schedule the specific date</h4>
-                      <p style={{fontSize: '0.9rem', color: '#92400e', marginBottom: '10px'}}>Coordinate with {myConfirmedObservation.observerName} and select the exact date for this observation. It must align with your class timing ({myConfirmedObservation.timing}).</p>
-                      <input type="date" id={`date-${myConfirmedObservation.id}`} style={{ padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', marginRight: '10px' }} />
-                      <button className="btn-primary sm" onClick={() => {
-                        const dateVal = document.getElementById(`date-${myConfirmedObservation.id}`).value;
-                        if (!dateVal) return alert('Please select a date.');
-                        handleScheduleDate(myConfirmedObservation.id, dateVal);
-                      }}>Set Meeting Date</button>
-                    </div>
+                    <ScheduleObservationForm
+                      observation={myConfirmedObservation}
+                      observationDeadline={globalDeadlines?.observation}
+                      onSchedule={handleScheduleDate}
+                    />
                   )}
 
                   {myConfirmedObservation.scheduledDate && (
                     <p style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontWeight: '500' }}>
                       🗓️ Scheduled Date: <strong>{myConfirmedObservation.scheduledDate}</strong>
+                      {myConfirmedObservation.scheduledTime && <> at <strong>{myConfirmedObservation.scheduledTime}</strong></>}
                     </p>
                   )}
 
@@ -722,7 +756,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                       </p>
                       {!myConfirmedObservation.observeeConfirmed && (
                         <div style={{display: 'flex', gap: '10px'}}>
-                          <button className="btn-success sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>✓ I Was Observed</button>
+                          <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
                           <button className="btn-danger sm" onClick={() => reportMissedObservation(myConfirmedObservation.id)}>Did Not Happen</button>
                         </div>
                       )}
@@ -825,8 +859,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                             <td>{req.courseCode} ({req.timing})</td>
                             <td>
                               <div style={{display: 'flex', gap: '10px'}}>
-                                <button className="btn-success sm" onClick={() => handleObserverAction(req.id, 'Accepted')}>Accept</button>
-                                <button className="btn-danger sm" onClick={() => handleObserverAction(req.id, 'Declined')}>Decline</button>
+                                <button className="btn-success btn-3d sm" onClick={() => handleObserverAction(req.id, 'Accepted')}>Accept</button>
+                                <button className="btn-danger btn-3d sm" onClick={() => handleObserverAction(req.id, 'Declined')}>Decline</button>
                               </div>
                             </td>
                           </tr>
@@ -846,11 +880,21 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                       {myAssignedObservations.length === 0 ? (
                         <tr><td colSpan="4" style={{textAlign: 'center'}}>No confirmed duties.</td></tr>
                       ) : (
-                        myAssignedObservations.map(obs => (
+                        myAssignedObservations.map(obs => {
+                          // VALIDATION: "Evaluation Completed" is locked until the evaluation form is submitted
+                          const hasSubmittedEvaluation = (globalEvaluations || []).some(e => e.observationId === obs.id);
+                          return (
                           <tr key={obs.id}>
                             <td><strong>{obs.observeeName}</strong></td>
-                            <td>{obs.courseCode}</td>
-                            <td>{obs.timing}</td>
+                            <td style={{ whiteSpace: 'nowrap' }}>{obs.courseCode}</td>
+                            <td>
+                              <div style={{ whiteSpace: 'nowrap' }}>{obs.timing}</div>
+                              {obs.scheduledDate && (
+                                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px', whiteSpace: 'nowrap' }}>
+                                  🗓️ {obs.scheduledDate}{obs.scheduledTime ? ` at ${obs.scheduledTime}` : ''}
+                                </div>
+                              )}
+                            </td>
                             <td>
                               {obs.status === 'Missed' ? (
                                 <span className="badge badge-error">Missed</span>
@@ -861,29 +905,42 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                               ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
                                   {/* SAFE UI: Added default array for evaluation check */}
-                                  {(globalEvaluations || []).some(e => e.observationId === obs.id) ? (
+                                  {hasSubmittedEvaluation ? (
                                     <span className="badge badge-success">✓ Evaluation Submitted</span>
                                   ) : (
                                     <button 
-                                      className="btn-info sm" 
-                                      onClick={() => {
-                                        setActiveEvaluationTarget(obs);
-                                        setActiveTab('live-evaluation');
-                                      }}
+                                      className="btn-secondary sm" 
+                                      style={{background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
+                                      onClick={() => openEvaluation(obs)}
                                     >
-                                      📝 Begin Evaluation
+                                      {evaluationDrafts?.[obs.id] ? '📝 Continue Evaluation' : '📝 Begin Evaluation'}
                                     </button>
                                   )}
-                                  <button className="btn-success sm" onClick={() => {
-                                  confirmObservation(obs.id, 'observer');
-                                  alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
-                                  }}>Evaluation Completed</button>
-                                  <button className="btn-danger sm" onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
+                                  
+                                  <button
+                                    className="btn-primary sm"
+                                    disabled={!hasSubmittedEvaluation}
+                                    title={hasSubmittedEvaluation ? '' : 'Submit the evaluation form (Begin Evaluation) first'}
+                                    style={{padding: '5px 10px', borderRadius: '4px', opacity: hasSubmittedEvaluation ? 1 : 0.5, cursor: hasSubmittedEvaluation ? 'pointer' : 'not-allowed'}}
+                                    onClick={() => {
+                                      if (!confirmObservation(obs.id, 'observer')) return;
+                                      alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
+                                    }}
+                                  >Evaluation Completed</button>
+
+                                  <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
+
+                                  {!hasSubmittedEvaluation && (
+                                    <small style={{ width: '100%', color: '#64748b', fontSize: '0.8rem' }}>
+                                      {evaluationDrafts?.[obs.id] ? `Draft saved ${evaluationDrafts[obs.id].savedAt}. ` : ''}Complete the evaluation form before marking it completed.
+                                    </small>
+                                  )}
                                 </div>
                               )}
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -898,8 +955,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   <div>
                     <h3 style={{ fontSize: '1.4rem', color: 'var(--utd-green)' }}>Live Observation: {activeEvaluationTarget.observeeName}</h3>
                     <p className="subtitle" style={{ marginTop: '5px' }}>Evaluating {activeEvaluationTarget.courseCode} ({activeEvaluationTarget.timing})</p>
+                    {evaluationDrafts?.[activeEvaluationTarget.id] && (
+                      <small style={{ color: '#64748b' }}>Last saved: {evaluationDrafts[activeEvaluationTarget.id].savedAt}</small>
+                    )}
                   </div>
-                  <button className="btn-secondary sm" onClick={() => { setActiveEvaluationTarget(null); setActiveTab('observer-duties'); }}>Cancel & Return</button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="button" className="btn-secondary sm" onClick={handleCancelEvaluation}>Cancel & Return</button>
+                    <button type="button" className="btn-success sm" onClick={handleSaveDraft}>💾 Save & Return</button>
+                  </div>
                 </div>
 
                 <form className="modern-form" onSubmit={(e) => {
@@ -908,11 +971,13 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                     id: Date.now(), observationId: activeEvaluationTarget.id,
                     observerId: user.professor_id, observerName: user.name,
                     observeeName: activeEvaluationTarget.observeeName, courseCode: activeEvaluationTarget.courseCode,
-                    dateSubmitted: new Date().toLocaleDateString()
+                    dateSubmitted: new Date().toLocaleDateString(),
+                    answers: evalAnswers
                   }]);
+                  // Submitted, so the saved draft is no longer needed
+                  setEvaluationDrafts(prev => { const next = { ...prev }; delete next[activeEvaluationTarget.id]; return next; });
                   alert("Digital evaluation successfully recorded and sent to the Committee!");
-                  setActiveEvaluationTarget(null);
-                  setActiveTab('observer-duties');
+                  closeEvaluation();
                 }}>
                   {(evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester).map((item, index) => (
                     <div key={item.id} style={{ marginBottom: '30px', paddingBottom: '25px', borderBottom: '1px solid #f1f5f9' }}>
@@ -925,7 +990,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                           <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
                             {[1, 2, 3, 4, 5].map(num => (
                               <label key={num} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
-                                <input type="radio" name={`rating-${item.id}`} value={num} required style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {num}
+                                <input type="radio" name={`rating-${item.id}`} value={num} required checked={evalAnswers[item.id]?.rating === String(num)} onChange={(e) => updateEvalAnswer(item.id, 'rating', e.target.value)} style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {num}
                               </label>
                             ))}
                           </div>
@@ -935,7 +1000,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                           <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
                             {['Yes', 'No', 'N/A'].map(opt => (
                               <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
-                                <input type="radio" name={`rating-${item.id}`} value={opt} required style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {opt}
+                                <input type="radio" name={`rating-${item.id}`} value={opt} required checked={evalAnswers[item.id]?.rating === opt} onChange={(e) => updateEvalAnswer(item.id, 'rating', e.target.value)} style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {opt}
                               </label>
                             ))}
                           </div>
@@ -943,7 +1008,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                       </div>
                       
                       <div style={{ paddingLeft: '20px' }}>
-                        <textarea placeholder="Observer notes and feedback..." rows="3" required style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}></textarea>
+                        <textarea placeholder="Observer notes and feedback..." rows="3" required value={evalAnswers[item.id]?.notes || ''} onChange={(e) => updateEvalAnswer(item.id, 'notes', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}></textarea>
                       </div>
                     </div>
                   ))}
@@ -982,7 +1047,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                           <small style={{ color: '#64748b', marginTop: '5px', display: 'block' }}>{notif.timestamp}</small>
                         </div>
                         {!notif.read && (
-                          <button className="btn-secondary sm" onClick={() => {
+                          <button className="btn-secondary sm" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => {
                             setGlobalNotifications((globalNotifications || []).map(n => n.id === notif.id ? { ...n, read: true } : n));
                           }}>Dismiss</button>
                         )}
@@ -995,7 +1060,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           )}
 
           {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isPastSurveyDeadline} deadline={globalDeadlines?.survey}/>
+            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
           )}
         </div>
       </div>
