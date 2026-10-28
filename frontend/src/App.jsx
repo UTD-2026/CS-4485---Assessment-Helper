@@ -627,6 +627,34 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   // NEW: Submitted evaluation currently opened (read-only) on the "My Evaluations" tab
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
   const [notifTab, setNotifTab] = useState('inbox');
+  // NEW: State for deferred observation reasoning
+  const [deferReason, setDeferReason] = useState('');
+  const [showDeferForm, setShowDeferForm] = useState(false);
+
+  const handleDeferObservation = (obsId) => {
+    if (!deferReason.trim()) {
+      alert("Please provide a reason why the observation could not be completed.");
+      return;
+    }
+    setGlobalObservations(prev => prev.map(o => o.id === obsId ? { 
+      ...o, 
+      status: 'Deferred / Rolled Over', 
+      deferralReason: deferReason,
+      deferredBy: user.name 
+    } : o));
+
+    setGlobalNotifications(prev => [...(prev || []), {
+      id: Math.random().toString(), 
+      recipientId: 0, // Admin ID
+      message: `Observation Deferred: ${user.name} reported that their observation could not be completed this cycle. Reason: "${deferReason}"`, 
+      read: false, 
+      timestamp: new Date().toLocaleDateString()
+    }]);
+
+    setShowDeferForm(false);
+    setDeferReason('');
+    alert("Reason submitted to the Assessment Committee. Your cycle status has been updated.");
+  };
 
   // Open the evaluation form, restoring any saved progress for this observation
   const openEvaluation = (obs) => {
@@ -954,19 +982,53 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
 
                   {(myConfirmedObservation.status === 'Scheduled' || myConfirmedObservation.status === 'Awaiting Confirmation') && (
                     <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '15px'}}>
-                      <h4>Pair Confirmation</h4>
+                      <h4>Pair Confirmation & Status</h4>
                       <p style={{fontSize: '0.9rem', color: '#64748b', marginTop: '6px'}}>
                         Observer: {myConfirmedObservation.observerConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
                       </p>
                       <p style={{fontSize: '0.9rem', color: '#64748b', margin: '4px 0 10px'}}>
                         You: {myConfirmedObservation.observeeConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
                       </p>
-                      {!myConfirmedObservation.observeeConfirmed && (
-                        <div style={{display: 'flex', gap: '10px'}}>
-                          <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
-                          <button className="btn-danger sm" onClick={() => reportMissedObservation(myConfirmedObservation.id)}>Did Not Happen</button>
+                      
+                      {!myConfirmedObservation.observeeConfirmed && myConfirmedObservation.status !== 'Deferred / Rolled Over' && (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px'}}>
+                          <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                            <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
+                            <button className="btn-danger sm" onClick={() => reportMissedObservation(myConfirmedObservation.id)}>Did Not Happen</button>
+                            <button className="btn-secondary sm" style={{background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a'}} onClick={() => setShowDeferForm(!showDeferForm)}>
+                              {showDeferForm ? 'Cancel' : '⚠️ Could Not Complete Cycle'}
+                            </button>
+                          </div>
+
+                          {showDeferForm && (
+                            <div style={{background: 'white', padding: '15px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '10px'}}>
+                              <label style={{display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px', color: '#0f172a'}}>
+                                Provide Reasoning for Incompletion / Rollover
+                              </label>
+                              <textarea 
+                                rows="3" 
+                                value={deferReason} 
+                                onChange={(e) => setDeferReason(e.target.value)} 
+                                placeholder="e.g., Extended medical leave or scheduling conflicts prevented this observation..." 
+                                style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '10px'}}
+                              />
+                              <button className="btn-danger sm" onClick={() => handleDeferObservation(myConfirmedObservation.id)}>
+                                Submit Reason to Committee
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {myConfirmedObservation.status === 'Deferred / Rolled Over' && (
+                    <div style={{padding: '15px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '15px'}}>
+                      <h4 style={{color: '#b45309', marginBottom: '5px'}}>Status: Deferred / Rolled Over</h4>
+                      <p style={{fontSize: '0.9rem', color: '#92400e', margin: 0}}>
+                        Reason submitted: "{myConfirmedObservation.deferralReason}"
+                      </p>
+                      <small style={{color: '#b45309', display: 'block', marginTop: '5px'}}>The Assessment Committee has been notified of your reasoning.</small>
                     </div>
                   )}
 
