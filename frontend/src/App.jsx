@@ -105,6 +105,7 @@ export default function App() {
         globalSignups={globalSignups}
         setGlobalSignups={setGlobalSignups}
         globalObservations={globalObservations}
+        setGlobalObservations={setGlobalObservations}
         globalDeadlines={globalDeadlines}
         setGlobalDeadlines={setGlobalDeadlines}
         surveySubmissions={surveySubmissions}
@@ -211,50 +212,87 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications }) {
+function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, setGlobalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications }) {
   const [activeTab, setActiveTab] = useState('metrics');
-  const [viewingEvaluation, setViewingEvaluation] = useState(null); // NEW: Tracks the open evaluation form
+  const [viewingEvaluation, setViewingEvaluation] = useState(null); 
   
   // Local state for the new criterion form
   const [newCriteria, setNewCriteria] = useState('');
   const [newRating, setNewRating] = useState('1 to 5 (Poor to Excellent)');
 
-  // NEW: State for inline editing
+  // State for inline editing & viewing
   const [editingId, setEditingId] = useState(null);
   const [editCriteria, setEditCriteria] = useState('');
   const [editRating, setEditRating] = useState('1 to 5 (Poor to Excellent)');
-  const [expandedSignup, setExpandedSignup] = useState(null); // NEW: For viewing potential observers
+  const [expandedSignup, setExpandedSignup] = useState(null); 
 
+  // NEW: Manual Resolution & Deadline States
+  const [resolvingSignupId, setResolvingSignupId] = useState(null);
+  const [manualObserverId, setManualObserverId] = useState('');
+  
+  // Check if observation deadline passed
+  const isPastObservationDeadline = globalDeadlines?.observation 
+    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`) 
+    : false;
+
+  // NEW: Blast out end-of-process survey reminders
+  const handleSurveyBlast = () => {
+    const newNotifs = globalSignups.map(s => ({
+      id: Math.random().toString(), recipientId: s.observeeId,
+      message: `Action Required: The observation period has officially ended. Please complete your end-of-process feedback survey.`,
+      read: false, timestamp: new Date().toLocaleDateString()
+    }));
+    setGlobalNotifications(prev => [...(prev || []), ...newNotifs]);
+    alert("End-of-process survey reminders blasted to all observees!");
+  };
+
+  // NEW: Manually assign an observer
+  const handleManualAssignment = (signup) => {
+    if (!manualObserverId) {
+      alert("Please select a faculty member from the dropdown first.");
+      return;
+    }
+    // FIX: Convert both IDs to strings to prevent strict equality failures from the HTML <select> element
+    const observer = mockProfessors.find(p => p.professor_id.toString() === manualObserverId.toString());
+    
+    if (!observer) {
+      alert("Error: Observer not found in database.");
+      return;
+    }
+
+    const newObservation = {
+      id: Date.now(), observeeId: signup.observeeId, observeeName: signup.observeeName,
+      observerId: observer.professor_id, observerName: observer.name,
+      courseCode: signup.courseCode, timing: signup.timing,
+      status: 'Pending Scheduling', scheduledDate: null, observerConfirmed: false, observeeConfirmed: false,
+    };
+    
+    setGlobalObservations(prev => [...(prev || []), newObservation]);
+    // FIX: Force matchFlag to 'OK' and bypass the list release step so it jumps straight to scheduling
+    setGlobalSignups(prev => prev.map(s => s.id === signup.id ? { ...s, matchFlag: 'OK', listReleased: true } : s));
+    
+    // Notify both parties of the manual committee assignment
+    setGlobalNotifications(prev => [...(prev || []), 
+      { id: Math.random().toString(), recipientId: observer.professor_id, message: `System Assignment: You have been manually assigned by the Committee to observe ${signup.observeeName} (${signup.courseCode}).`, read: false, timestamp: new Date().toLocaleDateString() },
+      { id: Math.random().toString(), recipientId: signup.observeeId, message: `System Update: The Committee has manually assigned ${observer.name} as your observer for ${signup.courseCode}. Head to 'Observee Status' to schedule the date.`, read: false, timestamp: new Date().toLocaleDateString() }
+    ]);
+    
+    setResolvingSignupId(null);
+    setManualObserverId('');
+    alert(`Successfully assigned ${observer.name} to observe ${signup.observeeName}! They can now schedule the date.`);
+  };
   const startEditing = (item) => {
-    setEditingId(item.id);
-    setEditCriteria(item.criteria);
-    setEditRating(item.ratingScale);
+    setEditingId(item.id); setEditCriteria(item.criteria); setEditRating(item.ratingScale);
   };
-
   const saveEdit = (id) => {
-    // NEW: Semester-locked template edits
-    setEvaluationTemplate(evaluationTemplate.map(item => 
-      item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating, effective: 'Fall 2027' } : item
-    ));
+    setEvaluationTemplate(evaluationTemplate.map(item => item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating, effective: 'Fall 2027' } : item));
     setEditingId(null);
   };
+  const cancelEdit = () => setEditingId(null);
 
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
-
-  const allFacultyStatus = mockProfessors.map(prof => ({
-    ...prof,
-    ...calculateEvaluationStatus(prof)
-  }));
-
+  const allFacultyStatus = mockProfessors.map(prof => ({ ...prof, ...calculateEvaluationStatus(prof) }));
   const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
-
-  const NavItem = ({ id, label }) => (
-    <li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); }}>
-      <span>{label}</span>
-    </li>
-  );
+  const NavItem = ({ id, label }) => (<li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); }}><span>{label}</span></li>);
 
   const handleAddCriteria = () => {
     if (!newCriteria) return;
@@ -331,7 +369,14 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
 
           {activeTab === 'signups' && (
             <div className="bento-card full-span">
-              <h3>Signup & Matching Monitor</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3 style={{ margin: 0 }}>Signup & Matching Monitor</h3>
+                {isPastObservationDeadline && (
+                  <button className="btn-primary btn-3d" onClick={handleSurveyBlast} style={{ background: 'var(--utd-orange)', border: 'none' }}>
+                    📢 Request End-of-Process Surveys
+                  </button>
+                )}
+              </div>
               <div className="table-scroll-x">
               <table className="data-table nowrap-table">
                 <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th><th>AC Action</th></tr></thead>
@@ -340,8 +385,10 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                     globalSignups.map(signup => {
                       const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
                       const isExpanded = expandedSignup === signup.id;
+                      const isResolving = resolvingSignupId === signup.id;
+                      
                       return (
-                        <React.Fragment key="{signup.id}">
+                        <React.Fragment key={signup.id}>
                           <tr>
                             <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
                             <td>{signup.matchesCount} Observers</td>
@@ -352,20 +399,54 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                             </td>
                             <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
                             <td>
-                              <button className="btn-secondary sm" onClick={() => setExpandedSignup(isExpanded ? null : signup.id)}>
-                                {isExpanded ? 'Hide Potential Observers' : 'View Potential Observers'}
-                              </button>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button className="btn-secondary sm" onClick={() => { setExpandedSignup(isExpanded ? null : signup.id); setResolvingSignupId(null); }}>
+                                  {isExpanded ? 'Hide List' : 'View List'}
+                                </button>
+                                {(signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS') && !obs && (
+                                  <button className="btn-danger sm" onClick={() => { setResolvingSignupId(isResolving ? null : signup.id); setExpandedSignup(null); }}>
+                                    Resolve Manually
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
-                          {isExpanded && (
+                          
+                          {/* MANUAL RESOLUTION DROPDOWN ROW */}
+                          {isResolving && (
+                            <tr style={{ background: '#fffbeb', borderBottom: '2px solid #fde68a' }}>
+                              <td colSpan="6" style={{ padding: '20px' }}>
+                                <h4 style={{ marginBottom: '10px', color: '#b45309' }}>Manual Observer Assignment for {signup.observeeName}</h4>
+                                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                  <select value={manualObserverId} onChange={(e) => setManualObserverId(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #d97706', width: '350px' }}>
+                                    <option value="">-- Select Faculty Member --</option>
+                                    {mockProfessors.filter(p => p.professor_id !== signup.observeeId).map(p => (
+                                      <option key={p.professor_id} value={p.professor_id}>{p.name} ({p.department}) - ID: {p.professor_id}</option>
+                                    ))}
+                                  </select>
+                                  <button className="btn-primary btn-3d sm" onClick={() => handleManualAssignment(signup)}>Assign & Confirm Pair</button>
+                                  <button className="btn-secondary sm" onClick={() => setResolvingSignupId(null)}>Cancel</button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+
+                          {/* STANDARD POTENTIAL OBSERVERS ROW */}
+                          {isExpanded && !isResolving && (
                             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                               <td colSpan="6" style={{ padding: '20px' }}>
                                 <h4 style={{ marginBottom: '10px', color: 'var(--utd-orange)' }}>Generated Observer List for {signup.observeeName}</h4>
                                 <ul style={{ marginBottom: '15px', paddingLeft: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                  {(signup.eligibleObservers || []).map(po => <li key={po.professor_id}><strong>{po.name}</strong> ({po.department})</li>)}
+                                  {(signup.eligibleObservers || []).length === 0 ? (
+                                    <li style={{ color: '#ef4444' }}>No eligible observers found in database.</li>
+                                  ) : (
+                                    (signup.eligibleObservers || []).map(po => <li key={po.professor_id}><strong>{po.name}</strong> ({po.department})</li>)
+                                  )}
                                 </ul>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                  {signup.listReleased ? (
+                                  {(signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS') ? (
+                                    <span className="badge badge-error" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>🔒 List cannot be released. Please click 'Resolve Manually'.</span>
+                                  ) : signup.listReleased ? (
                                     <span className="badge badge-success" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>✓ List has been released to {signup.observeeName}</span>
                                   ) : (
                                     <button className="btn-primary btn-3d sm" onClick={() => handleReleaseList(signup)}>Release List & Notify Observee</button>
@@ -587,6 +668,11 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const myConfirmedObservation = (globalObservations || []).find(o => o.observeeId === user?.professor_id);
   const isPastSignupDeadline = globalDeadlines?.signup 
     ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
+    : false;
+
+  // NEW: Check if the observation-period deadline has passed
+  const isPastObservationDeadline = globalDeadlines?.observation
+    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`)
     : false;
 
   const dynamicSystemNotifs = [];
@@ -1033,9 +1119,10 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                 <span className="badge badge-warning">Awaiting observee confirmation</span>
                               ) : (
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                                  {/* SAFE UI: Added default array for evaluation check */}
                                   {hasSubmittedEvaluation ? (
                                     <span className="badge badge-success">✓ Evaluation Submitted</span>
+                                  ) : isPastObservationDeadline ? (
+                                    <span className="badge badge-error" style={{ padding: '8px', fontSize: '0.85rem' }}>🔒 Deadline Passed</span>
                                   ) : (
                                     <button 
                                       className="btn-secondary sm" 
@@ -1048,9 +1135,9 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                   
                                   <button
                                     className="btn-primary sm"
-                                    disabled={!hasSubmittedEvaluation}
-                                    title={hasSubmittedEvaluation ? '' : 'Submit the evaluation form (Begin Evaluation) first'}
-                                    style={{padding: '5px 10px', borderRadius: '4px', opacity: hasSubmittedEvaluation ? 1 : 0.5, cursor: hasSubmittedEvaluation ? 'pointer' : 'not-allowed'}}
+                                    disabled={!hasSubmittedEvaluation || isPastObservationDeadline}
+                                    title={isPastObservationDeadline ? 'Observation deadline has passed' : hasSubmittedEvaluation ? '' : 'Submit the evaluation form (Begin Evaluation) first'}
+                                    style={{padding: '5px 10px', borderRadius: '4px', opacity: (hasSubmittedEvaluation && !isPastObservationDeadline) ? 1 : 0.5, cursor: (hasSubmittedEvaluation && !isPastObservationDeadline) ? 'pointer' : 'not-allowed'}}
                                     onClick={() => {
                                       if (!confirmObservation(obs.id, 'observer')) return;
                                       alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
@@ -1059,7 +1146,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
 
                                   <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
 
-                                  {!hasSubmittedEvaluation && (
+                                  {!hasSubmittedEvaluation && !isPastObservationDeadline && (
                                     <small style={{ width: '100%', color: '#64748b', fontSize: '0.8rem' }}>
                                       {evaluationDrafts?.[obs.id] ? `Draft saved ${evaluationDrafts[obs.id].savedAt}. ` : ''}Complete the evaluation form before marking it completed.
                                     </small>
