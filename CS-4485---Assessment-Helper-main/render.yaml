@@ -1,0 +1,25 @@
+# Render Blueprint (https://render.com): a free web service for the API. The database is MongoDB Atlas (free M0 cluster),
+# created by hand; paste its connection string into MONGODB_URI in the Render dashboard. Free-tier limits change, so check
+# both providers' current terms (docs/DEPLOYMENT.md). A free Render service sleeps when idle, so the first request is slow.
+services:
+  - type: web
+    name: assessment-helper-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false          # the frontend's address, e.g. https://assessment-helper.onrender.com
+      - key: NETID_MODE
+        value: "off"         # use "mock" + ALLOW_MOCK_NETID_IN_PRODUCTION=true only for a throwaway demo
+      - key: JOBS_INTERVAL_MINUTES
+        value: "15"

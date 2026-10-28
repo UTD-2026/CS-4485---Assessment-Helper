@@ -1,0 +1,5246 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Assessment Helper API",
+    "version": "1.0.0",
+    "description": "Peer teaching observations for UTD CS: signup, observer matching, in-app observation record, signatures, anonymous survey, committee dashboard. JSON uses camelCase. A course section is identified by one string, the sectionId (\"CS 2117~001~Fall 2026\"). Lists that can grow use ?page=&pageSize= and return { pagination }. Errors are { error, code?, details? }. Sign in with POST /api/auth/login (or the NetID mock flow) and send \"Authorization: Bearer <token>\"."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Dashboard"
+    },
+    {
+      "name": "Cycles"
+    },
+    {
+      "name": "Faculty"
+    },
+    {
+      "name": "Courses"
+    },
+    {
+      "name": "Signup and matching"
+    },
+    {
+      "name": "Requests"
+    },
+    {
+      "name": "Observations"
+    },
+    {
+      "name": "Template"
+    },
+    {
+      "name": "Surveys"
+    },
+    {
+      "name": "Notifications"
+    },
+    {
+      "name": "Committee dashboard"
+    },
+    {
+      "name": "Reports (CSV)"
+    },
+    {
+      "name": "Operations"
+    }
+  ],
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Sign in with a NetID or email and a password",
+        "operationId": "post_api_auth_login",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIs...",
+                  "professor": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "x-access": "public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "username": "ejg104485",
+                "password": "Password123!"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/providers": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Which sign-in methods this server offers",
+        "operationId": "get_api_auth_providers",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "providers": [
+                    {
+                      "id": "password",
+                      "enabled": true,
+                      "mock": false
+                    },
+                    {
+                      "id": "netid",
+                      "enabled": true,
+                      "mock": true,
+                      "note": "Proof-of-concept stand-in for UTD single sign-on."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-access": "public"
+      }
+    },
+    "/api/auth/netid/mock/ticket": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "MOCK NetID provider: get a one-time sign-in ticket (NETID_MODE=mock only)",
+        "operationId": "post_api_auth_netid_mock_ticket",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "ticket": "eyJhbGciOi...",
+                  "expiresInSeconds": 120,
+                  "mock": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "x-access": "public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "netId": "ejg104485"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/netid/callback": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Exchange a NetID ticket for a session token",
+        "operationId": "post_api_auth_netid_callback",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIs...",
+                  "professor": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  },
+                  "provider": "netid-mock",
+                  "mock": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "x-access": "public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "ticket": "eyJhbGciOi..."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "The signed-in professor (older shortcut; prefer GET /api/me)",
+        "operationId": "get_api_auth_me",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "professor": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Who am I: the resolved user, roles, current term and phase",
+        "operationId": "get_api_me",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "user": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  },
+                  "roles": [
+                    "professor"
+                  ],
+                  "currentTerm": "Fall 2026",
+                  "phase": "OBSERVATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/me/permissions": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "What I may do: permission names, yes/no switches for screens, and my scope",
+        "operationId": "get_api_me_permissions",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "roles": [
+                    "professor",
+                    "committee"
+                  ],
+                  "permissions": [
+                    "signup:create-own",
+                    "cycles:write"
+                  ],
+                  "capabilities": {
+                    "canSignUp": true,
+                    "canManageCycles": true
+                  },
+                  "scope": {
+                    "department": "CS",
+                    "viewsAllDepartments": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/overview": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "What do I do next? (my next step as an observee and for each observer duty)",
+        "operationId": "get_api_overview",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "cycle": {
+                    "term": "Fall 2026",
+                    "phase": "OBSERVATION"
+                  },
+                  "evaluation": {
+                    "status": "due"
+                  },
+                  "asObservee": {
+                    "nextAction": {
+                      "code": "CHOOSE_OBSERVERS",
+                      "message": "Your observer list is ready."
+                    }
+                  },
+                  "asObserver": {
+                    "duties": [],
+                    "pendingRequests": [],
+                    "counts": {}
+                  },
+                  "unreadNotifications": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/cycles": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Every evaluation cycle with its phase",
+        "operationId": "get_api_cycles",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "cycles": [
+                    {
+                      "term": "Fall 2026",
+                      "signupDeadline": "2026-09-18T00:00:00.000Z",
+                      "phase": "OBSERVATION"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      },
+      "post": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Create a cycle (three deadlines, in order)",
+        "operationId": "post_api_cycles",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "cycle": {
+                    "term": "Spring 2027",
+                    "phase": "SIGNUP"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "term": "Spring 2027",
+                "signupDeadline": "2027-02-05",
+                "observationDeadline": "2027-04-09",
+                "feedbackDeadline": "2027-04-23"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/current": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "The cycle people are working in right now",
+        "operationId": "get_api_cycles_current",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "cycle": {
+                    "term": "Fall 2026",
+                    "phase": "OBSERVATION"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/cycles/{term}": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "One cycle",
+        "operationId": "get_api_cycles__term",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "cycle": {
+                    "term": "Fall 2026",
+                    "phase": "OBSERVATION"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      },
+      "put": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Change a cycle's deadlines",
+        "operationId": "put_api_cycles__term",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "cycle": {
+                    "term": "Fall 2026"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "signupDeadline": "2026-09-25"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/{term}/eligible-faculty": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Faculty due or overdue this cycle, with the reason, signup blockers and rule version",
+        "operationId": "get_api_cycles__term_eligible_faculty",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma list of due, overdue, not_due (default due,overdue).",
+            "example": "due,overdue"
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS"
+          },
+          {
+            "name": "hireLevel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "assistant"
+          },
+          {
+            "name": "signedUp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true or false.",
+            "example": "false"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Part of a name or email."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "phase": "OBSERVATION",
+                  "ruleVersion": "2026.10-committee-v1",
+                  "faculty": [
+                    {
+                      "email": "a@utdallas.edu",
+                      "status": "overdue",
+                      "reason": "Assistant professor: observed every year. No completed observation is on record, so Dr. A is overdue.",
+                      "canSignUp": false,
+                      "blockers": [
+                        "SIGNUP_CLOSED"
+                      ]
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "pageSize": 25,
+                    "total": 61,
+                    "totalPages": 3,
+                    "hasNext": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/cycles/{term}/due-report": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Everyone due or overdue, and whether they signed up",
+        "operationId": "get_api_cycles__term_due_report",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "count": 1,
+                  "professors": [
+                    {
+                      "email": "a@utdallas.edu",
+                      "status": "due",
+                      "signedUp": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/cycles/{term}/send-due-reminders": {
+      "post": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Remind the due or overdue professors who have not signed up",
+        "operationId": "post_api_cycles__term_send_due_reminders",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "reminderType": "DUE_REMINDER",
+                  "notified": 12
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "reminderType": "DUE_REMINDER"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/{term}/signups": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Every signup of the term (the Signup Monitor)",
+        "operationId": "get_api_cycles__term_signups",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "count": 1,
+                  "signups": [
+                    {
+                      "sectionId": "CS 2117~001~Fall 2026",
+                      "status": "signed_up"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/cycles/{term}/run-observer-selection": {
+      "post": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Run observer selection for every open signup (after the signup deadline)",
+        "operationId": "post_api_cycles__term_run_observer_selection",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "processed": 40,
+                  "withObservers": 38,
+                  "unmatched": 2,
+                  "insufficient": 5,
+                  "skipped": 0
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "force": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/{term}/insufficient-observers": {
+      "get": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Alert list: signups with no eligible observer (add includeFew=true for fewer than five)",
+        "operationId": "get_api_cycles__term_insufficient_observers",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          },
+          {
+            "name": "includeFew",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "true"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "count": 1,
+                  "signups": [
+                    {
+                      "sectionId": "CS 2117~001~Fall 2026",
+                      "flag": "NO_ELIGIBLE_OBSERVER",
+                      "eligibleCount": 0
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/cycles/{term}/notify-observer-lists-ready": {
+      "post": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Tell each observee their observer list is ready (once each)",
+        "operationId": "post_api_cycles__term_notify_observer_lists_ready",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "notified": 38
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/cycles/{term}/notify-survey": {
+      "post": {
+        "tags": [
+          "Cycles"
+        ],
+        "summary": "Ask everyone observed who has not answered to take the survey",
+        "operationId": "post_api_cycles__term_notify_survey",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "notified": 20
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/professors": {
+      "get": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Everyone with their due status (paged only if page or pageSize is sent)",
+        "operationId": "get_api_professors",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS"
+          },
+          {
+            "name": "hireLevel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "assistant"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "count": 100,
+                  "professors": [
+                    {
+                      "email": "ejg104485@utdallas.edu",
+                      "netId": "ejg104485",
+                      "name": "Dr. Example",
+                      "department": "CS",
+                      "hireLevel": "assistant",
+                      "hireLevelLabel": "Assistant",
+                      "isAcMember": false,
+                      "lastObserved": "2025-03-18T00:00:00.000Z",
+                      "due": {
+                        "status": "due"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/professors/{email}": {
+      "get": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "One professor (yourself, or anyone if you are on the committee)",
+        "operationId": "get_api_professors__email",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "professor": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/professors/{email}/due-status": {
+      "get": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Due, overdue or not due for a term",
+        "operationId": "get_api_professors__email_due_status",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "status": "due",
+                  "baselineTerm": "Spring 2025",
+                  "anniversary": "Spring 2026",
+                  "dueWindow": [
+                    "Spring 2026",
+                    "Fall 2026"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/professors/{email}/eligibility": {
+      "get": {
+        "tags": [
+          "Faculty"
+        ],
+        "summary": "Eligibility for the cycle in words, what blocks signup, and the rule version",
+        "operationId": "get_api_professors__email_eligibility",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "phase": "SIGNUP",
+                  "ruleVersion": "2026.10-committee-v1",
+                  "eligibility": {
+                    "status": "due",
+                    "eligibleForCycle": true,
+                    "reason": "Assistant professor: observed every year. ...",
+                    "canSignUp": true,
+                    "blockers": []
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/sections": {
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "summary": "Course sections you teach in a term (paged only if page or pageSize is sent)",
+        "operationId": "get_api_sections",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          },
+          {
+            "name": "instructorEmail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Committee only for someone else."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "instructorEmail": "ejg104485@utdallas.edu",
+                  "sections": [
+                    {
+                      "sectionId": "CS 2117~001~Fall 2026",
+                      "courseCode": "CS 2117",
+                      "timing": "TT 08:30-09:45",
+                      "days": "TR",
+                      "startTime": "08:30",
+                      "endTime": "09:45",
+                      "courseLevel": 2
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/course-offerings": {
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "summary": "Course offerings from Course Book (or local data), filterable and paged",
+        "operationId": "get_api_course_offerings",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS"
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Thousands digit of the course number.",
+            "example": 3
+          },
+          {
+            "name": "instructorEmail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "3345"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "source": "local",
+                  "warning": null,
+                  "offerings": [
+                    {
+                      "sectionId": "CS 2117~001~Fall 2026",
+                      "courseCode": "CS 2117",
+                      "department": "CS",
+                      "courseLevel": 2,
+                      "timing": "TT 08:30-09:45",
+                      "source": "local"
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "pageSize": 25,
+                    "total": 61,
+                    "totalPages": 3,
+                    "hasNext": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/signups": {
+      "post": {
+        "tags": [
+          "Signup and matching"
+        ],
+        "summary": "Sign up to be observed, with one of your own sections",
+        "operationId": "post_api_signups",
+        "responses": {
+          "201": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "signed_up"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "sectionId": "CS 2117~001~Fall 2026"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signups/mine": {
+      "get": {
+        "tags": [
+          "Signup and matching"
+        ],
+        "summary": "Your signups",
+        "operationId": "get_api_signups_mine",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "signed_up"
+                  },
+                  "section": {
+                    "sectionId": "CS 2117~001~Fall 2026"
+                  },
+                  "mySections": [
+                    {
+                      "sectionId": "CS 2117~001~Fall 2026"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/matching/preview/{sectionId}": {
+      "get": {
+        "tags": [
+          "Signup and matching"
+        ],
+        "summary": "Why each colleague is or is not eligible (nothing is saved)",
+        "operationId": "get_api_matching_preview__sectionId",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "sectionId": "CS 2117~001~Fall 2026",
+                  "eligibleCount": 27,
+                  "flag": "OK",
+                  "mode": "random",
+                  "wouldShow": [
+                    "a@utdallas.edu"
+                  ],
+                  "evaluations": [
+                    {
+                      "email": "b@utdallas.edu",
+                      "eligible": false,
+                      "violation": "DIFFERENT_LEVEL"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/matching/generate/{sectionId}": {
+      "post": {
+        "tags": [
+          "Signup and matching"
+        ],
+        "summary": "Build and save the observer list for one signup",
+        "operationId": "post_api_matching_generate__sectionId",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "sectionId": "CS 2117~001~Fall 2026",
+                  "mode": "all",
+                  "eligibleCount": 3,
+                  "flag": "INSUFFICIENT_OBSERVERS",
+                  "candidateEmails": [
+                    "a@utdallas.edu"
+                  ],
+                  "hasSufficientObservers": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/observations/{sectionId}/candidates": {
+      "get": {
+        "tags": [
+          "Signup and matching"
+        ],
+        "summary": "The observer list for a signup (the observee or the committee)",
+        "operationId": "get_api_observations__sectionId_candidates",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "sectionId": "CS 2117~001~Fall 2026",
+                  "observationStatus": "signed_up",
+                  "eligibleCount": 3,
+                  "flag": "INSUFFICIENT_OBSERVERS",
+                  "candidates": [
+                    {
+                      "observerEmail": "a@utdallas.edu",
+                      "status": "suggested",
+                      "observer": {
+                        "email": "ejg104485@utdallas.edu",
+                        "netId": "ejg104485",
+                        "name": "Dr. Example",
+                        "department": "CS",
+                        "hireLevel": "assistant",
+                        "hireLevelLabel": "Assistant",
+                        "isAcMember": false,
+                        "lastObserved": "2025-03-18T00:00:00.000Z"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observation-requests": {
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "summary": "Ask some or all suggested observers (each request expires after 48 hours)",
+        "operationId": "post_api_observation_requests",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "requested": [
+                    {
+                      "observerEmail": "a@utdallas.edu",
+                      "expiresAt": "2026-10-14T15:00:00.000Z"
+                    }
+                  ],
+                  "rejected": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "sectionId": "CS 2117~001~Fall 2026",
+                "observerEmails": [
+                  "a@utdallas.edu",
+                  "b@utdallas.edu"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/observation-requests/incoming": {
+      "get": {
+        "tags": [
+          "Requests"
+        ],
+        "summary": "Requests addressed to you, with class time and hours left",
+        "operationId": "get_api_observation_requests_incoming",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "requests": [
+                    {
+                      "sectionId": "CS 2117~001~Fall 2026",
+                      "status": "requested",
+                      "hoursLeft": 41.5
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observation-requests/{sectionId}/respond": {
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "summary": "Answer a request. CONFIRM: first wins (default) or \"accepted\" (CONFIRMATION_MODE=observee_final).",
+        "operationId": "post_api_observation_requests__sectionId_respond",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "match": {
+                    "status": "confirmed"
+                  },
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  },
+                  "autoCancelled": [
+                    "b@utdallas.edu"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "response": "CONFIRM"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/observation-requests/{sectionId}/finalize": {
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "summary": "Observee picks one accepted observer (CONFIRMATION_MODE=observee_final only)",
+        "operationId": "post_api_observation_requests__sectionId_finalize",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  },
+                  "observerEmail": "a@utdallas.edu",
+                  "autoCancelled": [
+                    "b@utdallas.edu"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "observerEmail": "a@utdallas.edu"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/observations/mine": {
+      "get": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Everything you are part of this term (as observee and as observer). The report follows the visibility rule.",
+        "operationId": "get_api_observations_mine",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "asObservee": [
+                    {
+                      "observation": {
+                        "sectionId": "CS 2117~001~Fall 2026",
+                        "status": "scheduled",
+                        "observerEmail": "a.observer@utdallas.edu",
+                        "observationDate": "2026-10-21T00:00:00.000Z",
+                        "observationTime": "08:30",
+                        "observerSignedDate": null,
+                        "observeeSignedDate": null,
+                        "report": {
+                          "canView": false,
+                          "reason": "AWAITING_OBSERVER_SIGNATURE",
+                          "message": "The report is shared with the observee after the observer has signed it.",
+                          "started": true,
+                          "observerSigned": false,
+                          "observeeSigned": false
+                        }
+                      },
+                      "signedTemplate": null
+                    }
+                  ],
+                  "asObserver": []
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observations/{sectionId}": {
+      "get": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "One observation, both people and (if you may see it) the report. sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths).",
+        "operationId": "get_api_observations__sectionId",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  },
+                  "section": {
+                    "sectionId": "CS 2117~001~Fall 2026"
+                  },
+                  "observee": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  },
+                  "observer": {
+                    "email": "ejg104485@utdallas.edu",
+                    "netId": "ejg104485",
+                    "name": "Dr. Example",
+                    "department": "CS",
+                    "hireLevel": "assistant",
+                    "hireLevelLabel": "Assistant",
+                    "isAcMember": false,
+                    "lastObserved": "2025-03-18T00:00:00.000Z"
+                  },
+                  "signedTemplate": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observations/{sectionId}/schedule": {
+      "patch": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Set the observation date (a class day) and, optionally, the time (the class start)",
+        "operationId": "patch_api_observations__sectionId_schedule",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "observationDate": "2026-10-21",
+                "observationTime": "8:30 AM"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/observations/{sectionId}/report-not-held": {
+      "post": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "\"Did Not Happen\": mark the scheduled observation as missed so it can be rescheduled",
+        "operationId": "post_api_observations__sectionId_report_not_held",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "status": "missed",
+                    "missedReportedBy": "a@utdallas.edu"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "reason": "The class was cancelled"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/observations/{sectionId}/record": {
+      "post": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Observer starts their copy of the template (snapshots the current version)",
+        "operationId": "post_api_observations__sectionId_record",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      },
+      "put": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Observer saves ratings and comments (until the first signature)",
+        "operationId": "put_api_observations__sectionId_record",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "values": {
+                  "organization": 4,
+                  "comments": "Clear and well paced."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/observations/{sectionId}/sign": {
+      "post": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Sign. The observer signs first and locks the record; the observee then signs and completes it.",
+        "operationId": "post_api_observations__sectionId_sign",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "completed": false,
+                  "observation": {
+                    "sectionId": "CS 2117~001~Fall 2026",
+                    "status": "scheduled",
+                    "observerEmail": "a.observer@utdallas.edu",
+                    "observationDate": "2026-10-21T00:00:00.000Z",
+                    "observationTime": "08:30",
+                    "observerSignedDate": null,
+                    "observeeSignedDate": null,
+                    "report": {
+                      "canView": false,
+                      "reason": "AWAITING_OBSERVER_SIGNATURE",
+                      "message": "The report is shared with the observee after the observer has signed it.",
+                      "started": true,
+                      "observerSigned": false,
+                      "observeeSigned": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observations/{sectionId}/files/signed-template": {
+      "put": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Observer uploads the signed PDF (raw application/pdf body, optional ?filename=)",
+        "operationId": "put_api_observations__sectionId_files_signed_template",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "file": {
+                    "filename": "signed-form.pdf",
+                    "size": 20480,
+                    "version": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Same as PUT",
+        "operationId": "post_api_observations__sectionId_files_signed_template",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "file": {
+                    "filename": "signed-form.pdf",
+                    "size": 20480,
+                    "version": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          },
+          "413": {
+            "$ref": "#/components/responses/E413"
+          },
+          "415": {
+            "$ref": "#/components/responses/E415"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Download the signed PDF, subject to the report visibility rule",
+        "operationId": "get_api_observations__sectionId_files_signed_template",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observations/{sectionId}/files": {
+      "get": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "What files are on record (names and sizes, never the bytes)",
+        "operationId": "get_api_observations__sectionId_files",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "sectionId": "CS 2117~001~Fall 2026",
+                  "files": []
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/observations/{sectionId}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Observations"
+        ],
+        "summary": "Calendar file for the scheduled observation (uses the chosen time)",
+        "operationId": "get_api_observations__sectionId_calendar_ics",
+        "parameters": [
+          {
+            "name": "sectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "CS 2117~001~Fall 2026",
+            "description": "sectionId is \"course code ~ section number ~ term\" (URL-encode it in paths)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/forms": {
+      "get": {
+        "tags": [
+          "Template"
+        ],
+        "summary": "Every form definition",
+        "operationId": "get_api_forms",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "forms": [
+                    {
+                      "formId": "observation",
+                      "version": 1,
+                      "fields": [
+                        {
+                          "key": "organization",
+                          "type": "rating",
+                          "min": 1,
+                          "max": 5
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      },
+      "post": {
+        "tags": [
+          "Template"
+        ],
+        "summary": "Create a new form",
+        "operationId": "post_api_forms",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "form": {
+                    "formId": "followup",
+                    "version": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "formId": "followup",
+                "title": "Follow-up",
+                "fields": [
+                  {
+                    "key": "notes",
+                    "label": "Notes",
+                    "type": "text"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/forms/{formId}": {
+      "get": {
+        "tags": [
+          "Template"
+        ],
+        "summary": "One form (the observation template is \"observation\")",
+        "operationId": "get_api_forms__formId",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "form": {
+                    "formId": "observation",
+                    "version": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      },
+      "put": {
+        "tags": [
+          "Template"
+        ],
+        "summary": "Publish a new version of a form (older observations keep their version)",
+        "operationId": "put_api_forms__formId",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "form": {
+                    "version": 2
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "title": "Peer Teaching Observation",
+                "fields": [
+                  {
+                    "key": "organization",
+                    "label": "Organization",
+                    "type": "rating",
+                    "min": 1,
+                    "max": 5
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/surveys/templates": {
+      "get": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "Survey templates (all versions)",
+        "operationId": "get_api_surveys_templates",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "templates": [
+                    {
+                      "templateId": "end-of-process",
+                      "version": 1,
+                      "active": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/surveys/templates/active": {
+      "get": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "The questions to show now",
+        "operationId": "get_api_surveys_templates_active",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "template": {
+                    "templateId": "end-of-process",
+                    "version": 1,
+                    "questions": [
+                      {
+                        "key": "process_ok",
+                        "label": "Was this observation process OK?",
+                        "type": "yes_no",
+                        "required": true
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/surveys/templates/{templateId}": {
+      "get": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "The newest version of one template",
+        "operationId": "get_api_surveys_templates__templateId",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "template": {
+                    "templateId": "end-of-process",
+                    "version": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/surveys/status": {
+      "get": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "Have I answered, may I still, when does it close? (no answers)",
+        "operationId": "get_api_surveys_status",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "submitted": false,
+                  "eligible": true,
+                  "closed": false,
+                  "deadline": "2026-11-20T00:00:00.000Z",
+                  "canSubmit": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/surveys": {
+      "post": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "Submit the survey. Answers are stored without your identity; only \"finished\" is recorded against your name.",
+        "operationId": "post_api_surveys",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "survey": {
+                    "submitted": true,
+                    "term": "Fall 2026",
+                    "submittedDate": "2026-10-27T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "term": "Fall 2026",
+                "process_ok": true,
+                "difficulties": "Finding a time was hard.",
+                "improvements": "Show class times earlier.",
+                "has_attachment": false
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "Counts and anonymous answers for a term (answers withheld below the minimum count)",
+        "operationId": "get_api_surveys",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "submittedCount": 14,
+                  "expectedCount": 20,
+                  "completionRate": 0.7,
+                  "detailsWithheld": false,
+                  "summary": {
+                    "processOk": 11,
+                    "processNotOk": 3
+                  },
+                  "responses": [
+                    {
+                      "responseId": "0b0e0c8e-...",
+                      "answers": {
+                        "process_ok": true
+                      },
+                      "hasAttachment": false
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "pageSize": 25,
+                    "total": 61,
+                    "totalPages": 3,
+                    "hasNext": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/surveys/mine": {
+      "get": {
+        "tags": [
+          "Surveys"
+        ],
+        "summary": "The terms you finished the survey for",
+        "operationId": "get_api_surveys_mine",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "surveys": [
+                    {
+                      "term": "Spring 2026",
+                      "submittedDate": "2026-04-20T00:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Your notifications, newest first (paged if page or pageSize is sent)",
+        "operationId": "get_api_notifications",
+        "parameters": [
+          {
+            "name": "unread",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "true"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "unreadCount": 2,
+                  "notifications": [
+                    {
+                      "type": "REQUEST_RECEIVED",
+                      "message": "...",
+                      "readAt": null
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark all read",
+        "operationId": "post_api_notifications_read_all",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "marked": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark one read",
+        "operationId": "post_api_notifications__id_read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "ok": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "user"
+      }
+    },
+    "/api/admin/dashboard-stats": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "All KPIs for a term",
+        "operationId": "get_api_admin_dashboard_stats",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "facultyDueForEvaluation": {
+                    "total": 42
+                  },
+                  "participation": {
+                    "assessmentParticipationRate": 0.8
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/faculty-due-for-evaluation": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: faculty due",
+        "operationId": "get_api_admin_dashboard_stats_faculty_due_for_evaluation",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "total": 42
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/overdue-evaluations": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: overdue evaluations",
+        "operationId": "get_api_admin_dashboard_stats_overdue_evaluations",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "overdueAtCycleStart": 10
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/eligibility-violations": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: eligibility accuracy and violations",
+        "operationId": "get_api_admin_dashboard_stats_eligibility_violations",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "evaluationEligibilityAccuracy": 0.29
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/unmatched-faculty": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: faculty with no or too few observers",
+        "operationId": "get_api_admin_dashboard_stats_unmatched_faculty",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "noOrInsufficientObservers": 4
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/outstanding-observations": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: outstanding observations",
+        "operationId": "get_api_admin_dashboard_stats_outstanding_observations",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "missingObservationCount": 1
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/participation": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: participation and observer utilization",
+        "operationId": "get_api_admin_dashboard_stats_participation",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "signups": 40
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/dashboard-stats/survey-completion": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "KPI: survey completion (counts only)",
+        "operationId": "get_api_admin_dashboard_stats_survey_completion",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "surveyed": 14
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/analytics/observer-workload": {
+      "get": {
+        "tags": [
+          "Committee dashboard"
+        ],
+        "summary": "Observer workload and acceptance rates",
+        "operationId": "get_api_admin_analytics_observer_workload",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "term": "Fall 2026",
+                  "summary": {
+                    "professorsAsked": 60,
+                    "requestsSent": 140,
+                    "observersWithAssignments": 38,
+                    "assignments": 40,
+                    "meanAssignmentsPerObserver": 1.05,
+                    "maxAssignments": 3,
+                    "busiest": []
+                  },
+                  "byHireLevel": [
+                    {
+                      "hireLevel": "assistant",
+                      "observers": 10,
+                      "assignments": 12
+                    }
+                  ],
+                  "professors": [
+                    {
+                      "email": "a@utdallas.edu",
+                      "asked": 4,
+                      "confirmed": 1,
+                      "acceptRate": 0.5
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/reports/due": {
+      "get": {
+        "tags": [
+          "Reports (CSV)"
+        ],
+        "summary": "CSV: due and overdue faculty",
+        "operationId": "get_api_reports_due",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/reports/signups": {
+      "get": {
+        "tags": [
+          "Reports (CSV)"
+        ],
+        "summary": "CSV: signups",
+        "operationId": "get_api_reports_signups",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/reports/observations": {
+      "get": {
+        "tags": [
+          "Reports (CSV)"
+        ],
+        "summary": "CSV: observations. Scores appear only for completed observations.",
+        "operationId": "get_api_reports_observations",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/reports/workload": {
+      "get": {
+        "tags": [
+          "Reports (CSV)"
+        ],
+        "summary": "CSV: observer workload",
+        "operationId": "get_api_reports_workload",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/reports/kpis": {
+      "get": {
+        "tags": [
+          "Reports (CSV)"
+        ],
+        "summary": "CSV: the KPI dashboard",
+        "operationId": "get_api_reports_kpis",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/jobs/run": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Run both sweeps now",
+        "operationId": "post_api_admin_jobs_run",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "expiredRequests": 2,
+                  "missedObservations": 0
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/jobs/expire-requests": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Expire requests older than 48 hours",
+        "operationId": "post_api_admin_jobs_expire_requests",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "expiredCount": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/jobs/mark-missed": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Mark scheduled observations whose day passed as missed",
+        "operationId": "post_api_admin_jobs_mark_missed",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "missedCount": 0
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/audit-log": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Who did what and when (filterable, paged, newest first). `detail` is an object whose keys depend on the action, or null.",
+        "operationId": "get_api_admin_audit_log",
+        "parameters": [
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "observation.signed"
+          },
+          {
+            "name": "actionPrefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "observation."
+          },
+          {
+            "name": "targetType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "term",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A term like \"Fall 2026\". Defaults to the current cycle.",
+            "example": "Fall 2026"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-10-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-10-31"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Page number, starting at 1.",
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Rows per page (default 25, at most 100).",
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "entries": [
+                    {
+                      "at": "2026-10-21T15:00:00.000Z",
+                      "actorEmail": "a@utdallas.edu",
+                      "actorRole": "professor",
+                      "action": "observation.signed",
+                      "targetType": "observation",
+                      "targetId": "CS 2117~001~Fall 2026",
+                      "detail": null
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "pageSize": 25,
+                    "total": 61,
+                    "totalPages": 3,
+                    "hasNext": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/course-book/status": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Course Book adapter settings and last error",
+        "operationId": "get_api_admin_course_book_status",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "mode": "local",
+                  "configured": false,
+                  "timeoutMs": 3000,
+                  "retries": 2,
+                  "cacheSeconds": 600,
+                  "lastError": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    },
+    "/api/admin/course-book/refresh": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Forget the cached Course Book answer",
+        "operationId": "post_api_admin_course_book_refresh",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "cleared": "Fall 2026"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "term": "Fall 2026"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/surveys/anonymize-legacy": {
+      "post": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Move older name-linked survey answers into anonymous responses",
+        "operationId": "post_api_admin_surveys_anonymize_legacy",
+        "responses": {
+          "200": {
+            "description": "Success.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "checked": 61,
+                  "moved": 61
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-access": "committee"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "details": {}
+        }
+      }
+    },
+    "responses": {
+      "E400": {
+        "description": "Bad input (the message says what).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Bad input (the message says what).",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E401": {
+        "description": "Not signed in, or the token is invalid or expired.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Not signed in, or the token is invalid or expired.",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E403": {
+        "description": "Signed in but not allowed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Signed in but not allowed.",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E404": {
+        "description": "Not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Not found.",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E409": {
+        "description": "Wrong state, or someone else got there first (the code says which).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Wrong state, or someone else got there first (the code says which).",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E410": {
+        "description": "The request expired.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "The request expired.",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E413": {
+        "description": "Too large.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Too large.",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E415": {
+        "description": "Wrong file type.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "Wrong file type.",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      },
+      "E422": {
+        "description": "The rules rejected it (the details say which).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "The rules rejected it (the details say which).",
+              "code": "OPTIONAL_MACHINE_CODE"
+            }
+          }
+        }
+      }
+    }
+  }
+}
