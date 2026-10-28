@@ -1,0 +1,21 @@
+{
+  "name": "assessment-helper",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "preview": "npm run preview --workspace=frontend",
+    "backend:start": "npm start --prefix backend",
+    "backend:dev": "npm run dev --prefix backend",
+    "backend:test": "npm test --prefix backend",
+    "backend:seed": "npm run seed --prefix backend",
+    "backend:setup-db": "npm run setup-db --prefix backend",
+    "backend:test-db": "npm run test-db --prefix backend",
+    "backend:docs": "npm run docs --prefix backend"
+  }
+}

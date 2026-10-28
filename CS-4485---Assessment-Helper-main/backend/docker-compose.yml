@@ -1,0 +1,49 @@
+# One-command localhost stack (the TA accepts "localhost" as the deployment):
+#   docker compose up --build -d          API on http://localhost:5000/health, MongoDB on 27017
+#   docker compose run --rm seed          load the committee's seed data ONCE (refuses a non-empty database)
+#   docker compose down -v                stop and delete the data
+# Sign in with ddr199513 / Password123! (committee) or ejg104485 / Password123! (professor).
+# NODE_ENV is "development" here on purpose: it enables the mock NetID sign-in and the default JWT secret. Do not expose this
+# stack to the internet as is; see docs/DEPLOYMENT.md for the hosted setup.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes: ["mongo-data:/data/db"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on: { mongo: { condition: service_healthy } }
+    ports: ["5000:5000"]
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongo:27017/assessment-helper
+      PORT: "5000"
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-not-for-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      CONFIRMATION_MODE: ${CONFIRMATION_MODE:-first_wins}
+      NETID_MODE: ${NETID_MODE:-mock}
+
+  setup-db:
+    build: .
+    profiles: ["tools"]
+    depends_on: { mongo: { condition: service_healthy } }
+    environment: { MONGODB_URI: "mongodb://mongo:27017/assessment-helper" }
+    command: ["node", "setup-database.js"]
+
+  seed:
+    build: .
+    profiles: ["tools"]
+    depends_on: { mongo: { condition: service_healthy } }
+    environment: { MONGODB_URI: "mongodb://mongo:27017/assessment-helper" }
+    command: ["node", "seed/seed.mjs"]
+
+volumes:
+  mongo-data:
