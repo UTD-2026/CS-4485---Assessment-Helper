@@ -115,6 +115,7 @@ export default function App() {
       globalNotifications={globalNotifications}
       setGlobalNotifications={setGlobalNotifications}
       globalEvaluations={globalEvaluations}
+      
       />
     );
   }
@@ -210,8 +211,9 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations }) {
+function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications }) {
   const [activeTab, setActiveTab] = useState('metrics');
+  const [viewingEvaluation, setViewingEvaluation] = useState(null); // NEW: Tracks the open evaluation form
   
   // Local state for the new criterion form
   const [newCriteria, setNewCriteria] = useState('');
@@ -221,6 +223,7 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
   const [editingId, setEditingId] = useState(null);
   const [editCriteria, setEditCriteria] = useState('');
   const [editRating, setEditRating] = useState('1 to 5 (Poor to Excellent)');
+  const [expandedSignup, setExpandedSignup] = useState(null); // NEW: For viewing potential observers
 
   const startEditing = (item) => {
     setEditingId(item.id);
@@ -229,8 +232,9 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
   };
 
   const saveEdit = (id) => {
+    // NEW: Semester-locked template edits
     setEvaluationTemplate(evaluationTemplate.map(item => 
-      item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating } : item
+      item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating, effective: 'Fall 2027' } : item
     ));
     setEditingId(null);
   };
@@ -247,19 +251,31 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
   const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
 
   const NavItem = ({ id, label }) => (
-    <li className={activeTab === id ? 'active' : ''} onClick={() => setActiveTab(id)}>
+    <li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); }}>
       <span>{label}</span>
     </li>
   );
 
   const handleAddCriteria = () => {
     if (!newCriteria) return;
-    setEvaluationTemplate([...evaluationTemplate, { id: Date.now(), criteria: newCriteria, ratingScale: newRating }]);
+    // NEW: Semester-locked template additions
+    setEvaluationTemplate([...evaluationTemplate, { id: Date.now(), criteria: newCriteria, ratingScale: newRating, effective: 'Fall 2027' }]);
     setNewCriteria('');
   };
 
   const handleDeleteCriteria = (id) => {
     setEvaluationTemplate(evaluationTemplate.filter(item => item.id !== id));
+  };
+
+  // NEW: Admin releases the list of potential observers
+  const handleReleaseList = (signup) => {
+    setGlobalSignups(prev => prev.map(s => s.id === signup.id ? { ...s, listReleased: true } : s));
+    setGlobalNotifications(prev => [...(prev || []), {
+      id: Math.random().toString(), recipientId: signup.observeeId,
+      message: `Action Required: The Assessment Committee has released your list of potential observers for ${signup.courseCode}. You may now send requests.`,
+      read: false, timestamp: new Date().toLocaleDateString()
+    }]);
+    alert(`List successfully released to ${signup.observeeName}!`);
   };
 
   return (
@@ -318,22 +334,47 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
               <h3>Signup & Matching Monitor</h3>
               <div className="table-scroll-x">
               <table className="data-table nowrap-table">
-                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th></tr></thead>
+                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th><th>AC Action</th></tr></thead>
                 <tbody>
-                  {globalSignups.length === 0 ? <tr><td colSpan="5" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
+                  {globalSignups.length === 0 ? <tr><td colSpan="6" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
                     globalSignups.map(signup => {
                       const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
+                      const isExpanded = expandedSignup === signup.id;
                       return (
-                        <tr key={signup.id}>
-                          <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
-                          <td>{signup.matchesCount} Observers</td>
-                          <td>
-                            {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
-                            {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
-                            {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
-                          </td>
-                          <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
-                        </tr>
+                        <React.Fragment key="{signup.id}">
+                          <tr>
+                            <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
+                            <td>{signup.matchesCount} Observers</td>
+                            <td>
+                              {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
+                              {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
+                              {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
+                            </td>
+                            <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
+                            <td>
+                              <button className="btn-secondary sm" onClick={() => setExpandedSignup(isExpanded ? null : signup.id)}>
+                                {isExpanded ? 'Hide Potential Observers' : 'View Potential Observers'}
+                              </button>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                              <td colSpan="6" style={{ padding: '20px' }}>
+                                <h4 style={{ marginBottom: '10px', color: 'var(--utd-orange)' }}>Generated Observer List for {signup.observeeName}</h4>
+                                <ul style={{ marginBottom: '15px', paddingLeft: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                  {(signup.eligibleObservers || []).map(po => <li key={po.professor_id}><strong>{po.name}</strong> ({po.department})</li>)}
+                                </ul>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                  {signup.listReleased ? (
+                                    <span className="badge badge-success" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>✓ List has been released to {signup.observeeName}</span>
+                                  ) : (
+                                    <button className="btn-primary btn-3d sm" onClick={() => handleReleaseList(signup)}>Release List & Notify Observee</button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })
                   }
@@ -447,28 +488,36 @@ function AdminDashboard({ user, onLogout, globalSignups, globalRequests, globalO
             </div>
           )}
           {activeTab === 'evaluations' && (
-            <div className="bento-card full-span">
-              <h3>Submitted Digital Evaluations</h3>
-              <div className="modern-table-wrapper">
-                <table className="data-table">
-                  <thead><tr><th>Date Submitted</th><th>Observer</th><th>Observee</th><th>Course</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {!globalEvaluations || globalEvaluations.length === 0 ? (
-                      <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No evaluations submitted yet.</td></tr>
-                    ) : (
-                      globalEvaluations.map(ev => (
-                        <tr key={ev.id}>
-                          <td>{ev.dateSubmitted}</td>
-                          <td>{ev.observerName}</td>
-                          <td><strong>{ev.observeeName}</strong></td>
-                          <td>{ev.courseCode}</td>
-                          <td><span className="badge badge-success">Recorded</span></td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            <div className="bento-grid">
+              {viewingEvaluation ? (
+                <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} />
+              ) : (
+                <div className="bento-card full-span">
+                  <h3>Submitted Digital Evaluations</h3>
+                  <div className="modern-table-wrapper">
+                    <table className="data-table">
+                      <thead><tr><th>Date Submitted</th><th>Observer</th><th>Observee</th><th>Course</th><th>Action</th></tr></thead>
+                      <tbody>
+                        {!globalEvaluations || globalEvaluations.length === 0 ? (
+                          <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No evaluations submitted yet.</td></tr>
+                        ) : (
+                          globalEvaluations.map(ev => (
+                            <tr key={ev.id}>
+                              <td>{ev.dateSubmitted}</td>
+                              <td>{ev.observerName}</td>
+                              <td><strong>{ev.observeeName}</strong></td>
+                              <td>{ev.courseCode}</td>
+                              <td>
+                                <button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -496,6 +545,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const [evalAnswers, setEvalAnswers] = useState({});
   // NEW: Submitted evaluation currently opened (read-only) on the "My Evaluations" tab
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
+  const [notifTab, setNotifTab] = useState('inbox');
 
   // Open the evaluation form, restoring any saved progress for this observation
   const openEvaluation = (obs) => {
@@ -858,6 +908,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                             Potential observers will show up once the Signup Deadline ({globalDeadlines?.signup || 'TBD'}) passes.
                           </p>
                         </div>
+                      ) : !mySignup.listReleased ? (
+                        <div style={{ textAlign: 'center', padding: '40px', background: '#fffbeb', borderRadius: '12px', border: '1px dashed #fde68a' }}>
+                          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🔒</div>
+                          <h4 style={{ color: '#b45309', marginBottom: '5px' }}>Pending Committee Approval</h4>
+                          <p style={{ color: '#92400e', fontSize: '1rem', fontWeight: '500' }}>
+                            Waiting for the Assessment Committee to review and release your list of potential observers. You will be notified.
+                          </p>
+                        </div>
                       ) : (
                       <div className="modern-table-wrapper">
                         <table className="data-table">
@@ -1160,32 +1218,38 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
             <div className="bento-grid">
               <div className="bento-card full-span">
                 <div className="card-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ margin: 0 }}>My Notifications</h3>
-                  {unreadCount > 0 && (
+                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0 }}>My Notifications</h3>
+                    <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px' }}>
+                      <button className="btn-secondary sm" style={{ border: 'none', background: notifTab === 'inbox' ? 'white' : 'transparent', boxShadow: notifTab === 'inbox' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: notifTab === 'inbox' ? '#0f172a' : '#64748b' }} onClick={() => setNotifTab('inbox')}>Inbox ({unreadCount})</button>
+                      <button className="btn-secondary sm" style={{ border: 'none', background: notifTab === 'archive' ? 'white' : 'transparent', boxShadow: notifTab === 'archive' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: notifTab === 'archive' ? '#0f172a' : '#64748b' }} onClick={() => setNotifTab('archive')}>Archive</button>
+                    </div>
+                  </div>
+                  {unreadCount > 0 && notifTab === 'inbox' && (
                     <button className="btn-secondary sm" onClick={() => {
                       setGlobalNotifications((globalNotifications || []).map(n => n.recipientId === user.professor_id ? { ...n, read: true } : n));
-                    }}>Mark all as read</button>
+                    }}>Move All to Archive</button>
                   )}
                 </div>
                 
-                {myNotifications.length === 0 ? (
+                {myNotifications.filter(n => notifTab === 'inbox' ? !n.read : n.read).length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '10px' }}>📭</div>
-                    <p style={{ color: '#64748b' }}>You have no notifications right now.</p>
+                    <p style={{ color: '#64748b' }}>{notifTab === 'inbox' ? "You're all caught up!" : "No archived notifications."}</p>
                   </div>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {myNotifications.slice().reverse().map(notif => (
-                      <li key={notif.id} style={{ padding: '16px 20px', marginBottom: '10px', borderRadius: '12px', background: notif.read ? '#f8fafc' : '#eff6ff', border: `1px solid ${notif.read ? '#e2e8f0' : '#bfdbfe'}`, display: 'flex', gap: '15px', alignItems: 'flex-start', transition: 'all 0.2s' }}>
-                        <div style={{ fontSize: '1.5rem' }}>{notif.read ? '✉️' : '📬'}</div>
+                    {myNotifications.filter(n => notifTab === 'inbox' ? !n.read : n.read).slice().reverse().map(notif => (
+                      <li key={notif.id} style={{ padding: '16px 20px', marginBottom: '10px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
+                        <div style={{ fontSize: '1.5rem' }}>{notifTab === 'inbox' ? '📬' : '🗄️'}</div>
                         <div style={{ flex: 1 }}>
-                          <p style={{ margin: 0, color: '#0f172a', fontWeight: notif.read ? '500' : '700' }}>{notif.message}</p>
+                          <p style={{ margin: 0, color: '#0f172a', fontWeight: notifTab === 'inbox' ? '700' : '500' }}>{notif.message}</p>
                           <small style={{ color: '#64748b', marginTop: '5px', display: 'block' }}>{notif.timestamp}</small>
                         </div>
-                        {!notif.read && (
+                        {notifTab === 'inbox' && (
                           <button className="btn-secondary sm" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => {
                             setGlobalNotifications((globalNotifications || []).map(n => n.id === notif.id ? { ...n, read: true } : n));
-                          }}>Dismiss</button>
+                          }}>Archive</button>
                         )}
                       </li>
                     ))}
