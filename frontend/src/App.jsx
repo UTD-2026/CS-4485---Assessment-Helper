@@ -201,7 +201,7 @@ function Login({ onLogin }) {
 
         <div className="login-hint">
           <span>Test credentials</span>
-          <div>Professors: asmith / bjones / cwhite / dbrown</div>
+          <div>Professors: asmith / cwhite / bjones / fiona</div>
           <div>Admin (committee): admin</div>
           <div>Password: 123</div>
         </div>
