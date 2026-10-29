@@ -6,6 +6,7 @@ import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
+import { isPastDeadline } from './utils/deadlines.js';
 import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
 
 // Builds avatar initials from a person's first + last name, skipping titles like "Dr." / "Prof."
@@ -703,6 +704,9 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`)
     : false;
 
+  // Once the admin-set survey deadline passes, the survey tab only shows a "closed" notice
+  const isSurveyClosed = isPastDeadline(globalDeadlines?.survey);
+
   const dynamicSystemNotifs = [];
   if ((myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup) {
     dynamicSystemNotifs.push({
@@ -1038,8 +1042,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   {myConfirmedObservation.status === 'Completed' && (
                      <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
                         <h4>Observation Completed!</h4>
-                        <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. Please proceed to the final survey.</p>
-                        <button className="btn-primary sm" onClick={() => setActiveTab('survey')}>Take Survey</button>
+                        {isSurveyClosed ? (
+                          <p style={{fontSize: '0.9rem', color: '#64748b', margin: 0}}>You and your observer both confirmed the observation. The survey deadline ({globalDeadlines.survey}) has passed.</p>
+                        ) : (
+                          <>
+                            <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. Please proceed to the final survey.</p>
+                            <button className="btn-primary sm" onClick={() => setActiveTab('survey')}>Take Survey</button>
+                          </>
+                        )}
                      </div>
                   )}
                 </div>
@@ -1409,7 +1419,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           )}
 
           {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} />
+            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={globalDeadlines?.survey} />
           )}
         </div>
       </div>
