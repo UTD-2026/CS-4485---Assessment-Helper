@@ -140,7 +140,7 @@ export default function App() {
         globalDeadlines={data.deadlines}
         surveySubmissions={data.surveySubmissions}
         evaluationTemplate={data.template}
-        globalEvaluations={data.evaluations.filter(ev => ev.term === data.term)}
+        globalEvaluations={data.evaluations.filter(ev => ev.term === data.term).sort((x, y) => String(y.dateSubmitted).localeCompare(String(x.dateSubmitted)))}
       />
     );
   }
