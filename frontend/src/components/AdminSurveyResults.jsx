@@ -5,7 +5,8 @@ import React, { useMemo } from 'react';
  *
  * Props:
  *  - surveyResponses: answers only. Each has a random response_id and NO professor identity.
- *  - submittedCount / totalCount: how many finished vs. how many were expected (counts only)
+ *  - submittedCount / totalCount: how many finished vs. how many signed up this cycle (counts only)
+ *  Data: GET /api/surveys/responses (the server never returns respondent emails).
  *
  * IMPORTANT: never pass the "who submitted" list into this component. That is what keeps responses anonymous.
  */
@@ -55,7 +56,11 @@ export default function AdminSurveyResults({ surveyResponses, submittedCount, to
                         : <span className="badge badge-danger" style={{ background: '#ef4444', color: 'white' }}>No</span>}
                     </td>
                     <td>{r.difficulties || <em style={{ color: '#94a3b8' }}>None provided</em>}</td>
-                    <td>{r.improvements || <em style={{ color: '#94a3b8' }}>None provided</em>}</td>
+                    <td>
+                      {r.improvements || (!r.positive_feedback && <em style={{ color: '#94a3b8' }}>None provided</em>)}
+                      {/* Older seeded responses used "what went well" instead of suggestions */}
+                      {r.positive_feedback && <div style={{ color: '#64748b', fontSize: '0.85rem' }}>What went well: {r.positive_feedback}</div>}
+                    </td>
                     <td>{r.has_attachment ? '📎 Included' : '—'}</td>
                   </tr>
                 ))

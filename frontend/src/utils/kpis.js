@@ -1,24 +1,36 @@
 // kpis.js
 // Pure KPI calculations for the Assessment Committee dashboard.
 // Every function takes the app's global state and returns plain numbers/lists,
-// so the same logic can later run on the Node/MySQL back end unchanged.
- 
-import { mockProfessors, mockCourses, calculateEvaluationStatus } from '../data/mockDatabase.js';
- 
-export const TARGET_LIST_SIZE = 5; // matchmaker.js returns up to 5 observers per sign-up
+// The same definitions run on the back end for GET /api/reports/kpis (backend/services/kpis.js).
+// professors / courses come from the API (see api/adapters.js); due status is computed by the server.
+
+export const TARGET_LIST_SIZE = 5; // the backend's matching service lists up to 5 observers per sign-up
  
 const pct = (num, den) => (den ? Math.round((num / den) * 1000) / 10 : 0);
  
-// "TR 10:00 AM" -> { days: ['T','R'], time: '10:00 AM' }
+// "TR 10:00 AM - 11:15 AM" -> { days: ['T','R'], start: 600, end: 675 }  (minutes after midnight)
+const toMinutes = (t = '') => {
+  const m = /^(\d{1,2}):(\d{2})\s*([AP]M)?$/i.exec(t.trim());
+  if (!m) return null;
+  let h = Number(m[1]);
+  if (m[3]) h = (h % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0);
+  return h * 60 + Number(m[2]);
+};
 const parseTiming = (timing = '') => {
   const [days = '', ...rest] = timing.trim().split(/\s+/);
-  return { days: days.toUpperCase().split(''), time: rest.join(' ').toUpperCase() };
+  const [startText = '', endText = ''] = rest.join(' ').split('-');
+  const start = toMinutes(startText);
+  const end = toMinutes(endText) ?? (start === null ? null : start + 75);
+  return { days: days.toUpperCase().split(''), start, end };
 };
- 
+
+// Same weekday AND overlapping time ranges
 const timingsOverlap = (a, b) => {
   const ta = parseTiming(a);
   const tb = parseTiming(b);
-  return ta.time === tb.time && ta.days.some(d => tb.days.includes(d));
+  if (!ta.days.some(d => tb.days.includes(d))) return false;
+  if ([ta.start, ta.end, tb.start, tb.end].some(v => v === null)) return false;
+  return ta.start < tb.end && tb.start < ta.end;
 };
  
 // Course level = first digit of the course number ("CS 3345" -> "3"), same rule as matchmaker.js
@@ -40,15 +52,15 @@ export const VIOLATION_TYPES = {
  
 // Independently re-checks one observee -> observer pairing against the eligibility rules.
 // Returns the list of violated rules (empty array = correct pairing).
-export const auditPairing = (observeeId, observerId, courseCode, timing) => {
-  const observee = mockProfessors.find(p => p.professor_id === observeeId);
-  const observer = mockProfessors.find(p => p.professor_id === observerId);
+export const auditPairing = (observeeId, observerId, courseCode, timing, { professors = [], courses = [] } = {}) => {
+  const observee = professors.find(p => p.professor_id === observeeId);
+  const observer = professors.find(p => p.professor_id === observerId);
   if (!observee || !observer) return [];
  
   if (observee.professor_id === observer.professor_id) return ['SAME_PROF'];
  
   const level = courseLevel(courseCode);
-  const observerCourses = mockCourses.filter(c => c.instructor_id === observer.professor_id);
+  const observerCourses = courses.filter(c => c.instructor_id === observer.professor_id);
   const sameLevel = observerCourses.some(c => courseLevel(c.course_code) === level);
   const sameDept = observer.department === observee.department;
  
@@ -61,7 +73,7 @@ export const auditPairing = (observeeId, observerId, courseCode, timing) => {
  
 // 1a. Evaluation Eligibility Accuracy
 // Audits every observer that was recommended to a sign-up AND every observer that ended up confirmed.
-export const computeEligibilityAccuracy = (signups, observations) => {
+export const computeEligibilityAccuracy = (signups, observations, directory) => {
   const audited = [];
  
   signups.forEach(s => {
@@ -72,7 +84,7 @@ export const computeEligibilityAccuracy = (signups, observations) => {
         observerName: obs.name,
         courseCode: s.courseCode,
         timing: s.timing,
-        violations: auditPairing(s.observeeId, obs.professor_id, s.courseCode, s.timing),
+        violations: auditPairing(s.observeeId, obs.professor_id, s.courseCode, s.timing, directory),
       });
     });
   });
@@ -84,7 +96,7 @@ export const computeEligibilityAccuracy = (signups, observations) => {
       observerName: o.observerName,
       courseCode: o.courseCode,
       timing: o.timing,
-      violations: auditPairing(o.observeeId, o.observerId, o.courseCode, o.timing),
+      violations: auditPairing(o.observeeId, o.observerId, o.courseCode, o.timing, directory),
     });
   });
  
@@ -101,9 +113,9 @@ export const computeEligibilityAccuracy = (signups, observations) => {
   };
 };
  
-// 1b. Overdue Evaluation Count (Evaluation Cycle spec: Assistant = every 2 semesters, Associate/Full = every 4)
-export const computeOverdue = (signups) => {
-  const faculty = mockProfessors.map(p => ({ ...p, ...calculateEvaluationStatus(p) }));
+// 1b. Overdue Evaluation Count (Assistant: every calendar year; Associate/Full: same semester two years later)
+export const computeOverdue = (signups, professors = []) => {
+  const faculty = professors;
   const overdue = faculty
     .filter(f => f.status === 'Overdue')
     .map(f => ({ ...f, signedUp: signups.some(s => s.observeeId === f.professor_id) }))
@@ -124,14 +136,14 @@ export const computeParticipation = (signups, dueFaculty) => {
 };
  
 // 2b. # of Profs who took on the Observer role / # of Profs who signed up
-export const computeObserverUtilization = (signups, observations) => {
+export const computeObserverUtilization = (signups, observations, professors = []) => {
   const observerIds = new Set(observations.filter(o => o.status !== 'Missed').map(o => o.observerId));
   const signedUp = new Set(signups.map(s => s.observeeId));
   return {
     numerator: observerIds.size,
     denominator: signedUp.size,
     rate: pct(observerIds.size, signedUp.size),
-    observers: mockProfessors.filter(p => observerIds.has(p.professor_id)),
+    observers: professors.filter(p => observerIds.has(p.professor_id)),
   };
 };
  
@@ -217,13 +229,13 @@ export const computeSurveyCompletion = (signups, requests, observations, surveyS
 /* =========================================
    ALL KPIs
 ========================================= */
-export const computeAllKpis = ({ signups, requests, observations, surveySubmissions, deadlines, today }) => {
-  const overdue = computeOverdue(signups);
+export const computeAllKpis = ({ signups, requests, observations, surveySubmissions, deadlines, today, professors = [], courses = [] }) => {
+  const overdue = computeOverdue(signups, professors);
   return {
-    eligibility: computeEligibilityAccuracy(signups, observations),
+    eligibility: computeEligibilityAccuracy(signups, observations, { professors, courses }),
     overdue,
     participation: computeParticipation(signups, overdue.due),
-    utilization: computeObserverUtilization(signups, observations),
+    utilization: computeObserverUtilization(signups, observations, professors),
     sufficiency: computeListSufficiency(signups),
     missing: computeMissingObservations(observations, deadlines?.observation, today),
     survey: computeSurveyCompletion(signups, requests, observations, surveySubmissions),
