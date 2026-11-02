@@ -1,9 +1,11 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "The Node.js API is planned for this directory but is not implemented yet. Keep server-only code here when the backend is introduced, separated by responsibility—for example, routes/controllers, services, middleware, and configuration. The frontend prototype currently has no API to call.",
-  "main": "index.js",
+  "description": "Node.js API for Assessment Helper.",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "setup-db": "node setup-database.js",
     "test-db": "node test-database.js"
   },
