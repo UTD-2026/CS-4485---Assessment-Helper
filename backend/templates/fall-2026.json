@@ -1,0 +1,41 @@
+{
+  "term": "Fall 2026",
+  "description": "Evaluation criteria for Fall 2026 (edit with the committee Template Editor or by hand).",
+  "criteria": [
+    {
+      "id": "organization",
+      "criteria": "Clear presentation of course objectives and an organized lesson",
+      "ratingScale": "1 to 5 (Poor to Excellent)"
+    },
+    {
+      "id": "clarityOfInstruction",
+      "criteria": "Clarity of instruction and effective use of class time and pacing",
+      "ratingScale": "1 to 5 (Poor to Excellent)"
+    },
+    {
+      "id": "studentEngagement",
+      "criteria": "Encourages student participation and questions",
+      "ratingScale": "1 to 5 (Poor to Excellent)"
+    },
+    {
+      "id": "useOfMaterials",
+      "criteria": "Uses multimedia, the board and course materials effectively to support the lecture",
+      "ratingScale": "1 to 5 (Poor to Excellent)"
+    },
+    {
+      "id": "classroomEnvironment",
+      "criteria": "Overall effectiveness of instructional delivery and classroom environment",
+      "ratingScale": "1 to 5 (Poor to Excellent)"
+    },
+    {
+      "id": "accessibility",
+      "criteria": "Course materials and delivery are accessible to all students",
+      "ratingScale": "Yes / No / N/A"
+    },
+    {
+      "id": "qualitativeFeedback",
+      "criteria": "Observer's qualitative feedback and constructive notes",
+      "ratingScale": "Text Feedback Only"
+    }
+  ]
+}

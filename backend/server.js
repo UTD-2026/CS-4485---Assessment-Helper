@@ -1,51 +1,25 @@
-require("dotenv").config();
-
-const express = require("express");
+// Entry point: npm start (or npm run dev). From the mikael_backend_db branch; routes now live in app.js.
 const mongoose = require("mongoose");
-const dataRoutes = require("./routes/data");
-
-const app = express();
-const port = Number(process.env.PORT) || 5000;
-
-app.use(express.json({ limit: "1mb" }));
-
-app.get("/api/health", (request, response) => {
-  const databaseConnected = mongoose.connection.readyState === 1;
-
-  response.status(databaseConnected ? 200 : 503).json({
-    status: databaseConnected ? "ok" : "unavailable",
-    database: databaseConnected ? "connected" : "disconnected",
-  });
-});
-
-app.use("/api", dataRoutes);
-
-app.use("/api", (request, response) => {
-  response.status(404).json({ error: "API endpoint not found." });
-});
-
-app.use((error, request, response, next) => {
-  if (error.type === "entity.parse.failed") {
-    return response.status(400).json({ error: "Request body must be valid JSON." });
-  }
-
-  console.error("Unhandled API error:", error);
-  return response.status(500).json({ error: "Internal server error." });
-});
+const { env } = require("./config/env");
+const { createApp } = require("./app");
 
 let server;
 
 async function startServer() {
-  if (!process.env.MONGODB_URI) {
+  if (!env.mongodbUri) {
     throw new Error("MONGODB_URI is missing. Check backend/.env.");
   }
 
-  await mongoose.connect(process.env.MONGODB_URI, {
+  await mongoose.connect(env.mongodbUri, {
     serverSelectionTimeoutMS: 10000,
   });
 
-  server = app.listen(port, "127.0.0.1", () => {
-    console.log(`Assessment Helper API listening on http://127.0.0.1:${port}.`);
+  if (!process.env.JWT_SECRET) {
+    console.warn("JWT_SECRET is not set in backend/.env; using a development-only secret.");
+  }
+
+  server = createApp().listen(env.port, env.host, () => {
+    console.log(`Assessment Helper API listening on http://${env.host}:${env.port}.`);
   });
 }
 
