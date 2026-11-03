@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { computeAllKpis, VIOLATION_TYPES, TARGET_LIST_SIZE } from '../utils/kpis.js';
-import { isPastDeadline } from '../utils/deadlines.js';
+import { isSurveyClosed, formatSurveyDeadline } from '../utils/deadlines.js';
 
 /**
  * Committee KPI dashboard: implements the 4 KPI groups from the project spec.
@@ -53,7 +53,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
   );
   const { eligibility, overdue, participation, utilization, sufficiency, missing, survey } = k;
   // The Survey KPI is only generated/shown once the survey (feedback) deadline has passed
-  const surveyKpiReady = isPastDeadline(deadlines?.survey);
+  const surveyKpiReady = isSurveyClosed(deadlines?.survey, deadlines?.surveyTime);
 
   return (
     <div className="kpi-dashboard">
@@ -102,19 +102,21 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           formula="Evaluation Cycle: Assistant: due throughout the following calendar year. Associate/Full: due in the same semester two years later; overdue after that semester."
         >
           {overdue.overdue.length === 0 ? <Empty>No overdue faculty.</Empty> : (
-            <table className="kpi-mini-table">
-              <thead><tr><th>Professor</th><th>Last eval</th><th>Overdue</th><th>Signed up</th></tr></thead>
-              <tbody>
-                {overdue.overdue.map(f => (
-                  <tr key={f.professor_id}>
-                    <td>{f.name}</td>
-                    <td>{f.last_evaluation || 'Never'}</td>
-                    <td><span className="badge badge-error">{f.overdue_by} sem</span></td>
-                    <td>{f.signedUp ? <span className="badge badge-success">Yes</span> : <span className="badge badge-warning">No</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="kpi-table-scroll">
+              <table className="kpi-mini-table">
+                <thead><tr><th className="nowrap">Professor</th><th className="nowrap">Last eval</th><th>Overdue</th><th className="nowrap">Signed up</th></tr></thead>
+                <tbody>
+                  {overdue.overdue.map(f => (
+                    <tr key={f.professor_id}>
+                      <td className="nowrap">{f.name}</td>
+                      <td className="nowrap">{f.last_evaluation || 'Never'}</td>
+                      <td><span className="badge badge-error">{f.overdue_by} sem</span></td>
+                      <td>{f.signedUp ? <span className="badge badge-success">Yes</span> : <span className="badge badge-warning">No</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Metric>
       </KpiGroup>
@@ -185,7 +187,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
             title="Survey Completion Rate"
             value="🔒"
             tone="neutral"
-            detail={`Locked until the survey deadline${deadlines?.survey ? ` (${deadlines.survey})` : ''} passes. This KPI is generated once the survey window closes.`}
+            detail={`Locked until the survey deadline${deadlines?.survey ? ` (${formatSurveyDeadline(deadlines.survey, deadlines.surveyTime)})` : ''} passes. This KPI is generated once the survey window closes.`}
             formula="# of submitted surveys (full process) ÷ # of sign-ups"
           />
         ) : (

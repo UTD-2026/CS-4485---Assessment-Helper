@@ -17,6 +17,27 @@ export function formatTiming(timing) {
   return `${days} ${to12h(m[2])}${m[3] ? ` - ${to12h(m[3])}` : ''}`;
 }
 
+/** "2026-10-12" (or a full ISO timestamp) -> "10/12/2026". Reads the digits directly so there is no timezone shift. */
+export function formatDate(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : (value || '');
+}
+
+/**
+ * ISO timestamp -> "10/12/2026, 02:05 PM" in the viewer's local time.
+ * Date-only values (seed data stores dates as midnight UTC) have no real time, so only the date is shown.
+ */
+export function formatDateTime(value) {
+  if (!value) return '—';
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s) || /T00:00:00(\.000)?Z$/.test(s)) return formatDate(s);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  const pad = (n) => String(n).padStart(2, '0');
+  const hour = d.getHours() % 12 || 12;
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}, ${pad(hour)}:${pad(d.getMinutes())} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+}
+
 const STATUS_LABEL = { due: 'Due', overdue: 'Overdue', not_due: 'Not Due' };
 
 export function adaptProfessor(p) {
@@ -169,4 +190,5 @@ export const adaptDeadlines = (cycle) => ({
   signup: cycle?.signup_deadline || '',
   observation: cycle?.observation_deadline || '',
   survey: cycle?.feedback_deadline || '',
+  surveyTime: cycle?.feedback_deadline_time || '', // "HH:MM" (24-hour); '' = closes at 11:59 PM
 });

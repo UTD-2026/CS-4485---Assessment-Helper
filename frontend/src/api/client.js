@@ -56,6 +56,7 @@ export const api = {
   // Auth
   login: (username, password) => request('POST', '/auth/login', { username, password }),
   me: () => request('GET', '/auth/me'),
+  testAccounts: () => request('GET', '/auth/test-accounts'),
 
   // 1. Professors
   professors: (term) => request('GET', `/professors${q({ term })}`),

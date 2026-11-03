@@ -8,7 +8,9 @@ import { downloadCsv } from '../utils/facultyCsv.js';
 //   GET /api/reports/unmatched-faculty         -> unmatched faculty (include=all_due for every due/overdue professor)
 //   GET /api/reports/outstanding-observations  -> outstanding observations + breakdown by hire level
 
-function ReportTable({ title, description, headers, rows, empty, filename, term }) {
+// nowrap: header names whose column should stay on a single line
+function ReportTable({ title, description, headers, rows, empty, filename, term, nowrap = [] }) {
+  const cls = (j) => (nowrap.includes(headers[j]) ? 'nowrap' : undefined);
   return (
     <section className="bento-card full-span">
       <div className="report-heading">
@@ -22,8 +24,8 @@ function ReportTable({ title, description, headers, rows, empty, filename, term 
       <div className="faculty-table-wrapper">
         <table className="data-table">
           <caption className="report-sr-only">{title}</caption>
-          <thead><tr>{headers.map(h => <th key={h} scope="col">{h}</th>)}</tr></thead>
-          <tbody>{rows.length ? rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)
+          <thead><tr>{headers.map((h, j) => <th key={h} scope="col" className={cls(j)}>{h}</th>)}</tr></thead>
+          <tbody>{rows.length ? rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className={cls(j)}>{cell}</td>)}</tr>)
             : <tr><td colSpan={headers.length} className="faculty-empty">{empty}</td></tr>}</tbody>
         </table>
       </div>
@@ -74,11 +76,13 @@ export default function CommitteeReports({ term, refreshKey }) {
       <ReportTable term={term} title="Unmatched Faculty" description="Professors with no eligible observer candidates first, then other due or overdue faculty without an observer assignment."
         headers={['Professor', 'Department', 'Level', 'Evaluation status', 'Course', 'Next action']}
         rows={report.unmatched.map(p => [p.name, p.department, p.hire_level_label, DUE[p.evaluation_status] || p.evaluation_status, p.course_code || '—', p.reason])}
-        empty="All due and overdue faculty have an observer assignment." filename="unmatched-faculty" />
+        empty="All due and overdue faculty have an observer assignment." filename="unmatched-faculty"
+        nowrap={['Professor', 'Course']} />
       <ReportTable term={term} title="Outstanding Observations" description="Signed-up observations that are not complete, including missed sessions that need follow-up."
         headers={['Observee', 'Hiring level', 'Observer', 'Course', 'Schedule', 'Status', 'Next action']}
         rows={report.outstanding.map(o => [o.observee_name, o.hire_level_label, o.observer_name || '—', o.course_code, [o.observation_date, formatTiming(o.timing)].filter(Boolean).join(' — '), STATUS[o.status] || o.status, o.next_action])}
-        empty="No outstanding observations." filename="outstanding-observations" />
+        empty="No outstanding observations." filename="outstanding-observations"
+        nowrap={['Observee', 'Observer', 'Course', 'Schedule']} />
       <ReportTable term={term} title="Observer Workload" description="All faculty are included so the committee can identify unused capacity."
         headers={['Professor', 'Department', 'Assigned', 'Completed', 'Pending', 'Missed']}
         rows={workload.map(p => [p.name, p.department, p.assigned, p.completed, p.pending, p.missed])}

@@ -42,6 +42,8 @@ const evaluationCycleSchema = new Schema({
   signup_deadline: { type: Date, required: true },
   observation_deadline: { type: Date, required: true },
   feedback_deadline: { type: Date, required: true },
+  // Optional time the survey closes on feedback_deadline ("HH:MM", 24-hour, server local time). null = 11:59 PM.
+  feedback_deadline_time: { type: String, default: null },
 });
 
 // Observation (one per signed-up course section per term)

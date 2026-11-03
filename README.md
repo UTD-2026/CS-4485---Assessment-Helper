@@ -63,7 +63,7 @@ npm run dev                               # front end on http://localhost:5173 (
 
 ## Test Login (seed data)
 
-All seeded professors use the password `Password123!`. Sign in with the NetID (the part of the email before `@`).
+All seeded professors use the password `testing123`. Sign in with the NetID (the part of the email before `@`).
 
 | NetID | Good for trying |
 |---|---|

@@ -16,6 +16,7 @@ const presentCycle = (c) => ({
   signup_deadline: toISODate(c.signup_deadline),
   observation_deadline: toISODate(c.observation_deadline),
   feedback_deadline: toISODate(c.feedback_deadline),
+  feedback_deadline_time: c.feedback_deadline_time || null,
 });
 
 function readDeadlines(body, partial) {
@@ -27,6 +28,13 @@ function readDeadlines(body, partial) {
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body[f]))) throw badRequest(`${f} must be a date (YYYY-MM-DD).`);
     out[f] = new Date(`${body[f]}T00:00:00.000Z`);
+  }
+  // Optional survey close time ("HH:MM", 24-hour). null or "" = close at 11:59 PM.
+  if (body?.feedback_deadline_time !== undefined) {
+    const t = body.feedback_deadline_time;
+    if (t === null || t === "") out.feedback_deadline_time = null;
+    else if (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(t))) out.feedback_deadline_time = String(t);
+    else throw badRequest("feedback_deadline_time must be a time (HH:MM, 24-hour) or null.");
   }
   const s = out.signup_deadline, o = out.observation_deadline, fb = out.feedback_deadline;
   if (s && o && s > o) throw badRequest("The signup deadline must be on or before the observation deadline.");
@@ -61,7 +69,7 @@ router.patch("/:term", requireAc, async (req, res) => {
   const cycle = await EvaluationCycle.findOne({ term: req.params.term });
   if (!cycle) throw notFound("Evaluation cycle not found.");
   const updates = readDeadlines(req.body, true);
-  if (!Object.keys(updates).length) throw badRequest(`Nothing to update. Allowed fields: ${DEADLINES.join(", ")}.`);
+  if (!Object.keys(updates).length) throw badRequest(`Nothing to update. Allowed fields: ${[...DEADLINES, "feedback_deadline_time"].join(", ")}.`);
   Object.assign(cycle, updates);
   readDeadlines(presentCycle(cycle.toObject()), false); // re-check ordering with the merged values
   await cycle.save();
@@ -73,7 +81,7 @@ router.patch("/:term", requireAc, async (req, res) => {
     if (o.observer_email) participants.add(o.observer_email);
   }
   const c = presentCycle(cycle.toObject());
-  await notify([...participants], `Deadlines updated for ${cycle.term}: sign-up ${c.signup_deadline}, observations ${c.observation_deadline}, survey ${c.feedback_deadline}.`, "deadline");
+  await notify([...participants], `Deadlines updated for ${cycle.term}: sign-up ${c.signup_deadline}, observations ${c.observation_deadline}, survey ${c.feedback_deadline}${c.feedback_deadline_time ? ` at ${c.feedback_deadline_time}` : ""}.`, "deadline");
   res.json({ data: c });
 });
 

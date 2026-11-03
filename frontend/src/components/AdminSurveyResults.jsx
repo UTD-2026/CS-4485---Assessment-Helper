@@ -1,19 +1,20 @@
 import React, { useMemo } from 'react';
+import { formatDateTime } from '../api/adapters.js';
 
 /**
- * Anonymous survey results for the Committee (AC) portal.
+ * Survey results for the Committee (AC) portal.
  *
  * Props:
- *  - surveyResponses: answers only. Each has a random response_id and NO professor identity.
+ *  - surveyResponses: answers plus submitted_at. Each has a random response_id and NO professor identity.
  *  - submittedCount / totalCount: how many finished vs. how many signed up this cycle (counts only)
  *  Data: GET /api/surveys/responses (the server never returns respondent emails).
  *
- * IMPORTANT: never pass the "who submitted" list into this component. That is what keeps responses anonymous.
+ * Never pass the "who submitted" list into this component.
  */
 export default function AdminSurveyResults({ surveyResponses, submittedCount, totalCount }) {
-  // Sorted by random id, so list order (= submission order) can't hint at who wrote what.
+  // Newest first; responses without a date go last
   const ordered = useMemo(
-    () => [...surveyResponses].sort((a, b) => a.response_id.localeCompare(b.response_id)),
+    () => [...surveyResponses].sort((a, b) => String(b.submitted_at || '').localeCompare(String(a.submitted_at || ''))),
     [surveyResponses]
   );
 
@@ -36,20 +37,19 @@ export default function AdminSurveyResults({ surveyResponses, submittedCount, to
       </div>
 
       <div className="bento-card full-span">
-        <h3>Submitted Surveys</h3>
-        <p className="subtitle">🔒 Anonymous: respondent identities are not stored with answers.</p>
+        <h3 style={{ marginBottom: '16px' }}>Submitted Surveys</h3>
         <div className="modern-table-wrapper">
           <table className="data-table">
             <thead>
-              <tr><th>Respondent</th><th>Process OK?</th><th>Difficulties</th><th>Suggestions</th><th>Attachment</th></tr>
+              <tr><th className="nowrap">Date Submitted</th><th className="nowrap">Process OK?</th><th>Difficulties</th><th>Suggestions</th><th>Attachment</th></tr>
             </thead>
             <tbody>
               {ordered.length === 0 ? (
                 <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No surveys submitted yet.</td></tr>
               ) : (
-                ordered.map((r, i) => (
+                ordered.map((r) => (
                   <tr key={r.response_id}>
-                    <td><strong>Anonymous #{i + 1}</strong></td>
+                    <td className="nowrap">{formatDateTime(r.submitted_at)}</td>
                     <td>
                       {r.process_ok
                         ? <span className="badge badge-success">Yes</span>

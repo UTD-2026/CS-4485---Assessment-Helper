@@ -7,7 +7,7 @@ const { sign } = require("../services/jwt");
 const { verifyPassword } = require("../services/password");
 const { presentProfessor } = require("../services/context");
 const { authenticate } = require("../middleware/auth");
-const { badRequest, unauthorized } = require("../middleware/errors");
+const { badRequest, unauthorized, notFound } = require("../middleware/errors");
 
 const router = express.Router();
 
@@ -25,6 +25,23 @@ router.post("/login", async (req, res) => {
 
   const token = sign({ ac: professor.is_ac_member }, env.jwtSecret, { subject: professor.email, expiresIn: env.tokenLifetime });
   res.json({ data: { token, professor: presentProfessor(professor) } });
+});
+
+// GET /api/auth/test-accounts  (public, development/demo only)
+// Backs the login page's "Need more test accounts?" list: every professor's NetID, name and role.
+// Disabled when NODE_ENV=production so a real deployment never publishes the faculty list.
+router.get("/test-accounts", async (req, res) => {
+  if (process.env.NODE_ENV === "production") throw notFound();
+  const rows = await Professor.find({}).select("email name department is_ac_member").lean();
+  const data = rows
+    .map((p) => ({
+      netid: p.email.split("@")[0],
+      name: p.name,
+      department: p.department,
+      role: p.is_ac_member ? "Committee" : "Professor",
+    }))
+    .sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "Committee" ? -1 : 1));
+  res.json({ data });
 });
 
 router.get("/me", authenticate, (req, res) => {

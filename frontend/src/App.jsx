@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import CommitteeReports from './components/CommitteeReports.jsx';
+import TestAccountsDialog from './components/TestAccountsDialog.jsx';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
-import { isPastDeadline } from './utils/deadlines.js';
+import { isPastDeadline, isSurveyClosed as surveyIsClosed, formatSurveyDeadline } from './utils/deadlines.js';
 import { createFacultyCsv } from './utils/facultyCsv.js';
 import { api, setToken, hasToken } from './api/client.js';
-import { adaptProfessor } from './api/adapters.js';
+import { adaptProfessor, formatDate } from './api/adapters.js';
 import useAppData from './api/useAppData.js';
 
 // "Fall 2026" -> "Spring 2027"
@@ -67,7 +68,7 @@ function EvaluationDetail({ evaluation, evaluationTemplate, onBack }) {
         <div>
           <h3 style={{ fontSize: '1.4rem', color: 'var(--utd-green)' }}>Evaluation: {evaluation.observeeName}</h3>
           <p className="subtitle" style={{ marginTop: '5px' }}>
-            {evaluation.courseCode}{evaluation.timing ? ` (${evaluation.timing})` : ''} · Observed by {evaluation.observerName} · Submitted {evaluation.dateSubmitted}
+            {evaluation.courseCode}{evaluation.timing ? ` (${evaluation.timing})` : ''} · Observed by {evaluation.observerName} · Submitted {formatDate(evaluation.dateSubmitted)}
           </p>
         </div>
         <button type="button" className="btn-secondary sm" onClick={onBack}>← Back</button>
@@ -173,6 +174,8 @@ function Login({ onLogin }) {
   const [error, setError] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  const [showAccounts, setShowAccounts] = useState(false);
+  const closeAccounts = useCallback(() => setShowAccounts(false), []);
 
   // POST /api/auth/login: accepts a NetID (the part of the email before @) or the full email
   const handleSubmit = async (e) => {
@@ -219,12 +222,30 @@ function Login({ onLogin }) {
         </form>
 
         <div className="login-hint">
-          <span>Test credentials (seed data)</span>
-          <div>Professors: nal595463 (observee) · jlh753843 (observer) · jdf262865 (scheduled)</div>
-          <div>Committee (AC member): ddr199513</div>
-          <div>Password: Password123!</div>
+          <span className="login-hint-title">Test credentials</span>
+          <div className="login-hint-cols">
+            <div>
+              <span>Professors</span>
+              <div>nal595463 (observee)</div>
+              <div>jlh753843 (observer)</div>
+              <div>jdf262865 (scheduled)</div>
+            </div>
+            <div>
+              <span>Committee</span>
+              <div>ddr199513</div>
+            </div>
+          </div>
+          <div className="login-hint-password">Password: testing123</div>
+          <div>Need more test accounts, click <button type="button" className="login-hint-link" onClick={() => setShowAccounts(true)}>here</button></div>
         </div>
       </div>
+
+      {showAccounts && (
+        <TestAccountsDialog
+          onClose={closeAccounts}
+          onPick={(netid) => { setUsername(netid); setPassword('testing123'); setShowAccounts(false); }}
+        />
+      )}
     </div>
   );
 }
@@ -238,7 +259,7 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
   const [reportsVersion, setReportsVersion] = useState(0);
   // Deadlines form edits a local copy, saved with PATCH /api/evaluation-cycles/:term
   const [deadlineForm, setDeadlineForm] = useState(globalDeadlines);
-  useEffect(() => { setDeadlineForm(globalDeadlines); }, [globalDeadlines.signup, globalDeadlines.observation, globalDeadlines.survey]);
+  useEffect(() => { setDeadlineForm(globalDeadlines); }, [globalDeadlines.signup, globalDeadlines.observation, globalDeadlines.survey, globalDeadlines.surveyTime]);
   // Template Editor: each term has its own template JSON file; edits default to NEXT term so the form in use doesn't change mid-cycle
   const termOptions = [...new Set([...(data.cycles || []).map(c => c.term), nextTermOf(currentSemester)])];
   const [templateTerm, setTemplateTerm] = useState(nextTermOf(currentSemester));
@@ -367,7 +388,7 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
   };
 
   const handleSaveDeadlines = async () => {
-    await run(() => api.updateCycle(currentSemester, { signup_deadline: deadlineForm.signup, observation_deadline: deadlineForm.observation, feedback_deadline: deadlineForm.survey }),
+    await run(() => api.updateCycle(currentSemester, { signup_deadline: deadlineForm.signup, observation_deadline: deadlineForm.observation, feedback_deadline: deadlineForm.survey, feedback_deadline_time: deadlineForm.surveyTime || null }),
       "Deadlines updated! Notifications dispatched.");
     await refresh();
   };
@@ -391,11 +412,11 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
       </div>
 
       <div className="main-content">
-        <header className="top-header premium-glass">
-          <div className="header-title"><h2>System Overview</h2><p>Welcome, {user.name} (Committee Member) · {currentSemester} Evaluation Cycle</p></div>
-        </header>
-
         <div className="content-scroll">
+          {/* Inside the scroll area, so it stays at the top of the page and scrolls away instead of following the user */}
+          <header className="top-header premium-glass">
+            <div className="header-title"><h2>System Overview</h2><p>Welcome, {user.name} (Committee Member) · {currentSemester} Evaluation Cycle</p></div>
+          </header>
           {data.error && <div className="api-error-banner">Could not refresh data: {data.error}</div>}
           {activeTab === 'metrics' && (
             <AdminKpiDashboard
@@ -572,7 +593,17 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
                   <p className="subtitle">{currentSemester} evaluation cycle</p>
                   <div className="form-group"><label>Signup Deadline</label><input type="date" value={deadlineForm.signup} onChange={e => setDeadlineForm({...deadlineForm, signup: e.target.value})} /></div>
                   <div className="form-group"><label>Observation Period Ends</label><input type="date" value={deadlineForm.observation} onChange={e => setDeadlineForm({...deadlineForm, observation: e.target.value})} /></div>
-                  <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={deadlineForm.survey} onChange={e => setDeadlineForm({...deadlineForm, survey: e.target.value})} /></div>
+                  <div className="form-group">
+                    <label htmlFor="survey-deadline-date">Survey Deadline (Hand-off)</label>
+                    <div className="deadline-datetime">
+                      <input id="survey-deadline-date" type="date" value={deadlineForm.survey} onChange={e => setDeadlineForm({...deadlineForm, survey: e.target.value})} />
+                      <input type="time" aria-label="Survey closing time" value={deadlineForm.surveyTime || ''} onChange={e => setDeadlineForm({...deadlineForm, surveyTime: e.target.value})} />
+                    </div>
+                    <p className="deadline-hint">
+                      {deadlineForm.survey ? `Survey closes at ${formatSurveyDeadline(deadlineForm.survey, deadlineForm.surveyTime)}.` : ''}
+                      {!deadlineForm.surveyTime && ' Leave the time blank to close at the end of the day.'}
+                    </p>
+                  </div>
                   <button type="button" className="btn-primary" onClick={handleSaveDeadlines}>Update Deadlines</button>
                 </form>
               </div>
@@ -687,17 +718,17 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
                   <h3>Submitted Digital Evaluations</h3>
                   <div className="modern-table-wrapper">
                     <table className="data-table">
-                      <thead><tr><th>Date Submitted</th><th>Observer</th><th>Observee</th><th>Course</th><th>Action</th></tr></thead>
+                      <thead><tr><th className="nowrap">Date Submitted</th><th className="nowrap">Observer</th><th className="nowrap">Observee</th><th className="nowrap">Course</th><th>Action</th></tr></thead>
                       <tbody>
                         {!globalEvaluations || globalEvaluations.length === 0 ? (
                           <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No evaluations submitted yet.</td></tr>
                         ) : (
                           globalEvaluations.map(ev => (
                             <tr key={ev.id}>
-                              <td>{ev.dateSubmitted}</td>
-                              <td>{ev.observerName}</td>
-                              <td><strong>{ev.observeeName}</strong></td>
-                              <td>{ev.courseCode}</td>
+                              <td className="nowrap">{formatDate(ev.dateSubmitted)}</td>
+                              <td className="nowrap">{ev.observerName}</td>
+                              <td className="nowrap"><strong>{ev.observeeName}</strong></td>
+                              <td className="nowrap">{ev.courseCode}</td>
                               <td>
                                 <button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button>
                               </td>
@@ -801,7 +832,8 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
     : false;
 
   // Once the admin-set survey deadline passes, the survey tab only shows a "closed" notice
-  const isSurveyClosed = isPastDeadline(globalDeadlines?.survey);
+  const isSurveyClosed = surveyIsClosed(globalDeadlines?.survey, globalDeadlines?.surveyTime);
+  const surveyDeadlineLabel = globalDeadlines?.survey ? formatSurveyDeadline(globalDeadlines.survey, globalDeadlines.surveyTime) : '';
 
   const dynamicSystemNotifs = [];
   if ((myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup) {
@@ -1040,7 +1072,6 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                         <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px'}}>
                           <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                             <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
-                            <button className="btn-danger sm" onClick={() => reportMissedObservation(myConfirmedObservation.id)}>Did Not Happen</button>
                             <button className="btn-secondary sm" style={{background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a'}} onClick={() => setShowDeferForm(!showDeferForm)}>
                               {showDeferForm ? 'Cancel' : '⚠️ Could Not Complete Cycle'}
                             </button>
@@ -1085,7 +1116,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                      <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
                         <h4>Observation Completed!</h4>
                         {isSurveyClosed ? (
-                          <p style={{fontSize: '0.9rem', color: '#64748b', margin: 0}}>You and your observer both confirmed the observation. The survey deadline ({globalDeadlines.survey}) has passed.</p>
+                          <p style={{fontSize: '0.9rem', color: '#64748b', margin: 0}}>You and your observer both confirmed the observation. The survey deadline ({surveyDeadlineLabel}) has passed.</p>
                         ) : (
                           <>
                             <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. Please proceed to the final survey.</p>
@@ -1367,7 +1398,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                             <tr><td colSpan="4" style={{ textAlign: 'center' }}>You haven't submitted any evaluations yet.</td></tr>
                           ) : mySubmittedEvaluations.slice().reverse().map(ev => (
                             <tr key={ev.id}>
-                              <td>{ev.dateSubmitted}</td>
+                              <td>{formatDate(ev.dateSubmitted)}</td>
                               <td><strong>{ev.observeeName}</strong></td>
                               <td>{ev.courseCode}</td>
                               <td><button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button></td>
@@ -1388,7 +1419,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                             <tr><td colSpan="4" style={{ textAlign: 'center' }}>No evaluations have been submitted for you yet.</td></tr>
                           ) : evaluationsOfMe.slice().reverse().map(ev => (
                             <tr key={ev.id}>
-                              <td>{ev.dateSubmitted}</td>
+                              <td>{formatDate(ev.dateSubmitted)}</td>
                               <td><strong>{ev.observerName}</strong></td>
                               <td>{ev.courseCode}</td>
                               <td><button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button></td>
@@ -1451,7 +1482,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
           )}
 
           {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={globalDeadlines?.survey} />
+            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={surveyDeadlineLabel} />
           )}
         </div>
       </div>

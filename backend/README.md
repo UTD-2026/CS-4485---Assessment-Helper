@@ -31,7 +31,7 @@ database is never wiped. The Vite dev server proxies `/api` to `http://localhost
 
 - Every response is `{ "data": ... }` (lists may add `meta`). Errors are `{ "error": "message" }` with the doc's status codes
   (400, 401, 403, 404, 409, 500); archiving a notification returns 204.
-- Everything except `/api/health` and `/api/auth/login` needs `Authorization: Bearer <token>`.
+- Everything except `/api/health`, `/api/auth/login` and `/api/auth/test-accounts` needs `Authorization: Bearer <token>`.
 - Observations and observer matches are identified by course section: `/:course_code/:section_number/:term`, URL-encoded
   (`/api/observations/CS%202117/001/Fall%202026`).
 - Professors only see observations and requests they are part of; ratings are visible to the observer, the observee and the
@@ -44,6 +44,7 @@ database is never wiped. The Vite dev server proxies `/api` to `http://localhost
 |---|---|---|
 | POST | /api/auth/login | `{ username, password }` (NetID or email) → `{ token, professor }` |
 | GET | /api/auth/me | The signed-in professor |
+| GET | /api/auth/test-accounts | **Extension.** Public, off when `NODE_ENV=production`. Every professor's `{ netid, name, department, role }` (`Committee`/`Professor`) for the login page's test-accounts list |
 
 ### 1. Professors
 | Method | Endpoint | Notes |
@@ -66,8 +67,8 @@ database is never wiped. The Vite dev server proxies `/api` to `http://localhost
 |---|---|---|
 | GET | /api/evaluation-cycles | `meta.current_term` = the term the app works in |
 | GET | /api/evaluation-cycles/:term | |
-| POST | /api/evaluation-cycles | Committee. `{ term, signup_deadline, observation_deadline, feedback_deadline }` (YYYY-MM-DD) |
-| PATCH | /api/evaluation-cycles/:term | Committee. Any of the three deadlines; participants are notified |
+| POST | /api/evaluation-cycles | Committee. `{ term, signup_deadline, observation_deadline, feedback_deadline }` (YYYY-MM-DD), optional `feedback_deadline_time` (HH:MM, 24-hour; omitted/null = survey closes 11:59 PM) |
+| PATCH | /api/evaluation-cycles/:term | Committee. Any of the three deadlines and/or `feedback_deadline_time`; participants are notified |
 | GET | /api/evaluation-cycles/:term/due-professors | Due + overdue professors with `signed_up` |
 | GET | /api/evaluation-cycles/:term/template | Reads `templates/<term-slug>.json` (e.g. `fall-2026.json`), else `templates/default.json` |
 | PUT | /api/evaluation-cycles/:term/template | **Extension.** Committee. `{ criteria: [{ id, criteria, ratingScale }] }` writes that term's JSON file (used by the Template Editor) |
@@ -101,8 +102,8 @@ Match statuses: `suggested → requested → accepted | declined → confirmed |
 | Method | Endpoint | Notes |
 |---|---|---|
 | GET | /api/surveys/status | `?term=`. Committee may add `all=true` to get who submitted (emails only, for the KPI) |
-| POST | /api/surveys | `{ process_ok, difficulties, improvements, has_attachment }`. Once per term, before the survey deadline |
-| GET | /api/surveys/responses | Committee. Answers with a hashed `response_id`, no email/date, sorted by id |
+| POST | /api/surveys | `{ process_ok, difficulties, improvements, has_attachment }`. Once per term, before the survey closes. `process_ok: false` requires both `difficulties` and `improvements` |
+| GET | /api/surveys/responses | Committee. Answers with a hashed `response_id` and `submitted_at` (ISO timestamp), no email |
 | POST | /api/surveys/reminders | **Extension.** Committee. Notifies signed-up professors who have not submitted (the "Request End-of-Process Surveys" button) |
 
 ### 7. Reports and KPIs (committee)

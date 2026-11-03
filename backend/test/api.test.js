@@ -42,13 +42,19 @@ test("full observation workflow through the API", { skip }, async (t) => {
     const text = await res.text();
     return { status: res.status, body: text ? JSON.parse(text) : null };
   };
-  const login = async (username) => (await call("POST", "/auth/login", null, { username, password: "Password123!" })).body.data.token;
+  const login = async (username) => (await call("POST", "/auth/login", null, { username, password: "testing123" })).body.data.token;
   const enc = (s) => encodeURIComponent(s);
 
   // Auth
   assert.equal((await call("GET", "/professors")).status, 401);
   assert.equal((await call("POST", "/auth/login", null, { username: "ddr199513", password: "nope" })).status, 401);
   const ac = await login("ddr199513");
+
+  // Login page test-accounts list: public, no secrets, committee first
+  const accounts = (await call("GET", "/auth/test-accounts")).body.data;
+  assert.ok(accounts.length > 0 && accounts.every((a) => a.netid && a.name && ["Committee", "Professor"].includes(a.role) && !("password_hash" in a) && !("email" in a)));
+  assert.equal(accounts.find((a) => a.netid === "ddr199513").role, "Committee");
+  assert.equal(accounts[0].role, "Committee");
 
   // Pick an observee: a due/overdue professor with a Fall 2026 section who has not signed up yet
   const profs = (await call("GET", "/professors", ac)).body.data;
@@ -134,12 +140,20 @@ test("full observation workflow through the API", { skip }, async (t) => {
   assert.equal(done.body.data.status, "completed");
   assert.ok(done.body.data.ratings[template[0].id]);
 
-  // Survey: once, anonymous
+  // Survey: once, anonymous; "not OK" needs both written answers
+  assert.equal((await call("POST", "/surveys", prof, { process_ok: false, difficulties: "  ", improvements: "More time" })).status, 400);
   assert.equal((await call("POST", "/surveys", prof, { process_ok: true, difficulties: "", improvements: "More time" })).status, 201);
   assert.equal((await call("POST", "/surveys", prof, { process_ok: true })).status, 409);
   const responses = (await call("GET", "/surveys/responses?term=Fall%202026", ac)).body.data;
   assert.ok(responses.length > 0 && responses.every((r) => !("professor_email" in r)));
+  assert.ok(responses.every((r) => r.submitted_at === null || !Number.isNaN(Date.parse(r.submitted_at))));
   assert.equal((await call("GET", "/surveys/status", prof)).body.data.submitted, true);
+
+  // Survey close time on the feedback deadline
+  assert.equal((await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { feedback_deadline_time: "25:00" })).status, 400);
+  assert.equal((await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { feedback_deadline_time: "17:30" })).body.data.feedback_deadline_time, "17:30");
+  assert.equal((await call("GET", "/surveys/status", prof)).body.data.deadline_time, "17:30");
+  assert.equal((await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { feedback_deadline_time: null })).body.data.feedback_deadline_time, null);
 
   // Notifications
   const inbox = (await call("GET", "/notifications", prof)).body.data;

@@ -2,7 +2,7 @@
 // Definitions match the dashboard (frontend/src/utils/kpis.js) so the API and the UI agree;
 // the report shapes follow sriproflookup's Committee Reports (by hire level, unmatched, outstanding, workload).
 const { evaluateEligibility } = require("./eligibility");
-const { sectionKey, observeeOf, isPastDeadline } = require("./context");
+const { sectionKey, observeeOf, isPastDeadline, isSurveyClosed } = require("./context");
 const { levelLabel } = require("./dueStatus");
 const { flagFor } = require("./presenters");
 
@@ -83,7 +83,7 @@ function computeKpis(ctx, { surveys = [] } = {}) {
     missing_observations: { count: missing.length, approved: paired.length, completed: paired.filter((o) => o.status === "completed").length, deadline_passed: deadlinePassed },
     survey_completion: {
       numerator: completedProcess, denominator: signups.length, rate: pct(completedProcess, signups.length), funnel,
-      available: ctx.cycle ? isPastDeadline(ctx.cycle.feedback_deadline) : false,
+      available: ctx.cycle ? isSurveyClosed(ctx.cycle) : false,
     },
     faculty_due_by_hire_level: facultyDueByLevel(ctx),
     observer_workload: observerWorkload(ctx),

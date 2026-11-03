@@ -22,10 +22,20 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
   const [difficulties, setDifficulties] = useState('');
   const [improvements, setImprovements] = useState('');
   const [file, setFile] = useState(null);
+  const [error, setError] = useState('');
+
+  // "No, the process was not OK" makes both written answers required
+  const needsDetails = processOk === 'not_ok';
+  const requiredMark = needsDetails ? <span style={{ color: '#b91c1c' }}> *</span> : null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isClosed) return; // deadline passed--block submission
+    if (needsDetails && (!difficulties.trim() || !improvements.trim())) {
+      setError('Since the process was not OK, please list your difficulties and your opinion on how to improve the process.');
+      return;
+    }
+    setError('');
     onSubmit({
       process_ok: processOk === 'ok',
       difficulties: difficulties.trim(),
@@ -89,7 +99,12 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
             </p>
             {deadline && (
               <p style={{ margin: 0, fontSize: '0.9rem', color: '#b45309', fontWeight: 600 }}>
-                ⏰ Survey closes at the end of {deadline}.
+                ⏰ Survey closes at {deadline}.
+              </p>
+            )}
+            {error && (
+              <p role="alert" style={{ margin: 0, padding: '10px 12px', fontSize: '0.9rem', fontWeight: 600, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px' }}>
+                {error}
               </p>
             )}
 
@@ -103,9 +118,11 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>List your difficulties</label>
+              <label htmlFor="survey-difficulties" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>List your difficulties{requiredMark}</label>
               <textarea
+                id="survey-difficulties"
                 rows="3"
+                required={needsDetails}
                 value={difficulties}
                 onChange={(e) => setDifficulties(e.target.value)}
                 placeholder="Describe any issues you faced during the observation process..."
@@ -114,9 +131,11 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Opinion on how to improve the process</label>
+              <label htmlFor="survey-improvements" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Opinion on how to improve the process{requiredMark}</label>
               <textarea
+                id="survey-improvements"
                 rows="3"
+                required={needsDetails}
                 value={improvements}
                 onChange={(e) => setImprovements(e.target.value)}
                 placeholder="Share your suggestions for improving this system..."
