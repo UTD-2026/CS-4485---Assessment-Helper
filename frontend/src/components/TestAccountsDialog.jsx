@@ -42,7 +42,7 @@ export default function TestAccountsDialog({ onClose, onPick }) {
             <h3 id="test-accounts-title">Test accounts</h3>
             <p>
               {accounts ? `${accounts.length} accounts · ${committeeCount} committee · ${accounts.length - committeeCount} professors · ` : ''}
-              Password for all: <strong>testing123</strong>
+              Password for all: <strong>Password123!</strong>
             </p>
           </div>
           <button type="button" className="test-accounts-close" onClick={onClose} aria-label="Close">×</button>

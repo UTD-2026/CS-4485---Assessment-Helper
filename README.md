@@ -10,7 +10,7 @@ A centralized platform for managing faculty evaluations, course histories, and p
 
 **Login**
 - NetID (or UTD email) + password, checked by the API (`POST /api/auth/login`), signed token kept for the browser tab
-- Assessment Committee members open the Committee portal and can switch to their own Professor portal
+- Assessment Committee members open the Committee portal; all other faculty open the Professor portal
 
 **Professor Portal**
 - **My Cycle:** evaluation status from the server (Assistant: every calendar year; Associate/Full: every two years) and Step 1 course sign-up, which enters the observer pool and generates the observer list
@@ -63,7 +63,7 @@ npm run dev                               # front end on http://localhost:5173 (
 
 ## Test Login (seed data)
 
-All seeded professors use the password `testing123`. Sign in with the NetID (the part of the email before `@`).
+All seeded professors use the password `Password123!`. Sign in with the NetID (the part of the email before `@`).
 
 | NetID | Good for trying |
 |---|---|

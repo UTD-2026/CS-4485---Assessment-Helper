@@ -95,24 +95,19 @@ function EvaluationDetail({ evaluation, evaluationTemplate, onBack }) {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [restoring, setRestoring] = useState(hasToken());
-  // Committee members open the Committee portal and can switch to their own Professor portal
-  const [portal, setPortal] = useState('professor');
 
   // Re-open the session after a page refresh (the token is kept for this browser tab)
   useEffect(() => {
     if (!hasToken()) return;
     api.me()
-      .then(res => { const u = adaptProfessor(res.data); setCurrentUser(u); setPortal(u.is_ac_member ? 'admin' : 'professor'); })
+      .then(res => setCurrentUser(adaptProfessor(res.data)))
       .catch(() => setToken(null))
       .finally(() => setRestoring(false));
   }, []);
 
   const data = useAppData(currentUser);
 
-  const handleLogin = (user) => {
-    setCurrentUser(user);
-    setPortal(user.is_ac_member ? 'admin' : 'professor');
-  };
+  const handleLogin = (user) => setCurrentUser(user);
   const handleLogout = () => { setToken(null); setCurrentUser(null); };
 
   const handleSurveySubmit = async (answers) => {
@@ -125,12 +120,12 @@ export default function App() {
   if (!currentUser) return <Login onLogin={handleLogin} />;
   if (data.loading) return <div className="app-loading">{data.error ? `Could not load data: ${data.error}` : 'Loading your evaluation cycle…'}</div>;
 
-  if (portal === 'admin' && currentUser.is_ac_member) {
+  // Committee (AC) members get the Committee portal; everyone else gets the Professor portal
+  if (currentUser.is_ac_member) {
     return (
       <AdminDashboard
         user={currentUser}
         onLogout={handleLogout}
-        onSwitchPortal={() => setPortal('professor')}
         data={data}
         globalRequests={data.requests}
         surveyResponses={data.surveyResponses}
@@ -150,7 +145,6 @@ export default function App() {
     <ProfessorDashboard
       user={currentUser}
       onLogout={handleLogout}
-      onSwitchPortal={currentUser.is_ac_member ? () => setPortal('admin') : null}
       data={data}
       globalRequests={data.requests}
       globalSignups={data.signups}
@@ -235,7 +229,7 @@ function Login({ onLogin }) {
               <div>ddr199513</div>
             </div>
           </div>
-          <div className="login-hint-password">Password: testing123</div>
+          <div className="login-hint-password">Password: Password123!</div>
           <div>Need more test accounts, click <button type="button" className="login-hint-link" onClick={() => setShowAccounts(true)}>here</button></div>
         </div>
       </div>
@@ -243,7 +237,7 @@ function Login({ onLogin }) {
       {showAccounts && (
         <TestAccountsDialog
           onClose={closeAccounts}
-          onPick={(netid) => { setUsername(netid); setPassword('testing123'); setShowAccounts(false); }}
+          onPick={(netid) => { setUsername(netid); setPassword('Password123!'); setShowAccounts(false); }}
         />
       )}
     </div>
@@ -253,7 +247,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, globalRequests, globalObservations, globalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, globalEvaluations }) {
+function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, globalObservations, globalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, globalEvaluations }) {
   const { term: currentSemester, professors, courses, refresh } = data;
   const [activeTab, setActiveTab] = useState('metrics');
   const [reportsVersion, setReportsVersion] = useState(0);
@@ -406,7 +400,6 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
           <NavItem id="template" label="⚙️ Template Editor" />
           <NavItem id="evaluations" label="📄 Digital Evaluations" />
           <NavItem id="surveys" label="📋 Survey Responses" />
-          <li onClick={onSwitchPortal} className="portal-switch"><span>🔁 Switch to Professor Portal</span></li>
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
         </ul>
       </div>
@@ -758,7 +751,7 @@ function AdminDashboard({ user, onLogout, onSwitchPortal, data, globalSignups, g
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, globalObservations, evaluationTemplate, globalDeadlines, globalNotifications, globalEvaluations, evaluationDrafts }) {
+function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, globalObservations, evaluationTemplate, globalDeadlines, globalNotifications, globalEvaluations, evaluationDrafts }) {
   const { term: currentSemester, refresh } = data;
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -973,22 +966,21 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
           <NavItem id="my-evaluations" icon={() => <span>📋</span>} label="My Evaluations" />
           <NavItem id="survey" icon={() => <span>📄</span>} label="End Survey" />
           <NavItem id="notifications" icon={() => <span>🔔</span>} label="Notifications" badge={unreadCount} />
-          {onSwitchPortal && <li onClick={onSwitchPortal} className="portal-switch"><span>🔁 Committee Portal</span></li>}
           <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
         </ul>
       </div>
 
       <div className="main-content">
-        <header className="top-header premium-glass">
-          <div className="header-title">
-            <h2>Welcome back, {user?.name}</h2>
-            <p>{currentSemester} Evaluation Cycle</p>
-          </div>
-          {/* Shows first + last name initials (e.g. "Dr. Alice Smith" -> "AS"); hover shows full name */}
-          <div className="user-profile"><div className="avatar" title={user?.name || ''}>{getInitials(user?.name)}</div></div>
-        </header>
-
         <div className="content-scroll">
+          {/* Inside the scroll area, so it stays at the top of the page and scrolls away instead of following the user */}
+          <header className="top-header premium-glass">
+            <div className="header-title">
+              <h2>Welcome back, {user?.name}</h2>
+              <p>{currentSemester} Evaluation Cycle</p>
+            </div>
+            {/* Shows first + last name initials (e.g. "Dr. Alice Smith" -> "AS"); hover shows full name */}
+            <div className="user-profile"><div className="avatar" title={user?.name || ''}>{getInitials(user?.name)}</div></div>
+          </header>
           {activeTab === 'home' && (
             <div className="bento-grid">
               <div className="bento-card" style={{ gridColumn: '1 / -1' }}>
@@ -1053,7 +1045,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
 
                   {myConfirmedObservation.scheduledDate && (
                     <p style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontWeight: '500' }}>
-                      🗓️ Scheduled Date: <strong>{myConfirmedObservation.scheduledDate}</strong>
+                      🗓️ Scheduled Date: <strong>{formatDate(myConfirmedObservation.scheduledDate)}</strong>
                       {myConfirmedObservation.scheduledTime && <> at <strong>{myConfirmedObservation.scheduledTime}</strong></>}
                     </p>
                   )}
@@ -1110,7 +1102,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                   )}
 
                   {myConfirmedObservation.status === 'Missed' && (
-                    <p style={{color: '#b91c1c', fontSize: '0.9rem'}}>This observation was reported as not held by {myConfirmedObservation.missedReportedBy}. Please contact the Assessment Committee.</p>
+                    <p style={{color: '#b91c1c', fontSize: '0.9rem'}}>This observation was reported as not held{myConfirmedObservation.missedReportedBy ? ` by ${myConfirmedObservation.missedReportedBy}` : ''}. Please contact the Assessment Committee.</p>
                   )}
                   {myConfirmedObservation.status === 'Completed' && (
                      <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
@@ -1235,7 +1227,7 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                 <h3>My Confirmed Observation Appointments</h3>
                 <div className="modern-table-wrapper">
                   <table className="data-table">
-                    <thead><tr><th>Observee</th><th>Course</th><th>Time</th><th>Status & Action</th></tr></thead>
+                    <thead><tr><th className="nowrap">Observee</th><th>Course</th><th>Time</th><th>Status & Action</th></tr></thead>
                     <tbody>
                       {myAssignedObservations.length === 0 ? (
                         <tr><td colSpan="4" style={{textAlign: 'center'}}>No confirmed duties.</td></tr>
@@ -1245,13 +1237,13 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                           const hasSubmittedEvaluation = (globalEvaluations || []).some(e => e.observationId === obs.id);
                           return (
                           <tr key={obs.id}>
-                            <td><strong>{obs.observeeName}</strong></td>
+                            <td className="nowrap"><strong>{obs.observeeName}</strong></td>
                             <td style={{ whiteSpace: 'nowrap' }}>{obs.courseCode}</td>
                             <td>
                               <div style={{ whiteSpace: 'nowrap' }}>{obs.timing}</div>
                               {obs.scheduledDate && (
                                 <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px', whiteSpace: 'nowrap' }}>
-                                  🗓️ {obs.scheduledDate}{obs.scheduledTime ? ` at ${obs.scheduledTime}` : ''}
+                                  🗓️ {formatDate(obs.scheduledDate)}{obs.scheduledTime ? ` at ${obs.scheduledTime}` : ''}
                                 </div>
                               )}
                             </td>
@@ -1263,7 +1255,9 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                               ) : obs.observerConfirmed ? (
                                 <span className="badge badge-warning">Awaiting observee confirmation</span>
                               ) : (
-                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
+                                <div>
+                                {/* Buttons stay on one row; the hint goes on its own single line underneath */}
+                                <div style={{display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap'}}>
                                   {hasSubmittedEvaluation ? (
                                     <span className="badge badge-success">✓ Evaluation Submitted</span>
                                   ) : isPastObservationDeadline ? (
@@ -1290,9 +1284,10 @@ function ProfessorDashboard({ user, onLogout, onSwitchPortal, data, globalReques
                                   >Evaluation Completed</button>
 
                                   <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
+                                </div>
 
                                   {!hasSubmittedEvaluation && !isPastObservationDeadline && (
-                                    <small style={{ width: '100%', color: '#64748b', fontSize: '0.8rem' }}>
+                                    <small style={{ display: 'block', marginTop: '8px', whiteSpace: 'nowrap', color: '#64748b', fontSize: '0.8rem' }}>
                                       {evaluationDrafts?.[obs.id] ? `Draft saved ${evaluationDrafts[obs.id].savedAt}. ` : ''}Complete the evaluation form before marking it completed.
                                     </small>
                                   )}
