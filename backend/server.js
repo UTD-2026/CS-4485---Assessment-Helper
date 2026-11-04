@@ -2,7 +2,11 @@ require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
-const dataRoutes = require("./routes/data");
+const professorRoutes = require("./routes/professors").router;
+const courseSectionRoutes = require("./routes/courseSections");
+const evaluationCycleRoutes = require("./routes/evaluationCycles");
+const observationRoutes = require("./routes/observations");
+const { errorHandler } = require("./routes/apiHelpers");
 
 const app = express();
 const port = Number(process.env.PORT) || 5000;
@@ -18,20 +22,16 @@ app.get("/api/health", (request, response) => {
   });
 });
 
-app.use("/api", dataRoutes);
+app.use("/api/professors", professorRoutes);
+app.use("/api/course-sections", courseSectionRoutes);
+app.use("/api/evaluation-cycles", evaluationCycleRoutes);
+app.use("/api/observations", observationRoutes);
 
 app.use("/api", (request, response) => {
   response.status(404).json({ error: "API endpoint not found." });
 });
 
-app.use((error, request, response, next) => {
-  if (error.type === "entity.parse.failed") {
-    return response.status(400).json({ error: "Request body must be valid JSON." });
-  }
-
-  console.error("Unhandled API error:", error);
-  return response.status(500).json({ error: "Internal server error." });
-});
+app.use(errorHandler);
 
 let server;
 

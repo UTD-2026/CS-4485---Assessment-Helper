@@ -53,7 +53,7 @@ const observationSchema = new Schema({
   term: { type: String, required: true },
   observer_email: {
     type: String,
-    required: true,
+    default: null,
     lowercase: true,
     trim: true,
   },
