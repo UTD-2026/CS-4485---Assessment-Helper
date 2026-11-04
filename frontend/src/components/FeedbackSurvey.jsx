@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
-
-const inputStyle = {
-  width: '100%',
-  padding: '10px',
-  borderRadius: '8px',
-  border: '1px solid #cbd5e1',
-  background: '#f8fafc',
-  color: '#1e293b',
-};
+import Icon from './Icon.jsx';
+import { Badge, Notice } from './ui.jsx';
 
 /**
  * End-of-process survey (professor side).
  *
  * Props:
  *  - hasSubmitted: true if this professor already submitted for the current cycle
- *  - onSubmit({ processOk, difficulties, improvements, hasAttachment }): hands the
+ *  - onSubmit({ process_ok, difficulties, improvements, has_attachment }): hands the
  *    answers to App, which stores them WITHOUT any professor identity.
+ *  - isClosed / deadline: the survey deadline set by the committee
  */
 export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = false, deadline }) {
   const [processOk, setProcessOk] = useState('');
@@ -26,13 +20,16 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
 
   // "No, the process was not OK" makes both written answers required
   const needsDetails = processOk === 'not_ok';
-  const requiredMark = needsDetails ? <span style={{ color: '#b91c1c' }}> *</span> : null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isClosed) return; // deadline passed--block submission
+    if (!processOk) {
+      setError('Please say whether the observation process was OK.');
+      return;
+    }
     if (needsDetails && (!difficulties.trim() || !improvements.trim())) {
-      setError('Since the process was not OK, please list your difficulties and your opinion on how to improve the process.');
+      setError('Since the process was not OK, please list your difficulties and how the process could improve.');
       return;
     }
     setError('');
@@ -44,132 +41,67 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
     });
   };
 
-  return (
-    <div className="survey-container" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', color: '#1e293b' }}>
-      <div className="bento-box" style={{
-        background: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '16px',
-        padding: '2rem',
-        border: '1px solid rgba(0,0,0,0.1)',
-        boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
-      }}>
-        <h2 style={{ marginTop: 0, borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '10px' }}>
-          End-of-Process Survey &amp; Feedback
-        </h2>
-
-        {hasSubmitted ? (
-          <div className="success-message" style={{ 
-            textAlign: 'center', 
-            padding: '2rem',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.75rem'
-          }}>
-            <h3 style={{ color: '#16a34a', marginBottom: '0.25rem' }}>✓ Survey Submitted Successfully</h3>
-            <p style={{ lineHeight: 1.6}}>Thank you. Your feedback has been recorded in the system.</p>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.6, maxWidth: '560px', marginTop: '0.5rem' }}>
-              Your answers are anonymous. The Assessment Committee can see that you completed the survey,
-              but not which responses are yours.
-            </p>
-          </div>
-        ) : isClosed ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '2rem',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.75rem'
-          }}>
-            <div style={{ fontSize: '2rem' }}>🔒</div>
-            <h3 style={{ color: '#b91c1c', marginBottom: '0.25rem' }}>Survey Closed</h3>
-            <p style={{ lineHeight: 1.6 }}>
-              The feedback/survey deadline{deadline ? ` (${deadline})` : ''} has passed, so new responses can no longer be submitted.
-            </p>
-            <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
-              Please contact the Assessment Committee if you believe this is an error.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
-              🔒 Your responses are anonymous to the Assessment Committee.
-            </p>
-            {deadline && (
-              <p style={{ margin: 0, fontSize: '0.9rem', color: '#b45309', fontWeight: 600 }}>
-                ⏰ Survey closes at {deadline}.
-              </p>
-            )}
-            {error && (
-              <p role="alert" style={{ margin: 0, padding: '10px 12px', fontSize: '0.9rem', fontWeight: 600, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px' }}>
-                {error}
-              </p>
-            )}
-
-            <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Was this observation process OK?</label>
-              <select value={processOk} onChange={(e) => setProcessOk(e.target.value)} style={inputStyle} required>
-                <option value="">Select...</option>
-                <option value="ok">Yes, the process was OK</option>
-                <option value="not_ok">No, the process was not OK</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="survey-difficulties" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>List your difficulties{requiredMark}</label>
-              <textarea
-                id="survey-difficulties"
-                rows="3"
-                required={needsDetails}
-                value={difficulties}
-                onChange={(e) => setDifficulties(e.target.value)}
-                placeholder="Describe any issues you faced during the observation process..."
-                style={{ ...inputStyle, resize: 'vertical' }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="survey-improvements" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Opinion on how to improve the process{requiredMark}</label>
-              <textarea
-                id="survey-improvements"
-                rows="3"
-                required={needsDetails}
-                value={improvements}
-                onChange={(e) => setImprovements(e.target.value)}
-                placeholder="Share your suggestions for improving this system..."
-                style={{ ...inputStyle, resize: 'vertical' }}
-              />
-            </div>
-
-            <div className="form-group" style={{ padding: '1rem', background: '#f1f5f9', borderRadius: '8px', border: '1px dashed #94a3b8' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Troubleshooting Upload (Optional)</label>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 0, marginBottom: '10px' }}>
-                Upload a file to shed light on any trouble during the observation. Avoid including identifying information.
-              </p>
-              <input type="file" onChange={(e) => setFile(e.target.files[0] || null)} style={{ width: '100%' }} />
-            </div>
-
-            <button
-              type="submit"
-              style={{
-                padding: '12px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
-                color: '#fff',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(234, 88, 12, 0.3)',
-                marginTop: '10px',
-              }}
-            >
-              Submit Survey
-            </button>
-          </form>
-        )}
+  if (hasSubmitted) {
+    return (
+      <div className="max-760">
+        <Notice tone="good" title="Survey submitted. Thank you.">
+          Your feedback is recorded. Your answers are anonymous: the Assessment Committee can see that you completed the survey, but not which responses are yours.
+        </Notice>
       </div>
-    </div>
+    );
+  }
+
+  if (isClosed) {
+    return (
+      <div className="max-760">
+        <Notice tone="bad" icon="lock" title="Survey closed">
+          The survey deadline{deadline ? ` (${deadline})` : ''} has passed, so new responses can no longer be submitted. Contact the Assessment Committee if you believe this is an error.
+        </Notice>
+      </div>
+    );
+  }
+
+  return (
+    <section className="card card-lg max-760">
+      <div className="row section-gap-lg">
+        <Badge tone="good">Anonymous</Badge>
+        {deadline && <Badge tone="warn">Closes {deadline}</Badge>}
+      </div>
+      <form onSubmit={handleSubmit} className="stack" noValidate>
+        {error && <Notice tone="bad">{error}</Notice>}
+
+        <fieldset className="plain-fieldset">
+          <legend className="field-legend">Was this observation process OK?</legend>
+          <div className="choice-group">
+            <label className={`choice${processOk === 'ok' ? ' selected' : ''}`}>
+              <input type="radio" name="process-ok" value="ok" checked={processOk === 'ok'} onChange={() => setProcessOk('ok')} />
+              Yes, it was OK
+            </label>
+            <label className={`choice${processOk === 'not_ok' ? ' selected' : ''}`}>
+              <input type="radio" name="process-ok" value="not_ok" checked={processOk === 'not_ok'} onChange={() => setProcessOk('not_ok')} />
+              No, it was not OK
+            </label>
+          </div>
+        </fieldset>
+
+        <label className="field" htmlFor="survey-difficulties">
+          Difficulties you ran into{needsDetails && <span className="field-error"> Required when the process was not OK</span>}
+          <textarea id="survey-difficulties" rows="3" required={needsDetails} value={difficulties} onChange={(e) => setDifficulties(e.target.value)} placeholder="Describe any issues during the observation process" />
+        </label>
+
+        <label className="field" htmlFor="survey-improvements">
+          How could the process improve?{needsDetails && <span className="field-error"> Required when the process was not OK</span>}
+          <textarea id="survey-improvements" rows="3" required={needsDetails} value={improvements} onChange={(e) => setImprovements(e.target.value)} placeholder="Share your suggestions" />
+        </label>
+
+        <label className="field file-drop">
+          <span className="row"><Icon name="paperclip" size={16} /> Troubleshooting file (optional)</span>
+          <span className="field-hint">Upload something that sheds light on a problem. Leave out anything that identifies you.</span>
+          <input type="file" onChange={(e) => setFile(e.target.files[0] || null)} />
+        </label>
+
+        <div><button type="submit" className="btn btn-primary btn-lg">Submit survey</button></div>
+      </form>
+    </section>
   );
 }

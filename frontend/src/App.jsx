@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
@@ -6,9 +6,14 @@ import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import CommitteeReports from './components/CommitteeReports.jsx';
 import TestAccountsDialog from './components/TestAccountsDialog.jsx';
+import Toaster from './components/Toaster.jsx';
+import Icon from './components/Icon.jsx';
+import { AppShell, PageHeader, Badge, Card, Notice, EmptyState, Meter } from './components/ui.jsx';
+import { daysUntil, initials, plural } from './utils/format.js';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
 import { isPastDeadline, isSurveyClosed as surveyIsClosed, formatSurveyDeadline } from './utils/deadlines.js';
 import { createFacultyCsv } from './utils/facultyCsv.js';
+import { toast } from './utils/toast.js';
 import { api, setToken, hasToken } from './api/client.js';
 import { adaptProfessor, formatDate } from './api/adapters.js';
 import useAppData from './api/useAppData.js';
@@ -20,75 +25,97 @@ function nextTermOf(term = '') {
   return season === 'Spring' ? `Fall ${year}` : `Spring ${Number(year) + 1}`;
 }
 
-// Runs an API action; shows the server's message if it fails. Returns true on success.
+// Runs an API action; shows a toast with the result. Returns true on success.
 async function run(action, successMessage) {
   try {
     await action();
-    if (successMessage) alert(successMessage);
+    if (successMessage) toast.success(successMessage);
     return true;
   } catch (error) {
-    alert(error.message);
+    toast.error(error.message);
     return false;
   }
 }
 
-// Builds avatar initials from a person's first + last name, skipping titles like "Dr." / "Prof."
-const TITLE_PREFIXES = ['dr', 'prof', 'professor', 'mr', 'mrs', 'ms', 'mx'];
-function getInitials(fullName) {
-  if (!fullName) return 'U';
-  const parts = fullName.trim().split(/\s+/).filter(p => !TITLE_PREFIXES.includes(p.replace(/\./g, '').toLowerCase()));
-  if (parts.length === 0) return 'U';
-  const first = parts[0].charAt(0);
-  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
-  return (first + last).toUpperCase();
+// "2026-11-09" -> "Mon, Nov 9"
+function shortDate(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  if (!m) return value || '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+const RATING_SCALES = ['1 to 5 (Poor to Excellent)', 'Yes / No / N/A', 'Text Feedback Only'];
+
 // Explains what each rating option means for a criterion's rating scale
-// (matches the scale options available in the admin Evaluation Template Editor)
 function getRatingLegend(ratingScale = '') {
-  if (ratingScale.includes('1 to 5')) {
-    return '1 = Poor · 2 = Fair · 3 = Good · 4 = Very Good · 5 = Excellent';
-  }
-  if (ratingScale.includes('Yes / No')) {
-    return 'Yes = Criterion observed/met · No = Criterion not observed/met · N/A = Not applicable to this class session';
-  }
-  if (ratingScale.includes('Text Feedback')) {
-    return 'No numeric rating for this item, so provide written feedback in the notes box below.';
-  }
+  if (ratingScale.includes('1 to 5')) return '1 = Poor · 2 = Fair · 3 = Good · 4 = Very good · 5 = Excellent';
+  if (ratingScale.includes('Yes / No')) return 'Yes = observed or met · No = not observed or met · N/A = not applicable to this session';
+  if (ratingScale.includes('Text Feedback')) return 'No rating for this item. Write your feedback in the notes.';
   return ratingScale ? `Rating scale: ${ratingScale}` : '';
 }
 
-// Read-only view of a submitted evaluation form (used on the professor "My Evaluations" tab)
-function EvaluationDetail({ evaluation, evaluationTemplate, onBack }) {
+const OBS_TONE = { Completed: 'good', Scheduled: 'info', 'Pending Scheduling': 'warn', 'Awaiting Confirmation': 'warn', Missed: 'bad', 'Deferred / Rolled Over': 'warn' };
+const REQ_TONE = { Pending: 'warn', Accepted: 'info', Confirmed: 'good', Declined: 'bad', Cancelled: 'neutral' };
+const FLAG = {
+  OK: ['OK', 'good'],
+  'INSUFFICIENT OBSERVERS': ['Insufficient', 'warn'],
+  'NO ELIGIBLE OBSERVER': ['No eligible observer', 'bad'],
+};
+
+function StatusBadge({ status }) {
+  return <Badge tone={OBS_TONE[status] || 'neutral'}>{status}</Badge>;
+}
+
+function DueBadge({ prof }) {
+  if (prof.status === 'Overdue') return <Badge tone="bad">Overdue · {prof.overdue_by} sem</Badge>;
+  if (prof.status === 'Due') return <Badge tone="warn">Due</Badge>;
+  return <Badge tone="neutral">Not due · next {prof.next_eval}</Badge>;
+}
+
+// Read-only view of a submitted evaluation form (committee "Digital evaluations" and professor "My evaluations")
+function EvaluationDetail({ evaluation, evaluationTemplate, onBack, backLabel = 'Back' }) {
   // Prefer the criteria snapshot saved at submission time, so later template edits don't change old forms
-  const items = evaluation.items || (evaluationTemplate || []).filter(t => evaluation.answers?.[t.id]);
+  const items = evaluation.items || (evaluationTemplate || []).filter((t) => evaluation.answers?.[t.id]);
+  const numeric = items.map((i) => Number(evaluation.answers?.[i.id]?.rating)).filter((n) => n >= 1 && n <= 5);
+  const average = numeric.length ? (numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(1) : null;
+
   return (
-    <div className="bento-card full-span">
-      <div className="card-header-flex" style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' }}>
+    <section className="card card-lg max-880">
+      <button type="button" className="btn btn-ghost btn-sm section-gap" onClick={onBack}><Icon name="chevronLeft" size={16} /> {backLabel}</button>
+      <div className="row-between section-gap">
         <div>
-          <h3 style={{ fontSize: '1.4rem', color: 'var(--utd-green)' }}>Evaluation: {evaluation.observeeName}</h3>
-          <p className="subtitle" style={{ marginTop: '5px' }}>
-            {evaluation.courseCode}{evaluation.timing ? ` (${evaluation.timing})` : ''} · Observed by {evaluation.observerName} · Submitted {formatDate(evaluation.dateSubmitted)}
+          <h2 className="page-title">{evaluation.observeeName}</h2>
+          <p className="page-sub">
+            <span className="mono">{evaluation.courseCode}</span>{evaluation.timing ? ` · ${evaluation.timing}` : ''} · observed by {evaluation.observerName} · submitted {formatDate(evaluation.dateSubmitted)}
           </p>
         </div>
-        <button type="button" className="btn-secondary sm" onClick={onBack}>← Back</button>
+        {average && (
+          <div>
+            <div className="kpi-value text-good">{average}</div>
+            <div className="faint">average of {numeric.length}</div>
+          </div>
+        )}
       </div>
       {items.length === 0 ? (
-        <p style={{ color: '#64748b' }}>No answers were recorded for this evaluation.</p>
+        <p className="muted">No answers were recorded for this evaluation.</p>
       ) : items.map((item, index) => {
         const answer = evaluation.answers?.[item.id] || {};
+        const value = Number(answer.rating);
+        const isScore = value >= 1 && value <= 5;
+        const tone = isScore ? (value >= 4 ? 'good' : value === 3 ? 'neutral' : 'warn') : answer.rating === 'Yes' ? 'good' : answer.rating === 'No' ? 'bad' : 'neutral';
         return (
-          <div key={item.id} className="eval-view-item">
-            <p className="eval-view-criteria"><strong>{index + 1}.</strong> {item.criteria}</p>
-            <p style={{ margin: '0 0 8px 0' }}>
-              Rating: {answer.rating ? <span className="badge badge-neutral">{answer.rating}</span> : <span style={{ color: '#94a3b8' }}>Not rated</span>}
-            </p>
-            {getRatingLegend(item.ratingScale) && <p className="rating-legend">{getRatingLegend(item.ratingScale)}</p>}
-            <div className="eval-view-notes">{answer.notes || <span style={{ color: '#94a3b8' }}>No notes provided.</span>}</div>
+          <div key={item.id} className="rating-row">
+            <span className="mono faint">{index + 1}</span>
+            <span>{item.criteria}</span>
+            {isScore ? <Meter size="md" tone="good" value={value * 20} label={`${value} of 5`} /> : <span />}
+            <span>{answer.rating ? <Badge tone={tone}>{isScore ? `${value}/5` : answer.rating}</Badge> : <span className="faint">—</span>}</span>
+            {answer.notes && <span className="notes">{answer.notes}</span>}
           </div>
         );
       })}
-    </div>
+      {items.some((i) => i.ratingScale?.includes('1 to 5')) && <p className="formula">{getRatingLegend('1 to 5')}</p>}
+    </section>
   );
 }
 
@@ -112,17 +139,17 @@ export default function App() {
 
   const handleSurveySubmit = async (answers) => {
     if (data.surveyStatus?.submitted) return;
-    await run(() => api.submitSurvey({ term: data.term, ...answers }));
+    await run(() => api.submitSurvey({ term: data.term, ...answers }), 'Survey submitted. Thank you for the feedback.');
     await data.refresh();
   };
 
-  if (restoring) return <div className="app-loading">Loading…</div>;
-  if (!currentUser) return <Login onLogin={handleLogin} />;
-  if (data.loading) return <div className="app-loading">{data.error ? `Could not load data: ${data.error}` : 'Loading your evaluation cycle…'}</div>;
-
+  let screen;
+  if (restoring) screen = <div className="app-loading">Loading…</div>;
+  else if (!currentUser) screen = <Login onLogin={handleLogin} />;
+  else if (data.loading) screen = <div className="app-loading">{data.error ? `Could not load data: ${data.error}` : 'Loading your evaluation cycle…'}</div>;
   // Committee (AC) members get the Committee portal; everyone else gets the Professor portal
-  if (currentUser.is_ac_member) {
-    return (
+  else if (currentUser.is_ac_member) {
+    screen = (
       <AdminDashboard
         user={currentUser}
         onLogout={handleLogout}
@@ -139,26 +166,29 @@ export default function App() {
         globalEvaluations={data.evaluations.filter(ev => ev.term === data.term).sort((x, y) => String(y.dateSubmitted).localeCompare(String(x.dateSubmitted)))}
       />
     );
+  } else {
+    screen = (
+      <ProfessorDashboard
+        user={currentUser}
+        onLogout={handleLogout}
+        data={data}
+        globalRequests={data.requests}
+        globalSignups={data.signups}
+        globalObservations={data.observations}
+        hasSubmittedSurvey={Boolean(data.surveyStatus?.submitted)}
+        onSurveySubmit={handleSurveySubmit}
+        evaluationTemplate={data.template}
+        globalDeadlines={data.deadlines}
+        globalNotifications={data.notifications}
+        globalEvaluations={data.evaluations}
+        evaluationDrafts={data.drafts}
+      />
+    );
   }
 
-  return (
-    <ProfessorDashboard
-      user={currentUser}
-      onLogout={handleLogout}
-      data={data}
-      globalRequests={data.requests}
-      globalSignups={data.signups}
-      globalObservations={data.observations}
-      hasSubmittedSurvey={Boolean(data.surveyStatus?.submitted)}
-      onSurveySubmit={handleSurveySubmit}
-      evaluationTemplate={data.template}
-      globalDeadlines={data.deadlines}
-      globalNotifications={data.notifications}
-      globalEvaluations={data.evaluations}
-      evaluationDrafts={data.drafts}
-    />
-  );
+  return <>{screen}<Toaster /></>;
 }
+
 /* =========================================
    LOGIN PAGE (Credential Validation)
 ========================================= */
@@ -166,7 +196,6 @@ function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-
   const [submitting, setSubmitting] = useState(false);
   const [showAccounts, setShowAccounts] = useState(false);
   const closeAccounts = useCallback(() => setShowAccounts(false), []);
@@ -188,49 +217,45 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="login-container">
-      {/* Background dots: styled .orb-1 ... .orb-14 in App.css */}
-      {Array.from({ length: 14 }, (_, i) => (
-    <div key={i} className={`login-orb orb-${i + 1}`} />
-))}
-
+    <div className="login-page">
       <div className="login-card">
-        <div className="logo-placeholder">UTD</div>
-        <h2>Assessment Helper</h2>
-        <p className="login-subtitle">Faculty Sign In</p>
+        <div className="login-brand">
+          <div className="rail-logo" aria-hidden="true">UTD</div>
+          <div>
+            <h1>Assessment Helper</h1>
+            <p className="muted">Peer teaching observations · Faculty sign in</p>
+          </div>
+        </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {error && <div className="login-error" role="alert">{error}</div>}
-
-          <div className="input-group">
-            <label htmlFor="username">Username</label>
+          {error && <Notice tone="bad">{error}</Notice>}
+          <label className="field" htmlFor="username">
+            Username
             <input id="username" type="text" placeholder="NetID, e.g., ddr199513" autoComplete="username" autoFocus value={username} onChange={(e) => setUsername(e.target.value)} required />
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="password">Password</label>
+          </label>
+          <label className="field" htmlFor="password">
+            Password
             <input id="password" type="password" placeholder="Enter your password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </div>
-
-          <button type="submit" className="btn-primary btn-3d" disabled={submitting}>{submitting ? 'Signing In…' : 'Sign In'}</button>
+          </label>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
         </form>
 
         <div className="login-hint">
-          <span className="login-hint-title">Test credentials</span>
+          <span className="section-label">Test credentials</span>
           <div className="login-hint-cols">
-            <div>
+            <div className="stack-sm">
               <span>Professors</span>
-              <div>nal595463 (observee)</div>
-              <div>jlh753843 (observer)</div>
-              <div>jdf262865 (scheduled)</div>
+              <span><span className="mono">nal595463</span> observee</span>
+              <span><span className="mono">jlh753843</span> observer</span>
+              <span><span className="mono">jdf262865</span> scheduled</span>
             </div>
-            <div>
+            <div className="stack-sm">
               <span>Committee</span>
-              <div>ddr199513</div>
+              <span className="mono">ddr199513</span>
             </div>
           </div>
-          <div className="login-hint-password">Password: Password123!</div>
-          <div>Need more test accounts, click <button type="button" className="login-hint-link" onClick={() => setShowAccounts(true)}>here</button></div>
+          <span>Password: <span className="mono">Password123!</span></span>
+          <span>Need more? <button type="button" className="btn-link" onClick={() => setShowAccounts(true)}>Browse all test accounts</button></span>
         </div>
       </div>
 
@@ -245,8 +270,19 @@ function Login({ onLogin }) {
 }
 
 /* =========================================
-   ADMIN DASHBOARD
+   COMMITTEE PORTAL
 ========================================= */
+const ADMIN_TITLES = {
+  metrics: ['Live metrics', 'KPIs recalculated as faculty act'],
+  faculty: ['Faculty search', 'Find professors and their evaluation status'],
+  reports: ['Committee reports', 'Current-cycle reports from the database'],
+  signups: ['Signup monitor', 'Release observer lists or resolve gaps by hand'],
+  deadlines: ['Deadlines', 'Milestones for this evaluation cycle'],
+  template: ['Template editor', 'Criteria observers rate during in-person evaluations'],
+  evaluations: ['Digital evaluations', 'Forms submitted this cycle'],
+  surveys: ['Survey responses', 'Anonymous end-of-process feedback'],
+};
+
 function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, globalObservations, globalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, globalEvaluations }) {
   const { term: currentSemester, professors, courses, refresh } = data;
   const [activeTab, setActiveTab] = useState('metrics');
@@ -261,56 +297,64 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   const [templateSource, setTemplateSource] = useState('');
   useEffect(() => {
     let cancelled = false;
-    api.template(templateTerm).then(res => { if (!cancelled) { setEditedTemplate(res.data.criteria || []); setTemplateSource(res.data.source); } }).catch(e => alert(e.message));
+    api.template(templateTerm).then(res => { if (!cancelled) { setEditedTemplate(res.data.criteria || []); setTemplateSource(res.data.source); } }).catch(e => toast.error(e.message));
     return () => { cancelled = true; };
   }, [templateTerm]);
   // Faculty Search (from the sriproflookup branch)
   const [facultySearch, setFacultySearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('due-overdue');
-  const [viewingEvaluation, setViewingEvaluation] = useState(null); 
-  
-  // Local state for the new criterion form
-  const [newCriteria, setNewCriteria] = useState('');
-  const [newRating, setNewRating] = useState('1 to 5 (Poor to Excellent)');
+  const [viewingEvaluation, setViewingEvaluation] = useState(null);
 
-  // State for inline editing & viewing
+  // New criterion form
+  const [newCriteria, setNewCriteria] = useState('');
+  const [newRating, setNewRating] = useState(RATING_SCALES[0]);
+
+  // Inline editing of a criterion
   const [editingId, setEditingId] = useState(null);
   const [editCriteria, setEditCriteria] = useState('');
-  const [editRating, setEditRating] = useState('1 to 5 (Poor to Excellent)');
-  const [expandedSignup, setExpandedSignup] = useState(null); 
+  const [editRating, setEditRating] = useState(RATING_SCALES[0]);
 
-  // NEW: Manual Resolution & Deadline States
-  const [resolvingSignupId, setResolvingSignupId] = useState(null);
+  // Signup monitor: one expanded sign-up at a time, with its manual-assignment choice
+  const [expandedSignup, setExpandedSignup] = useState(null);
+  const [signupFilter, setSignupFilter] = useState('needs');
   const [manualObserverId, setManualObserverId] = useState('');
-  
+
   // Check if observation deadline passed
-  const isPastObservationDeadline = globalDeadlines?.observation 
-    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`) 
+  const isPastObservationDeadline = globalDeadlines?.observation
+    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`)
     : false;
+
+  const goTo = (id, filters = {}) => {
+    setActiveTab(id);
+    setViewingEvaluation(null);
+    setEditingId(null);
+    if (id === 'reports') setReportsVersion(v => v + 1);
+    if (filters.status) { setStatusFilter(filters.status); setFacultySearch(''); setDepartmentFilter('all'); }
+  };
 
   // Blast out end-of-process survey reminders (POST /api/surveys/reminders)
   const handleSurveyBlast = async () => {
     try {
       const res = await api.surveyReminders(currentSemester);
-      alert(`End-of-process survey reminders sent to ${res.data.notified} observee(s) who have not submitted yet!`);
-    } catch (e) { alert(e.message); }
+      toast.success(`Survey reminders sent to ${plural(res.data.notified, 'observee')} who have not submitted yet.`);
+    } catch (e) { toast.error(e.message); }
   };
 
   // Manually assign an observer (POST .../select-observer as a committee member)
   const handleManualAssignment = async (signup) => {
     if (!manualObserverId) {
-      alert("Please select a faculty member from the dropdown first.");
+      toast.error('Select a faculty member from the list first.');
       return;
     }
     const observer = professors.find(p => p.professor_id === manualObserverId);
     if (!observer) {
-      alert("Error: Observer not found in database.");
+      toast.error('That observer was not found in the database.');
       return;
     }
     const ok = await run(() => api.selectObserver(signup.id, observer.email),
-      `Successfully assigned ${observer.name} to observe ${signup.observeeName}! They can now schedule the date.`);
-    if (ok) { setResolvingSignupId(null); setManualObserverId(''); }
+      `${observer.name} is assigned to observe ${signup.observeeName}. They can now schedule the date.`);
+    if (ok) { setExpandedSignup(null); setManualObserverId(''); }
     await refresh();
   };
 
@@ -320,18 +364,25 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
       const res = await api.saveTemplate(templateTerm, criteria);
       setEditedTemplate(res.data.criteria);
       setTemplateSource(res.data.source);
-      if (message) alert(message);
+      if (message) toast.success(message);
       await refresh();
       return true;
-    } catch (e) { alert(e.message); return false; }
+    } catch (e) { toast.error(e.message); return false; }
   };
   const startEditing = (item) => {
     setEditingId(item.id); setEditCriteria(item.criteria); setEditRating(item.ratingScale);
   };
   const saveEdit = async (id) => {
-    if (await saveTemplate(editedTemplate.map(item => item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating } : item))) setEditingId(null);
+    if (await saveTemplate(editedTemplate.map(item => item.id === id ? { ...item, criteria: editCriteria, ratingScale: editRating } : item), 'Criterion updated.')) setEditingId(null);
   };
-  const cancelEdit = () => setEditingId(null);
+  const handleAddCriteria = async () => {
+    if (!newCriteria.trim()) { toast.error('Write the criterion first.'); return; }
+    if (await saveTemplate([...editedTemplate, { id: `custom-${Date.now()}`, criteria: newCriteria.trim(), ratingScale: newRating }], 'Criterion added.')) setNewCriteria('');
+  };
+  const handleDeleteCriteria = (item) => {
+    if (!window.confirm(`Remove "${item.criteria}" from the ${templateTerm} template?`)) return;
+    saveTemplate(editedTemplate.filter(c => c.id !== item.id), 'Criterion removed.');
+  };
 
   // Due status comes from the backend (committee rule: Assistant yearly, Associate/Full every 2 years)
   const allFacultyStatus = professors;
@@ -357,18 +408,10 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const NavItem = ({ id, label }) => (<li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); if (id === 'reports') setReportsVersion(v => v + 1); }}><span>{label}</span></li>);
-
-  const handleAddCriteria = async () => {
-    if (!newCriteria) return;
-    if (await saveTemplate([...editedTemplate, { id: `custom-${Date.now()}`, criteria: newCriteria, ratingScale: newRating }])) setNewCriteria('');
-  };
-
-  const handleDeleteCriteria = (id) => saveTemplate(editedTemplate.filter(item => item.id !== id));
 
   // Admin releases the list of potential observers (POST .../release-observer-list)
   const handleReleaseList = async (signup) => {
-    await run(() => api.releaseList(signup.id), `List successfully released to ${signup.observeeName}!`);
+    await run(() => api.releaseList(signup.id), `List released to ${signup.observeeName}.`);
     await refresh();
   };
 
@@ -376,404 +419,414 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   const handleRegenerateList = async (signup) => {
     try {
       const res = await api.generateList(signup.id);
-      alert(`Observer list regenerated: ${res.data.candidates.length} candidate(s) (${res.data.flag.replaceAll('_', ' ').toLowerCase()}).`);
-    } catch (e) { alert(e.message); }
+      toast.success(`Observer list regenerated: ${plural(res.data.candidates.length, 'candidate')} (${res.data.flag.replaceAll('_', ' ').toLowerCase()}).`);
+    } catch (e) { toast.error(e.message); }
     await refresh();
   };
 
   const handleSaveDeadlines = async () => {
     await run(() => api.updateCycle(currentSemester, { signup_deadline: deadlineForm.signup, observation_deadline: deadlineForm.observation, feedback_deadline: deadlineForm.survey, feedback_deadline_time: deadlineForm.surveyTime || null }),
-      "Deadlines updated! Notifications dispatched.");
+      'Deadlines updated. Faculty have been notified.');
     await refresh();
   };
 
+  // Signup monitor rows: the confirmed observation is matched by observation id (one per sign-up),
+  // and rows that need the committee come first.
+  const signupRows = (globalSignups || []).map(signup => {
+    const obs = (globalObservations || []).find(o => o.id === signup.id);
+    const flagged = signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS';
+    return { signup, obs, flagged, needsAction: !obs && (flagged || !signup.listReleased) };
+  }).sort((a, b) => Number(b.needsAction) - Number(a.needsAction));
+  const needsActionCount = signupRows.filter(r => r.needsAction).length;
+  const SIGNUP_FILTERS = [
+    ['needs', 'Needs action', (r) => r.needsAction],
+    ['progress', 'In progress', (r) => !r.needsAction && !(r.obs && (r.obs.status === 'Completed'))],
+    ['completed', 'Completed', (r) => r.obs?.status === 'Completed'],
+    ['all', 'All', () => true],
+  ];
+  const shownSignups = signupRows.filter(SIGNUP_FILTERS.find(f => f[0] === signupFilter)[2]);
+  const flagCount = (flag) => (globalSignups || []).filter(s => s.matchFlag === flag).length;
+
+  const nav = [
+    { id: 'metrics', label: 'Metrics', icon: 'metrics' },
+    { id: 'faculty', label: 'Faculty', icon: 'users' },
+    { id: 'reports', label: 'Reports', icon: 'report' },
+    { id: 'signups', label: 'Signups', icon: 'signups', count: needsActionCount },
+    { id: 'deadlines', label: 'Deadlines', icon: 'calendar' },
+    { id: 'template', label: 'Template', icon: 'sliders' },
+    { id: 'evaluations', label: 'Evaluations', icon: 'form' },
+    { id: 'surveys', label: 'Surveys', icon: 'message' },
+  ];
+
+  const obsDays = daysUntil(globalDeadlines?.observation);
+  const deadlineStatus = (dateStr, endOfDayTime) => {
+    const days = daysUntil(dateStr);
+    if (days == null) return <Badge>Not set</Badge>;
+    if (days < 0 || (days === 0 && endOfDayTime === 'passed')) return <Badge>Closed</Badge>;
+    if (days === 0) return <Badge tone="warn">Today</Badge>;
+    return <Badge tone={days <= 14 ? 'warn' : 'info'}>{plural(days, 'day')} left</Badge>;
+  };
+  const [title, subtitle] = ADMIN_TITLES[activeTab];
+
   return (
-    <div className="dashboard-layout">
-      <div className="sidebar premium-glass-dark" style={{ background: '#1e293b' }}>
-        <div className="sidebar-header"><div className="logo-small">AC</div><div><h3>Committee</h3><small>Executive Portal</small></div></div>
-        <ul className="nav-menu">
-          <NavItem id="metrics" label="📊 Live Metrics & KPIs" />
-          <NavItem id="faculty" label="👥 Faculty Search" />
-          <NavItem id="reports" label="📑 Committee Reports" />
-          <NavItem id="signups" label="📝 Signup Monitor" />
-          <NavItem id="deadlines" label="📅 Deadlines" />
-          <NavItem id="template" label="⚙️ Template Editor" />
-          <NavItem id="evaluations" label="📄 Digital Evaluations" />
-          <NavItem id="surveys" label="📋 Survey Responses" />
-          <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
-        </ul>
-      </div>
+    <AppShell label="Committee sections" items={nav} active={activeTab} onSelect={goTo} onLogout={onLogout}>
+      <PageHeader eyebrow={`Assessment Committee · ${currentSemester}`} title={title} subtitle={activeTab === 'evaluations' ? `${plural(globalEvaluations.length, 'form')} submitted this cycle` : subtitle}>
+        {obsDays != null && (
+          <span className="countdown-pill">
+            <Icon name="clock" size={16} />
+            {obsDays > 0 ? <><strong>{obsDays}d</strong> until observations close</> : obsDays === 0 ? 'Observations close today' : 'Observation period has ended'}
+          </span>
+        )}
+        <div className="avatar" title={`${user.name} (Committee member)`}>{initials(user.name)}</div>
+      </PageHeader>
 
-      <div className="main-content">
-        <div className="content-scroll">
-          {/* Inside the scroll area, so it stays at the top of the page and scrolls away instead of following the user */}
-          <header className="top-header premium-glass">
-            <div className="header-title"><h2>System Overview</h2><p>Welcome, {user.name} (Committee Member) · {currentSemester} Evaluation Cycle</p></div>
-          </header>
-          {data.error && <div className="api-error-banner">Could not refresh data: {data.error}</div>}
-          {activeTab === 'metrics' && (
-            <AdminKpiDashboard
-              signups={globalSignups}
-              requests={globalRequests}
-              observations={globalObservations}
-              surveySubmissions={surveySubmissions}
-              deadlines={globalDeadlines}
-              professors={professors}
-              courses={courses}
-            />
-          )}
+      {data.error && <Notice tone="bad" title="Could not refresh data" className="section-gap">{data.error}</Notice>}
 
-          {activeTab === 'reports' && <CommitteeReports term={currentSemester} refreshKey={reportsVersion} />}
+      {activeTab === 'metrics' && (
+        <AdminKpiDashboard
+          signups={globalSignups}
+          requests={globalRequests}
+          observations={globalObservations}
+          surveySubmissions={surveySubmissions}
+          deadlines={globalDeadlines}
+          professors={professors}
+          courses={courses}
+          onNavigate={goTo}
+        />
+      )}
 
-          {activeTab === 'faculty' && (
-            <div className="bento-card full-span">
-              <h3>Faculty Search ({currentSemester})</h3>
-              <div className="faculty-filters" role="search" aria-label="Faculty search and filters">
-                <div className="faculty-filter faculty-search-field">
-                  <label htmlFor="faculty-search">Professor name</label>
-                  <input id="faculty-search" type="search" placeholder="Search professors…" value={facultySearch} onChange={e => setFacultySearch(e.target.value)} />
-                </div>
-                <div className="faculty-filter">
-                  <label htmlFor="faculty-department">Department</label>
-                  <select id="faculty-department" value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}>
-                    <option value="all">All departments</option>
-                    {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="faculty-filter">
-                  <label htmlFor="faculty-status">Evaluation status</label>
-                  <select id="faculty-status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                    <option value="due-overdue">Due or overdue</option>
-                    <option value="all">All statuses</option>
-                    <option value="Due">Due</option>
-                    <option value="Overdue">Overdue</option>
-                    <option value="Not Due">Not due</option>
-                  </select>
-                </div>
-                <button type="button" className="btn-secondary btn-3d" onClick={clearFacultyFilters}>Clear filters</button>
-                <button type="button" className="btn-primary btn-3d faculty-export" onClick={exportFacultyCsv} disabled={filteredFaculty.length === 0}>Export CSV</button>
-              </div>
-              <p className="faculty-result-count" role="status">Showing {filteredFaculty.length} of {allFacultyStatus.length} professors · {dueFaculty.length} due or overdue</p>
-              <div className="faculty-table-wrapper">
-                <table className="data-table">
-                  <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {filteredFaculty.length === 0 && (
-                      <tr><td colSpan="5" className="faculty-empty">No professors match your search and filters.</td></tr>
-                    )}
-                    {filteredFaculty.map(f => (
-                      <tr key={f.professor_id}>
-                        <td><strong>{f.name}</strong></td><td>{f.hire_level}</td><td>{f.department}</td><td>{f.last_evaluation || 'None'}</td>
-                        <td>
-                          {f.status === 'Overdue' ? <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Overdue ({f.overdue_by} sem)</span>
-                            : f.status === 'Due' ? <span className="badge badge-warning">Due</span>
-                            : <span className="badge badge-neutral">Not Due (next: {f.next_eval})</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+      {activeTab === 'reports' && <CommitteeReports term={currentSemester} refreshKey={reportsVersion} />}
 
-          {activeTab === 'signups' && (
-            <div className="bento-card full-span">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3 style={{ margin: 0 }}>Signup & Matching Monitor</h3>
-                {isPastObservationDeadline && (
-                  <button className="btn-primary btn-3d" onClick={handleSurveyBlast} style={{ background: 'var(--utd-orange)', border: 'none' }}>
-                    📢 Request End-of-Process Surveys
-                  </button>
-                )}
-              </div>
-              <div className="table-scroll-x">
-              <table className="data-table nowrap-table">
-                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th><th>AC Action</th></tr></thead>
+      {activeTab === 'faculty' && (
+        <>
+          <div className="filter-bar" role="search" aria-label="Faculty search and filters">
+            <label className="field field-grow-2" htmlFor="faculty-search">
+              Professor name
+              <input id="faculty-search" type="search" placeholder="Search professors" value={facultySearch} onChange={e => setFacultySearch(e.target.value)} />
+            </label>
+            <label className="field field-grow" htmlFor="faculty-department">
+              Department
+              <select id="faculty-department" value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}>
+                <option value="all">All departments</option>
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </label>
+            <label className="field field-grow" htmlFor="faculty-status">
+              Evaluation status
+              <select id="faculty-status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                <option value="due-overdue">Due or overdue</option>
+                <option value="all">All statuses</option>
+                <option value="Due">Due</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Not Due">Not due</option>
+              </select>
+            </label>
+            <button type="button" className="btn btn-ghost" onClick={clearFacultyFilters}>Clear</button>
+            <button type="button" className="btn btn-primary" onClick={exportFacultyCsv} disabled={filteredFaculty.length === 0}><Icon name="download" size={16} /> Export CSV</button>
+          </div>
+          <p className="muted section-gap" role="status">
+            Showing <span className="mono">{filteredFaculty.length}</span> of {allFacultyStatus.length} professors · <span className="mono">{dueFaculty.length}</span> due or overdue
+          </p>
+          <Card flush>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last evaluation</th><th>Status</th></tr></thead>
                 <tbody>
-                  {globalSignups.length === 0 ? <tr><td colSpan="6" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
-                    globalSignups.map(signup => {
-                      const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
-                      const isExpanded = expandedSignup === signup.id;
-                      const isResolving = resolvingSignupId === signup.id;
-                      
-                      return (
-                        <React.Fragment key={signup.id}>
-                          <tr>
-                            <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
-                            <td>{signup.matchesCount} Observers</td>
-                            <td>
-                              {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
-                              {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
-                              {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
-                            </td>
-                            <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button className="btn-secondary sm" onClick={() => { setExpandedSignup(isExpanded ? null : signup.id); setResolvingSignupId(null); }}>
-                                  {isExpanded ? 'Hide List' : 'View List'}
-                                </button>
-                                {!obs && !signup.listReleased && (
-                                  <button className="btn-secondary sm" onClick={() => handleRegenerateList(signup)}>Regenerate</button>
-                                )}
-                                {(signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS') && !obs && (
-                                  <button className="btn-danger sm" onClick={() => { setResolvingSignupId(isResolving ? null : signup.id); setExpandedSignup(null); }}>
-                                    Resolve Manually
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          
-                          {/* MANUAL RESOLUTION DROPDOWN ROW */}
-                          {isResolving && (
-                            <tr style={{ background: '#fffbeb', borderBottom: '2px solid #fde68a' }}>
-                              <td colSpan="6" style={{ padding: '20px' }}>
-                                <h4 style={{ marginBottom: '10px', color: '#b45309' }}>Manual Observer Assignment for {signup.observeeName}</h4>
-                                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                  <select value={manualObserverId} onChange={(e) => setManualObserverId(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #d97706', width: '350px' }}>
-                                    <option value="">-- Select Faculty Member --</option>
-                                    {professors.filter(p => p.professor_id !== signup.observeeId).map(p => (
-                                      <option key={p.professor_id} value={p.professor_id}>{p.name} ({p.department}) - {p.username}</option>
-                                    ))}
-                                  </select>
-                                  <button className="btn-primary btn-3d sm" onClick={() => handleManualAssignment(signup)}>Assign & Confirm Pair</button>
-                                  <button className="btn-secondary sm" onClick={() => setResolvingSignupId(null)}>Cancel</button>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-
-                          {/* STANDARD POTENTIAL OBSERVERS ROW */}
-                          {isExpanded && !isResolving && (
-                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                              <td colSpan="6" style={{ padding: '20px' }}>
-                                <h4 style={{ marginBottom: '10px', color: 'var(--utd-orange)' }}>Generated Observer List for {signup.observeeName}</h4>
-                                <ul style={{ marginBottom: '15px', paddingLeft: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                  {(signup.eligibleObservers || []).length === 0 ? (
-                                    <li style={{ color: '#ef4444' }}>No eligible observers found in database.</li>
-                                  ) : (
-                                    (signup.eligibleObservers || []).map(po => <li key={po.professor_id}><strong>{po.name}</strong> ({po.department}){po.matchStatus && po.matchStatus !== 'suggested' ? ` · ${po.matchStatus}` : ''}</li>)
-                                  )}
-                                </ul>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                  {(signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS') ? (
-                                    <span className="badge badge-error" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>🔒 List cannot be released. Please click 'Resolve Manually'.</span>
-                                  ) : signup.listReleased ? (
-                                    <span className="badge badge-success" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>✓ List has been released to {signup.observeeName}</span>
-                                  ) : (
-                                    <button className="btn-primary btn-3d sm" onClick={() => handleReleaseList(signup)}>Release List & Notify Observee</button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })
-                  }
+                  {filteredFaculty.length === 0 && (
+                    <tr><td colSpan="5" className="empty-cell">No professors match your search and filters.</td></tr>
+                  )}
+                  {filteredFaculty.map(f => (
+                    <tr key={f.professor_id}>
+                      <td className="strong">{f.name}</td>
+                      <td>{f.hire_level}</td>
+                      <td>{f.department}</td>
+                      <td className="mono">{f.last_evaluation || 'None'}</td>
+                      <td><DueBadge prof={f} /></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              </div>
             </div>
-          )}
+          </Card>
+        </>
+      )}
 
-          {activeTab === 'deadlines' && (
-            <div className="bento-grid">
-              <div className="bento-card">
-                <h3>Global Deadlines</h3>
-                <form className="modern-form">
-                  <p className="subtitle">{currentSemester} evaluation cycle</p>
-                  <div className="form-group"><label>Signup Deadline</label><input type="date" value={deadlineForm.signup} onChange={e => setDeadlineForm({...deadlineForm, signup: e.target.value})} /></div>
-                  <div className="form-group"><label>Observation Period Ends</label><input type="date" value={deadlineForm.observation} onChange={e => setDeadlineForm({...deadlineForm, observation: e.target.value})} /></div>
-                  <div className="form-group">
-                    <label htmlFor="survey-deadline-date">Survey Deadline (Hand-off)</label>
-                    <div className="deadline-datetime">
-                      <input id="survey-deadline-date" type="date" value={deadlineForm.survey} onChange={e => setDeadlineForm({...deadlineForm, survey: e.target.value})} />
-                      <input type="time" aria-label="Survey closing time" value={deadlineForm.surveyTime || ''} onChange={e => setDeadlineForm({...deadlineForm, surveyTime: e.target.value})} />
+      {activeTab === 'signups' && (
+        <>
+          <div className="chips section-gap">
+            <span className="chip"><strong>{globalSignups.length}</strong> sign-ups</span>
+            <span className="chip chip-good"><strong>{flagCount('OK')}</strong> full lists</span>
+            <span className="chip chip-warn"><strong>{flagCount('INSUFFICIENT OBSERVERS')}</strong> insufficient</span>
+            <span className="chip chip-bad"><strong>{flagCount('NO ELIGIBLE OBSERVER')}</strong> no eligible observer</span>
+            <span className="chip"><strong>{globalSignups.filter(s => s.listReleased).length}</strong> lists released</span>
+          </div>
+          <div className="segmented section-gap" role="tablist" aria-label="Filter sign-ups">
+            {SIGNUP_FILTERS.map(([id, label, test]) => (
+              <button key={id} type="button" role="tab" aria-selected={signupFilter === id} className={signupFilter === id ? 'active' : ''} onClick={() => { setSignupFilter(id); setExpandedSignup(null); }}>
+                {label} <span className="mono">{signupRows.filter(test).length}</span>
+              </button>
+            ))}
+          </div>
+          {shownSignups.length === 0 ? (
+            <EmptyState icon="signups" title={signupRows.length ? 'Nothing here' : 'No sign-ups yet'}>{signupRows.length ? 'No sign-ups match this filter.' : 'Sign-ups appear here as due faculty choose a course.'}</EmptyState>
+          ) : (
+            <div className="stack-sm">
+              {shownSignups.map(({ signup, obs, flagged }) => {
+                const isOpen = expandedSignup === signup.id;
+                const [flagLabel, flagTone] = FLAG[signup.matchFlag] || [signup.matchFlag, 'neutral'];
+                const people = signup.eligibleObservers || [];
+                return (
+                  <div key={signup.id} className={`signup-card${isOpen ? ' open' : ''}`}>
+                    <div className="signup-row">
+                      <span>
+                        <span className="list-title">{signup.observeeName}</span>
+                        <span className="list-sub">{plural(signup.matchesCount, 'observer')} matched</span>
+                      </span>
+                      <span>
+                        <span className="mono">{signup.courseCode}-{signup.section}</span>
+                        <span className="list-sub">{signup.timing}</span>
+                      </span>
+                      <span><Badge tone={flagTone}>{flagLabel}</Badge></span>
+                      <span>
+                        {obs ? <span className="row">{obs.observerName} <StatusBadge status={obs.status} /></span> : <span className="faint">No observer yet</span>}
+                      </span>
+                      <button type="button" className="btn btn-secondary btn-sm" aria-expanded={isOpen} onClick={() => { setExpandedSignup(isOpen ? null : signup.id); setManualObserverId(''); }}>
+                        {isOpen ? 'Hide' : 'Review'}
+                      </button>
                     </div>
-                    <p className="deadline-hint">
-                      {deadlineForm.survey ? `Survey closes at ${formatSurveyDeadline(deadlineForm.survey, deadlineForm.surveyTime)}.` : ''}
-                      {!deadlineForm.surveyTime && ' Leave the time blank to close at the end of the day.'}
-                    </p>
+                    {isOpen && (
+                      <div className="signup-detail">
+                        <div className="inset stack-sm">
+                          <div className="section-label">Generated observer list</div>
+                          {people.length === 0 ? (
+                            <p className="text-bad">No eligible observers found in the database.</p>
+                          ) : people.map(po => (
+                            <div key={po.professor_id} className="row-between">
+                              <span>{po.name} <span className="faint">· {po.department}</span></span>
+                              {po.matchStatus && <Badge tone={{ confirmed: 'good', declined: 'bad', requested: 'warn', accepted: 'info' }[po.matchStatus] || 'neutral'}>{po.matchStatus}</Badge>}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="stack-sm">
+                          {obs ? (
+                            <Notice tone="good" title="Observer confirmed">{obs.observerName} is observing {signup.observeeName} ({obs.status.toLowerCase()}).</Notice>
+                          ) : flagged ? (
+                            <>
+                              <Notice tone="warn" title="This list cannot be released as is">
+                                {signup.listReleased ? 'The observee already has this short list. ' : ''}Assign an observer by hand; both people are notified.
+                              </Notice>
+                              <label className="field" htmlFor={`manual-${signup.id}`}>
+                                Assign manually
+                                <select id={`manual-${signup.id}`} value={manualObserverId} onChange={(e) => setManualObserverId(e.target.value)}>
+                                  <option value="">Select a faculty member</option>
+                                  {professors.filter(p => p.professor_id !== signup.observeeId).map(p => (
+                                    <option key={p.professor_id} value={p.professor_id}>{p.name} ({p.department}) · {p.username}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div className="row">
+                                <button type="button" className="btn btn-primary" onClick={() => handleManualAssignment(signup)}>Assign and confirm pair</button>
+                                {!signup.listReleased && <button type="button" className="btn btn-ghost" onClick={() => handleRegenerateList(signup)}><Icon name="refresh" size={16} /> Regenerate</button>}
+                              </div>
+                            </>
+                          ) : signup.listReleased ? (
+                            <Notice tone="good" title="List released">{signup.observeeName} can send requests from this list.</Notice>
+                          ) : (
+                            <>
+                              <p className="muted">Full list. Releasing it notifies {signup.observeeName} so they can send requests.</p>
+                              <div className="row">
+                                <button type="button" className="btn btn-primary" onClick={() => handleReleaseList(signup)}><Icon name="send" size={16} /> Release and notify</button>
+                                <button type="button" className="btn btn-ghost" onClick={() => handleRegenerateList(signup)}><Icon name="refresh" size={16} /> Regenerate</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button type="button" className="btn-primary" onClick={handleSaveDeadlines}>Update Deadlines</button>
-                </form>
-              </div>
+                );
+              })}
             </div>
           )}
+        </>
+      )}
 
-          {activeTab === 'template' && (
-            <div className="bento-grid">
-              <div className="bento-card full-span">
-                <h3>Evaluation Template Editor</h3>
-                <p className="subtitle">Configure the criteria and rating scales that observers will use during in-person evaluations.</p>
-                <div className="template-term-picker">
-                  <label htmlFor="template-term"><strong>Template for</strong></label>
-                  <select id="template-term" value={templateTerm} onChange={e => { setTemplateTerm(e.target.value); setEditingId(null); }}>
-                    {termOptions.map(t => <option key={t} value={t}>{t}{t === currentSemester ? ' (current)' : ''}</option>)}
-                  </select>
-                  <span className="subtitle" style={{ margin: 0 }}>
-                    {templateTerm === currentSemester ? 'Changes apply to the form observers are using this cycle.' : `Changes are saved for ${templateTerm}; the ${currentSemester} form in use stays the same.`}
-                    {templateSource === 'default.json' ? ' (No file for this term yet: showing the default template; saving creates it.)' : ''}
-                  </span>
-                </div>
-                
-                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #e2e8f0' }}>
-                  <h4 style={{ marginBottom: '15px' }}>Add New Criterion</h4>
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 2 }}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Criteria Description</label>
-                      <input type="text" value={newCriteria} onChange={(e) => setNewCriteria(e.target.value)} placeholder="e.g., Uses multimedia effectively" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Rating Scale</label>
-                      <select value={newRating} onChange={(e) => setNewRating(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                        <option value="1 to 5 (Poor to Excellent)">1 to 5 (Poor to Excellent)</option>
-                        <option value="Yes / No / N/A">Yes / No / N/A</option>
-                        <option value="Text Feedback Only">Text Feedback Only</option>
-                      </select>
-                    </div>
-                    <button className="btn-primary btn-3d" onClick={handleAddCriteria} style={{ padding: '10px 20px' }}>Add</button>
-                  </div>
-                </div>
-
-                <div className="modern-table-wrapper">
-                  <table className="data-table">
-                    <thead><tr><th>Evaluation Criteria</th><th>Rating Scale</th><th>Action</th></tr></thead>
-                    <tbody>
-                      {editedTemplate.length === 0 ? (
-                        <tr><td colSpan="3" style={{ textAlign: 'center' }}>No criteria defined. Template is empty.</td></tr>
-                      ) : (
-                        editedTemplate.map(item => (
-                          <tr key={item.id}>
-                            {editingId === item.id ? (
-                              <>
-                                {/* EDIT MODE */}
-                                <td>
-                                  <input 
-                                    type="text" 
-                                    value={editCriteria} 
-                                    onChange={(e) => setEditCriteria(e.target.value)} 
-                                    style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1'}} 
-                                  />
-                                </td>
-                                <td>
-                                  <select 
-                                    value={editRating} 
-                                    onChange={(e) => setEditRating(e.target.value)} 
-                                    style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1'}}
-                                  >
-                                    <option value="1 to 5 (Poor to Excellent)">1 to 5 (Poor to Excellent)</option>
-                                    <option value="Yes / No / N/A">Yes / No / N/A</option>
-                                    <option value="Text Feedback Only">Text Feedback Only</option>
-                                  </select>
-                                </td>
-                                <td>
-                                  <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn-primary sm" onClick={() => saveEdit(item.id)} style={{padding: '6px 12px', borderRadius: '6px', border: 'none'}}>Save</button>
-                                    <button className="btn-secondary sm" onClick={cancelEdit} style={{padding: '6px 12px', borderRadius: '6px', cursor: 'pointer'}}>Cancel</button>
-                                  </div>
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                {/* VIEW MODE */}
-                                <td><strong>{item.criteria}</strong></td>
-                                <td><span className="badge badge-neutral">{item.ratingScale}</span></td>
-                                <td>
-                                  <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn-secondary sm" onClick={() => startEditing(item)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: '#0f172a', fontWeight: 'bold' }}>Edit</button>
-                                    <button className="btn-danger sm" onClick={() => handleDeleteCriteria(item.id)} style={{ background: '#ef4444', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Remove</button>
-                                  </div>
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                
-                <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                  <button className="btn-primary btn-3d" onClick={() => saveTemplate(editedTemplate, `Template saved and published for ${templateTerm}!`)}>Save & Publish Template</button>
-                </div>
+      {activeTab === 'deadlines' && (
+        <>
+          <div className="grid grid-260 section-gap-lg">
+            <label className="card deadline-card" htmlFor="deadline-signup">
+              <span className="row-between"><strong>Sign-up deadline</strong>{deadlineStatus(deadlineForm.signup)}</span>
+              <span className="deadline-date">{deadlineForm.signup ? shortDate(deadlineForm.signup) : '—'}</span>
+              <span className="field-hint">Sign-up closes at the end of this day.</span>
+              <input id="deadline-signup" className="input" type="date" value={deadlineForm.signup} onChange={e => setDeadlineForm({ ...deadlineForm, signup: e.target.value })} />
+            </label>
+            <label className={`card deadline-card${obsDays != null && obsDays >= 0 && obsDays <= 14 ? ' card-warn' : ''}`} htmlFor="deadline-observation">
+              <span className="row-between"><strong>Observation period ends</strong>{deadlineStatus(deadlineForm.observation)}</span>
+              <span className="deadline-date">{deadlineForm.observation ? shortDate(deadlineForm.observation) : '—'}</span>
+              <span className="field-hint">Unconfirmed observations count as missing after this. Survey reminders unlock.</span>
+              <input id="deadline-observation" className="input" type="date" value={deadlineForm.observation} onChange={e => setDeadlineForm({ ...deadlineForm, observation: e.target.value })} />
+            </label>
+            <div className="card deadline-card">
+              <span className="row-between"><strong>Survey hand-off</strong>{deadlineStatus(deadlineForm.survey)}</span>
+              <span className="deadline-date">{deadlineForm.survey ? shortDate(deadlineForm.survey) : '—'} <small>{deadlineForm.surveyTime || '11:59 PM'}</small></span>
+              <span className="field-hint">
+                {deadlineForm.survey ? `Survey closes ${formatSurveyDeadline(deadlineForm.survey, deadlineForm.surveyTime)}.` : ''}
+                {!deadlineForm.surveyTime && ' Leave the time blank to close at the end of the day.'}
+              </span>
+              <div className="row">
+                <input id="survey-deadline-date" aria-label="Survey deadline date" className="input field-grow" type="date" value={deadlineForm.survey} onChange={e => setDeadlineForm({ ...deadlineForm, survey: e.target.value })} />
+                <input type="time" aria-label="Survey closing time" className="input field-grow" value={deadlineForm.surveyTime || ''} onChange={e => setDeadlineForm({ ...deadlineForm, surveyTime: e.target.value })} />
               </div>
             </div>
-          )}
-          {activeTab === 'evaluations' && (
-            <div className="bento-grid">
-              {viewingEvaluation ? (
-                <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} />
+          </div>
+          <div className="row">
+            <button type="button" className="btn btn-primary btn-lg" onClick={handleSaveDeadlines}>Update deadlines</button>
+            <span className="muted">Every professor in the {currentSemester} cycle gets a notification.</span>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'template' && (
+        <div className="stack">
+          <div className="row">
+            <label className="row" htmlFor="template-term">
+              <strong>Template for</strong>
+              <select id="template-term" className="select" value={templateTerm} onChange={e => { setTemplateTerm(e.target.value); setEditingId(null); }}>
+                {termOptions.map(t => <option key={t} value={t}>{t}{t === currentSemester ? ' (current)' : ''}</option>)}
+              </select>
+            </label>
+            <span className="muted">
+              {templateTerm === currentSemester ? 'Changes apply to the form observers are using this cycle.' : `Saved for ${templateTerm}. The ${currentSemester} form in use stays the same.`}
+              {templateSource === 'default.json' ? ' No file for this term yet: showing the default template; saving creates it.' : ''}
+            </span>
+          </div>
+
+          {editedTemplate.length === 0 && <EmptyState icon="sliders" title="No criteria yet">Add the first criterion below.</EmptyState>}
+          {editedTemplate.map((item, index) => (
+            <div key={item.id} className="card">
+              {editingId === item.id ? (
+                <div className="row align-end">
+                  <label className="field field-grow-3">
+                    Criterion
+                    <input type="text" value={editCriteria} onChange={(e) => setEditCriteria(e.target.value)} />
+                  </label>
+                  <label className="field field-grow">
+                    Rating scale
+                    <select value={editRating} onChange={(e) => setEditRating(e.target.value)}>
+                      {RATING_SCALES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className="btn btn-primary" onClick={() => saveEdit(item.id)}>Save</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
               ) : (
-                <div className="bento-card full-span">
-                  <h3>Submitted Digital Evaluations</h3>
-                  <div className="modern-table-wrapper">
-                    <table className="data-table">
-                      <thead><tr><th className="nowrap">Date Submitted</th><th className="nowrap">Observer</th><th className="nowrap">Observee</th><th className="nowrap">Course</th><th>Action</th></tr></thead>
-                      <tbody>
-                        {!globalEvaluations || globalEvaluations.length === 0 ? (
-                          <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No evaluations submitted yet.</td></tr>
-                        ) : (
-                          globalEvaluations.map(ev => (
-                            <tr key={ev.id}>
-                              <td className="nowrap">{formatDate(ev.dateSubmitted)}</td>
-                              <td className="nowrap">{ev.observerName}</td>
-                              <td className="nowrap"><strong>{ev.observeeName}</strong></td>
-                              <td className="nowrap">{ev.courseCode}</td>
-                              <td>
-                                <button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="criterion-row">
+                  <span className="criterion-num">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="stack-sm">
+                    <strong>{item.criteria}</strong>
+                    <span><Badge>{item.ratingScale}</Badge></span>
+                  </span>
+                  <span className="row">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => startEditing(item)}><Icon name="edit" size={15} /> Edit</button>
+                    <button type="button" className="btn btn-danger-ghost btn-sm" onClick={() => handleDeleteCriteria(item)}><Icon name="trash" size={15} /> Remove</button>
+                  </span>
                 </div>
               )}
             </div>
-          )}
+          ))}
 
-          {activeTab === 'surveys' && (
-            <AdminSurveyResults
-              surveyResponses={surveyResponses}
-              submittedCount={submittedCount}
-              totalCount={totalProfessors}
-            />
-          )}
+          <div className="card card-dashed">
+            <div className="row align-end">
+              <label className="field field-grow-3" htmlFor="new-criterion">
+                Add a criterion
+                <input id="new-criterion" type="text" value={newCriteria} onChange={(e) => setNewCriteria(e.target.value)} placeholder="e.g., Uses multimedia effectively" />
+              </label>
+              <label className="field field-grow" htmlFor="new-criterion-scale">
+                Rating scale
+                <select id="new-criterion-scale" value={newRating} onChange={(e) => setNewRating(e.target.value)}>
+                  {RATING_SCALES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <button type="button" className="btn btn-accent" onClick={handleAddCriteria}><Icon name="plus" size={16} /> Add</button>
+            </div>
+          </div>
+          <div>
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => saveTemplate(editedTemplate, `Template saved and published for ${templateTerm}.`)}>Save and publish for {templateTerm}</button>
+          </div>
         </div>
-      </div>
-    </div>
-  )
+      )}
+
+      {activeTab === 'evaluations' && (
+        viewingEvaluation ? (
+          <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} backLabel="All evaluations" />
+        ) : !globalEvaluations || globalEvaluations.length === 0 ? (
+          <EmptyState icon="form" title="No evaluations submitted yet">Forms appear here as observers submit them.</EmptyState>
+        ) : (
+          <div className="grid grid-300">
+            {globalEvaluations.map(ev => (
+              <Card as="article" key={ev.id} className="stack-sm">
+                <div className="row-between"><span className="mono text-good">{ev.courseCode}</span><span className="faint">{formatDate(ev.dateSubmitted)}</span></div>
+                <div className="card-title">{ev.observeeName}</div>
+                <div className="muted">Observed by {ev.observerName}</div>
+                <div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setViewingEvaluation(ev)}>Open form</button></div>
+              </Card>
+            ))}
+          </div>
+        )
+      )}
+
+      {activeTab === 'surveys' && (
+        <AdminSurveyResults
+          surveyResponses={surveyResponses}
+          submittedCount={submittedCount}
+          totalCount={totalProfessors}
+          onSendReminders={handleSurveyBlast}
+          canSendReminders={isPastObservationDeadline}
+          remindersHint={isPastObservationDeadline
+            ? 'Notifies observees who have not submitted yet.'
+            : `Available after the observation period ends${globalDeadlines?.observation ? ` (${shortDate(globalDeadlines.observation)})` : ''}.`}
+        />
+      )}
+    </AppShell>
+  );
 }
+
 /* =========================================
-   PROFESSOR DASHBOARD 
+   PROFESSOR PORTAL
 ========================================= */
+const PROF_TITLES = {
+  home: ['', 'Where your evaluation cycle stands'],
+  'observee-status': ['Observee status', 'Your observation and the colleagues you asked'],
+  'observer-duties': ['My duties', 'Requests to observe colleagues and your appointments'],
+  'live-evaluation': ['', ''],
+  'my-evaluations': ['My evaluations', 'Forms you submitted and forms about your teaching'],
+  survey: ['End-of-process survey', 'Anonymous feedback for the Assessment Committee'],
+  notifications: ['Notifications', 'Updates from the evaluation workflow'],
+};
+
 function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, globalObservations, evaluationTemplate, globalDeadlines, globalNotifications, globalEvaluations, evaluationDrafts }) {
   const { term: currentSemester, refresh } = data;
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
-  const [toastNotif, setToastNotif] = useState(null);
-  // NEW: Answers for the evaluation form currently open: { [criteriaId]: { rating, notes } }
+  // Answers for the evaluation form currently open: { [criteriaId]: { rating, notes } }
   const [evalAnswers, setEvalAnswers] = useState({});
-  // NEW: Submitted evaluation currently opened (read-only) on the "My Evaluations" tab
+  // Submitted evaluation currently opened (read-only) on the "My Evaluations" tab
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
   const [notifTab, setNotifTab] = useState('inbox');
-  // NEW: State for deferred observation reasoning
   const [deferReason, setDeferReason] = useState('');
   const [showDeferForm, setShowDeferForm] = useState(false);
+
+  const goTo = (id) => { setActiveTab(id); setViewingEvaluation(null); };
 
   // "Could Not Complete Cycle": PATCH .../status { status: 'deferred', reason } (the committee is notified)
   const handleDeferObservation = async (obsId) => {
     if (!deferReason.trim()) {
-      alert("Please provide a reason why the observation could not be completed.");
+      toast.error('Please give a reason why the observation could not be completed.');
       return;
     }
     const ok = await run(() => api.setStatus(obsId, 'deferred', deferReason.trim()),
-      "Reason submitted to the Assessment Committee. Your cycle status has been updated.");
+      'Reason sent to the Assessment Committee. Your cycle status is updated.');
     if (ok) { setShowDeferForm(false); setDeferReason(''); }
     await refresh();
   };
@@ -798,7 +851,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   // Save & Return: keep progress (saved on the server) without requiring every field to be filled in
   const handleSaveDraft = async () => {
     const ok = await run(() => api.form(activeEvaluationTarget.id, { ratings: evalAnswers, draft: true }),
-      "Progress saved. You can come back and finish this evaluation later.");
+      'Progress saved. You can finish this evaluation later.');
     if (ok) { await refresh(); closeEvaluation(); }
   };
 
@@ -806,20 +859,19 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   const handleCancelEvaluation = () => {
     const saved = evaluationDrafts?.[activeEvaluationTarget.id]?.answers || {};
     const hasUnsavedChanges = JSON.stringify(saved) !== JSON.stringify(evalAnswers);
-    if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Leave without saving?")) return;
+    if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Leave without saving?')) return;
     closeEvaluation();
   };
 
-  // SAFE DEFAULTS: Added fallbacks (|| []) to prevent null-reference crashes
   // Due status is calculated by the backend (GET /api/professors includes evaluation_status)
   const myStatus = (data.professors || []).find(p => p.professor_id === user?.professor_id) || { status: 'Unknown', next_eval: 'TBD' };
+  const isDue = myStatus.status === 'Due' || myStatus.status === 'Overdue';
   const myCourses = (data.courses || []).filter(c => c.instructor_id === user?.professor_id);
   const mySignup = (globalSignups || []).find(s => s.observeeId === user?.professor_id);
   const myConfirmedObservation = (globalObservations || []).find(o => o.observeeId === user?.professor_id);
   // Sign-up closes at the end of the deadline day (same rule the backend enforces)
   const isPastSignupDeadline = isPastDeadline(globalDeadlines?.signup);
 
-  // NEW: Check if the observation-period deadline has passed
   const isPastObservationDeadline = globalDeadlines?.observation
     ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`)
     : false;
@@ -829,53 +881,44 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   const surveyDeadlineLabel = globalDeadlines?.survey ? formatSurveyDeadline(globalDeadlines.survey, globalDeadlines.surveyTime) : '';
 
   const dynamicSystemNotifs = [];
-  if ((myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup) {
+  if (isDue && !mySignup) {
     dynamicSystemNotifs.push({
       id: 'sys-due', recipientId: user?.professor_id,
-      message: `System Alert: You are ${myStatus.status} for an evaluation this cycle. Please sign up for a course.`,
+      message: `You are ${myStatus.status.toLowerCase()} for an evaluation this cycle. Please sign up a course.`,
       read: false, timestamp: new Date().toLocaleDateString()
     });
   }
-  
+
   const myNotifications = [...dynamicSystemNotifs, ...((globalNotifications || []).filter(n => n.recipientId === user?.professor_id))];
   const unreadCount = myNotifications.filter(n => !n.read).length;
 
-  // SAFE EFFECT: Locked dependency to length to prevent infinite loops
+  // Show the newest unread notification as a toast when new ones arrive (once per notification)
+  const lastToasted = useRef(null);
   useEffect(() => {
     const unread = myNotifications.filter(n => !n.read);
-    if (unread.length > 0) {
-      setToastNotif(unread[unread.length - 1]);
-      const timer = setTimeout(() => setToastNotif(null), 6000);
-      return () => clearTimeout(timer);
+    const latest = unread[unread.length - 1];
+    if (latest && lastToasted.current !== latest.id) {
+      lastToasted.current = latest.id;
+      toast.info(latest.message, { title: `New notification (${unread.length} unread).`, duration: 6000, onClick: () => goTo('notifications') });
     }
   }, [globalNotifications?.length]);
-
-  const NavItem = ({ id, icon: Icon, label, badge }) => (
-  <li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); }}>
-    <Icon /> <span>{label}</span>
-      {badge > 0 && (
-        <span style={{ marginLeft: 'auto', background: '#ef4444', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '999px' }}>
-          {badge > 5 ? '5+' : badge}
-        </span>
-      )}
-    </li>
-  );
 
   // Pair confirmation: PATCH .../form { observer_signed | observee_signed }. Completed once both have confirmed.
   const confirmObservation = async (obsId, side) => {
     // VALIDATION: the observer can't mark the observation complete until the evaluation form is submitted
     if (side === 'observer' && !(globalEvaluations || []).some(e => e.observationId === obsId)) {
-      alert("Please complete and submit the evaluation form (Begin Evaluation) before marking this evaluation as completed.");
+      toast.error('Submit the evaluation form before marking this observation completed.');
       return false;
     }
-    const ok = await run(() => api.form(obsId, side === 'observer' ? { observer_signed: true } : { observee_signed: true }));
+    const ok = await run(() => api.form(obsId, side === 'observer' ? { observer_signed: true } : { observee_signed: true }),
+      side === 'observer' ? 'Observation confirmed. It is marked completed once the observee also confirms.' : 'Thanks. Your confirmation is recorded.');
     await refresh();
     return ok;
-  }
+  };
 
   // POST .../observer-requests
   const handleSendRequest = async (observer) => {
-    await run(() => api.sendRequests(mySignup.id, [observer.professor_id]), `Request Sent to ${observer.name}!`);
+    await run(() => api.sendRequests(mySignup.id, [observer.professor_id]), `Request sent to ${observer.name}.`);
     await refresh();
   };
 
@@ -883,14 +926,15 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   const handleObserverAction = async (reqId, action) => {
     const req = globalRequests.find(r => r.id === reqId);
     if (!req) return;
-    await run(() => api.respond(req.observationId, req.observerId, action === 'Accepted' ? 'accept' : 'decline'));
+    await run(() => api.respond(req.observationId, req.observerId, action === 'Accepted' ? 'accept' : 'decline'),
+      action === 'Accepted' ? `You accepted ${req.observeeName}'s request.` : `You declined ${req.observeeName}'s request.`);
     await refresh();
   };
 
   // POST .../select-observer: the other requests are cancelled and those observers notified by the server
   const handleFinalConfirm = async (acceptedRequest) => {
     await run(() => api.selectObserver(acceptedRequest.observationId, acceptedRequest.observerId),
-      `${acceptedRequest.observerName} is confirmed! Please set the specific observation date.`);
+      `${acceptedRequest.observerName} is confirmed. Next, pick the observation date.`);
     await refresh();
   };
 
@@ -903,584 +947,516 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
       minDate: todayLocalISO(),
       maxDate: globalDeadlines?.observation || undefined,
     });
-    if (slotError) { alert(slotError); return; }
+    if (slotError) { toast.error(slotError); return; }
 
     // PATCH /api/observations/:course_code/:section_number/:term (the server re-validates and notifies both)
     await run(() => api.schedule(obsId, dateStr, timeStr.split('-')[0].trim()),
-      "Date confirmed! Both parties have been notified.");
+      'Date confirmed. You and your observer have been notified.');
     await refresh();
   };
 
   // POST /api/observations: the backend also generates the observer list right away
   const handleSignup = async () => {
-    if (!selectedCourseId) { alert("Select a course first."); return; }
+    if (!selectedCourseId) { toast.error('Select a course first.'); return; }
     const course = myCourses.find(c => c.section_id.toString() === selectedCourseId);
     const ok = await run(() => api.signUp(course.course_code, course.section, course.term),
-      "Signed up successfully! View your eligible observers on the Observee Status tab.");
+      "You're signed up. Your observer list appears on Observee status once it's released.");
     await refresh();
     if (ok) setActiveTab('observee-status');
   };
 
   // PATCH .../missed
   const reportMissedObservation = async (obsId) => {
-    if (!window.confirm("Report that this observation did NOT take place?")) return;
-    await run(() => api.reportMissed(obsId));
+    if (!window.confirm('Report that this observation did NOT take place?')) return;
+    await run(() => api.reportMissed(obsId), 'Reported to the Assessment Committee.');
     await refresh();
   };
 
   const mySentRequests = (globalRequests || []).filter(req => req.observeeId === user?.professor_id);
   const myIncomingDuties = (globalRequests || []).filter(req => req.observerId === user?.professor_id);
+  const pendingDuties = myIncomingDuties.filter(r => r.status === 'Pending');
+  const pastDuties = myIncomingDuties.filter(r => r.status !== 'Pending');
   const myAssignedObservations = (globalObservations || []).filter(o => o.observerId === user?.professor_id);
-  // NEW: Evaluations this professor submitted as an observer, and evaluations submitted about them as an observee
+  // Evaluations this professor submitted as an observer, and evaluations submitted about them as an observee
   const mySubmittedEvaluations = (globalEvaluations || []).filter(ev => ev.observerId === user?.professor_id);
   const evaluationsOfMe = (globalEvaluations || []).filter(ev => {
-  const observeeId = ev.observeeId ?? (globalObservations || []).find(o => o.id === ev.observationId)?.observeeId;
-  return observeeId === user?.professor_id;
-});
+    const observeeId = ev.observeeId ?? (globalObservations || []).find(o => o.id === ev.observationId)?.observeeId;
+    return observeeId === user?.professor_id;
+  });
+
+  // ----- My cycle: where the professor is in the 7-step process -----
+  const obs = myConfirmedObservation;
+  const obsBad = obs && (obs.status === 'Missed' || obs.status === 'Deferred / Rolled Over');
+  const stepDefs = [
+    ['Sign up', mySignup ? `${mySignup.courseCode} in the pool` : isDue ? `Closes ${shortDate(globalDeadlines?.signup)}` : 'Not due this cycle', Boolean(mySignup)],
+    ['List released', mySignup?.listReleased ? plural((mySignup.eligibleObservers || []).length, 'eligible colleague') : 'By the committee', Boolean(obs) || Boolean(mySignup?.listReleased)],
+    ['Requests sent', mySentRequests.length ? plural(mySentRequests.length, 'request') : 'Ask colleagues', Boolean(obs) || mySentRequests.length > 0],
+    ['Observer confirmed', obs ? obs.observerName : 'Confirm one who accepts', Boolean(obs)],
+    ['Date set', obs?.scheduledDate ? `${shortDate(obs.scheduledDate)}${obs.scheduledTime ? ` · ${obs.scheduledTime}` : ''}` : 'Pick a class day', Boolean(obs?.scheduledDate)],
+    ['Confirm observation', obsBad ? obs.status : 'Both of you, after class', obs?.status === 'Completed'],
+    ['End survey', hasSubmittedSurvey ? 'Submitted' : surveyDeadlineLabel ? `Closes ${shortDate(globalDeadlines.survey)}` : 'After observation', hasSubmittedSurvey],
+  ];
+  const currentStep = stepDefs.findIndex(s => !s[2]);
+  const steps = stepDefs.map(([label, detail, done], i) => ({
+    label, detail,
+    state: done ? 'done' : i === currentStep ? (i === 5 && obsBad ? 'bad' : 'current') : 'upcoming',
+  }));
+  const doneCount = stepDefs.filter(s => s[2]).length;
+  const draftFor = myAssignedObservations.find(o => evaluationDrafts?.[o.id] && !(globalEvaluations || []).some(e => e.observationId === o.id));
+  const activeCriteria = (evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester);
+  const draftAnswered = draftFor ? Object.values(evaluationDrafts[draftFor.id].answers || {}).filter(a => a?.rating || a?.notes).length : 0;
+
+  // The hero card: one clear next step
+  let hero;
+  if (!isDue && !mySignup) {
+    hero = { tone: 'neutral', title: 'You are not due for an evaluation this cycle', text: `Next evaluation: ${myStatus.next_eval}. Colleagues may still ask you to observe them.` };
+  } else if (!mySignup && isPastSignupDeadline) {
+    hero = { tone: 'bad', title: 'Sign-up closed', text: `Sign-up for ${currentSemester} closed on ${shortDate(globalDeadlines?.signup)}. Please contact the Assessment Committee.` };
+  } else if (!mySignup) {
+    hero = { tone: 'warn', signup: true, title: 'Sign up a course to be observed', text: `You are ${myStatus.status.toLowerCase()} this cycle. Sign-up closes ${shortDate(globalDeadlines?.signup)}.` };
+  } else if (!obs) {
+    const accepted = mySentRequests.find(r => r.status === 'Accepted');
+    if (!isPastSignupDeadline) hero = { tone: 'info', title: 'Your observer list is on its way', text: `Eligible colleagues appear after sign-up closes on ${shortDate(globalDeadlines?.signup)}.` };
+    else if (!mySignup.listReleased) hero = { tone: 'info', title: 'Waiting for the committee', text: 'The Assessment Committee is reviewing your list of potential observers. You will be notified.' };
+    else if (accepted) hero = { tone: 'good', title: `${accepted.observerName} accepted`, text: 'Confirm them as your observer to continue.', action: ['Confirm my observer', 'observee-status'] };
+    else if (mySentRequests.some(r => r.status === 'Pending')) hero = { tone: 'info', title: 'Waiting for replies', text: `${plural(mySentRequests.filter(r => r.status === 'Pending').length, 'request')} pending. You can ask more colleagues meanwhile.`, action: ['View requests', 'observee-status'] };
+    else hero = { tone: 'warn', title: 'Ask colleagues to observe you', text: `Your list of ${plural((mySignup.eligibleObservers || []).length, 'eligible colleague')} is ready.`, action: ['Choose observers', 'observee-status'] };
+  } else if (obs.status === 'Pending Scheduling') {
+    hero = { tone: 'warn', title: `Pick a date with ${obs.observerName}`, text: `Choose a day your class meets, before ${shortDate(globalDeadlines?.observation)}.`, action: ['Pick a date', 'observee-status'] };
+  } else if (obs.status === 'Scheduled' || obs.status === 'Awaiting Confirmation') {
+    const days = daysUntil(obs.scheduledDate);
+    if (obs.observeeConfirmed) hero = { tone: 'info', title: `Waiting for ${obs.observerName} to confirm`, text: 'You confirmed the observation. It completes once your observer confirms too.' };
+    else if (days != null && days > 0) hero = { tone: 'info', countdown: days, title: `${days === 1 ? 'day' : 'days'} until you are observed`, text: `${shortDate(obs.scheduledDate)}${obs.scheduledTime ? ` at ${obs.scheduledTime}` : ''} · ${obs.courseCode} with ${obs.observerName}`, action: ['View my observation', 'observee-status'] };
+    else hero = { tone: 'warn', title: 'Confirm the observation', text: `Let the committee know ${obs.observerName} observed your class.`, action: ['Confirm now', 'observee-status'] };
+  } else if (obs.status === 'Completed') {
+    if (hasSubmittedSurvey) hero = { tone: 'good', title: `You're done for ${currentSemester}`, text: 'Your observation is complete and your survey is in. Thank you.' };
+    else if (isSurveyClosed) hero = { tone: 'neutral', title: 'Observation complete', text: `The survey deadline (${surveyDeadlineLabel}) has passed.` };
+    else hero = { tone: 'good', title: 'Observation complete', text: 'One last step: a short anonymous survey about the process.', action: ['Take the survey', 'survey'] };
+  } else if (obs.status === 'Missed') {
+    hero = { tone: 'bad', title: 'Observation reported as not held', text: `${obs.missedReportedBy ? `${obs.missedReportedBy} reported` : 'It was reported'} that the observation did not take place. Please contact the Assessment Committee.` };
+  } else {
+    hero = { tone: 'warn', title: 'Observation deferred', text: 'The Assessment Committee has your reason and will follow up.' };
+  }
+
+  const nav = [
+    { id: 'home', label: 'My cycle', icon: 'home' },
+    { id: 'observee-status', label: 'Observee', icon: 'userCheck' },
+    { id: 'observer-duties', label: 'Duties', icon: 'signups', count: pendingDuties.length },
+    { id: 'my-evaluations', label: 'Evaluations', icon: 'form' },
+    { id: 'survey', label: 'Survey', icon: 'message' },
+    { id: 'notifications', label: 'Inbox', icon: 'bell', count: unreadCount },
+  ];
+  const [titleText, subtitleText] = PROF_TITLES[activeTab] || ['', ''];
+  const firstName = (user?.name || '').split(' ').filter(p => !/^(dr|prof)\.?$/i.test(p))[0] || '';
+  const title = activeTab === 'home' ? `Hi, ${firstName}` : activeTab === 'live-evaluation' && activeEvaluationTarget ? `Evaluating ${activeEvaluationTarget.observeeName}` : titleText;
+  const subtitle = activeTab === 'live-evaluation' && activeEvaluationTarget
+    ? `${activeEvaluationTarget.courseCode} · ${activeEvaluationTarget.timing}${activeEvaluationTarget.scheduledDate ? ` · ${shortDate(activeEvaluationTarget.scheduledDate)}` : ''}`
+    : activeTab === 'home' ? `Where your ${currentSemester} evaluation stands` : subtitleText;
+
+  const answeredCount = activeCriteria.filter(item => evalAnswers[item.id]?.rating || (item.ratingScale.includes('Text') && evalAnswers[item.id]?.notes)).length;
+  const inbox = myNotifications.filter(n => !n.read).slice().reverse();
+  const archived = myNotifications.filter(n => n.read).slice().reverse();
 
   return (
-    <div className="dashboard-layout">
-      {toastNotif && (
-        <div 
-          onClick={() => { setActiveTab('notifications'); setToastNotif(null); }}
-          style={{ position: 'fixed', top: '24px', right: '24px', background: 'white', borderLeft: '4px solid var(--utd-orange)', padding: '16px 20px', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', zIndex: 9999, cursor: 'pointer', maxWidth: '320px', transition: 'all 0.3s ease' }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', alignItems: 'center' }}>
-            <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>New Notification ({unreadCount} pending)</strong>
-            <span onClick={(e) => { e.stopPropagation(); setToastNotif(null); }} style={{ color: '#94a3b8', fontSize: '1.2rem', paddingLeft: '10px' }}>&times;</span>
-          </div>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {toastNotif?.message}
-          </p>
-        </div>
-      )}
-      <div className="sidebar premium-glass-dark">
-        <div className="sidebar-header">
-          <div className="logo-small">UTD</div>
-          <div><h3>Professor Portal</h3><small>Assessment System</small></div>
-        </div>
-        <ul className="nav-menu">
-          <NavItem id="home" icon={() => <span>🏠</span>} label="My Cycle" />
-          <NavItem id="observee-status" icon={() => <span>👥</span>} label="Observee Status" />
-          <NavItem id="observer-duties" icon={() => <span>✅</span>} label="My Duties" />
-          <NavItem id="my-evaluations" icon={() => <span>📋</span>} label="My Evaluations" />
-          <NavItem id="survey" icon={() => <span>📄</span>} label="End Survey" />
-          <NavItem id="notifications" icon={() => <span>🔔</span>} label="Notifications" badge={unreadCount} />
-          <li onClick={onLogout} className="logout-btn"><span>🚪</span> <span>Logout</span></li>
-        </ul>
-      </div>
+    <AppShell label="Professor sections" items={nav} active={activeTab === 'live-evaluation' ? 'observer-duties' : activeTab} onSelect={goTo} onLogout={onLogout}>
+      <PageHeader eyebrow={`Professor portal · ${currentSemester}`} title={title} subtitle={subtitle}>
+        {/* Shows first + last name initials (e.g. "Dr. Alice Smith" -> "AS"); hover shows full name */}
+        <div className="avatar" title={user?.name || ''}>{initials(user?.name)}</div>
+      </PageHeader>
 
-      <div className="main-content">
-        <div className="content-scroll">
-          {/* Inside the scroll area, so it stays at the top of the page and scrolls away instead of following the user */}
-          <header className="top-header premium-glass">
-            <div className="header-title">
-              <h2>Welcome back, {user?.name}</h2>
-              <p>{currentSemester} Evaluation Cycle</p>
-            </div>
-            {/* Shows first + last name initials (e.g. "Dr. Alice Smith" -> "AS"); hover shows full name */}
-            <div className="user-profile"><div className="avatar" title={user?.name || ''}>{getInitials(user?.name)}</div></div>
-          </header>
-          {activeTab === 'home' && (
-            <div className="bento-grid">
-              <div className="bento-card" style={{ gridColumn: '1 / -1' }}>
-                <h3>My Evaluation Status ({currentSemester})</h3>
-                <p style={{ marginTop: '0.5rem' }}>
-                  {myStatus.status === 'Overdue' ? <span className="badge badge-danger" style={{ background: '#ef4444', color: 'white' }}>Overdue ({myStatus.overdue_by} sem)</span>
-                    : myStatus.status === 'Due' ? <span className="badge badge-warning">Due this cycle</span>
-                    : <span className="badge badge-neutral">Not due (next: {myStatus.next_eval})</span>}
-                  {' '}Last evaluated: <strong>{myStatus.last_evaluation || 'No record'}</strong> · Sign-up deadline: <strong>{globalDeadlines?.signup || 'TBD'}</strong>
-                </p>
-              </div>
+      {data.error && <Notice tone="bad" title="Could not refresh data" className="section-gap">{data.error}</Notice>}
 
-              {(myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup && isPastSignupDeadline && (
-                <div className="bento-card" style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a' }}>
-                  <h3 style={{ color: '#b45309' }}>Step 1: Course Sign-Up (Closed)</h3>
-                  <p style={{ color: '#92400e' }}>Sign-up for {currentSemester} closed on {globalDeadlines.signup}. Please contact the Assessment Committee.</p>
-                </div>
+      {/* ---------- MY CYCLE ---------- */}
+      {activeTab === 'home' && (
+        <div className="stack">
+          <section className="card card-lg hero">
+            <div>
+              <DueBadge prof={myStatus} />
+              {hero.countdown != null ? (
+                <div className="hero-count"><span className="num">{hero.countdown}</span><span>{hero.title}</span></div>
+              ) : (
+                <h2 className={`hero-title text-${hero.tone === 'neutral' ? 'neutral' : hero.tone}`}>{hero.title}</h2>
               )}
-
-              {(myStatus.status === 'Due' || myStatus.status === 'Overdue') && !mySignup && !isPastSignupDeadline && (
-                <div className="bento-card" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.8)' }}>
-                  <h3 style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>Step 1: Course Sign-Up</h3>
-                  <form style={{ marginTop: '1rem' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Select Course to be Observed</label>
-                    <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                      <option value="">-- Choose a Course --</option>
+              <p className="muted">{hero.text}</p>
+              {hero.signup && (
+                <div className="row align-end section-gap" >
+                  <label className="field field-grow-2" htmlFor="signup-course">
+                    Course to be observed
+                    <select id="signup-course" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+                      <option value="">Choose a course</option>
                       {myCourses.map(c => (
                         <option key={c.section_id} value={c.section_id}>{c.course_code} Sec {c.section} ({c.timing})</option>
                       ))}
                     </select>
-                    <button type="button" onClick={handleSignup} className="btn-primary btn-3d" style={{ marginTop: '15px' }}>Submit & Enter Observer Pool</button>
-                  </form>
-                </div>
-              )}
-
-              {mySignup && (
-                <div className="bento-card" style={{ gridColumn: '1 / -1', background: '#f0fdf4', border: '1px solid #16a34a' }}>
-                  <h3 style={{color: '#16a34a'}}>✓ Signed Up for {currentSemester}</h3>
-                  <p>Course: {mySignup.courseCode} ({mySignup.timing}). Head to <strong>Observee Status</strong> to manage your observers.</p>
+                  </label>
+                  <button type="button" onClick={handleSignup} className="btn btn-primary">Submit and enter observer pool</button>
                 </div>
               )}
             </div>
-          )}
+            <div className="hero-actions">
+              {hero.action && <button type="button" className="btn btn-primary btn-lg" onClick={() => goTo(hero.action[1])}>{hero.action[0]}</button>}
+              {pendingDuties.length > 0 && (
+                <button type="button" className="btn btn-secondary btn-lg" onClick={() => goTo('observer-duties')}>
+                  {pendingDuties.length === 1 ? '1 colleague needs your answer' : `${pendingDuties.length} colleagues need your answer`}
+                </button>
+              )}
+            </div>
+          </section>
 
-          {activeTab === 'observee-status' && (
-            <div className="bento-grid">
-              {myConfirmedObservation ? (
-                <div className="bento-card full-span" style={{borderLeft: '5px solid #10b981'}}>
-                  <h3>Final Confirmed Observer</h3>
-                  <p style={{ marginTop: '0.5rem', lineHeight: 1.6 }}>
-                    <strong>{myConfirmedObservation.observerName}</strong> is confirmed to observe <strong>{myConfirmedObservation.courseCode} ({myConfirmedObservation.timing})</strong>.
-                  </p>
-                  <p style={{ marginTop: '0.75rem', marginBottom: '15px'}}>Status: <span className={`badge ${myConfirmedObservation.status === 'Completed' ? 'badge-success' : myConfirmedObservation.status === 'Missed' ? 'badge-error' : myConfirmedObservation.status === 'Scheduled' ? 'badge-neutral' : 'badge-warning'}`}>{myConfirmedObservation.status}</span></p>
-                  
-                  {myConfirmedObservation.status === 'Pending Scheduling' && (
-                    <ScheduleObservationForm
-                      observation={myConfirmedObservation}
-                      observationDeadline={globalDeadlines?.observation}
-                      onSchedule={handleScheduleDate}
-                    />
-                  )}
+          <section className="card card-lg">
+            <div className="card-head"><h2 className="card-title">Your cycle</h2><span className="mono muted">{doneCount}/{steps.length}</span></div>
+            <ol className="steps">
+              {steps.map((s, i) => (
+                <li key={s.label} className={`step ${s.state}`} aria-current={s.state === 'current' ? 'step' : undefined}>
+                  <span className="step-dot">{s.state === 'done' ? <Icon name="check" size={15} strokeWidth={2.4} /> : i + 1}</span>
+                  <span className="step-label">{s.label}</span>
+                  <span className="step-detail">{s.detail}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
 
-                  {myConfirmedObservation.scheduledDate && (
-                    <p style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '15px', fontWeight: '500' }}>
-                      🗓️ Scheduled Date: <strong>{formatDate(myConfirmedObservation.scheduledDate)}</strong>
-                      {myConfirmedObservation.scheduledTime && <> at <strong>{myConfirmedObservation.scheduledTime}</strong></>}
-                    </p>
-                  )}
+          <div className="grid grid-260">
+            <div className="card"><div className="faint">Last evaluated</div><div className="big-number">{myStatus.last_evaluation || 'No record'}</div></div>
+            <div className="card"><div className="faint">{mySignup ? 'Course observed' : 'Sign-up deadline'}</div><div className="big-number">{mySignup ? mySignup.courseCode : shortDate(globalDeadlines?.signup) || 'TBD'}</div></div>
+            {draftFor && (
+              <div className="card stack-sm">
+                <div className="faint">Your draft for {draftFor.observeeName}</div>
+                <div className="big-number text-warn">{draftAnswered}/{activeCriteria.length} <span className="faint">answered</span></div>
+                <div><button type="button" className="btn btn-secondary btn-sm" onClick={() => openEvaluation(draftFor)}>Continue evaluation</button></div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-                  {(myConfirmedObservation.status === 'Scheduled' || myConfirmedObservation.status === 'Awaiting Confirmation') && (
-                    <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '15px'}}>
-                      <h4>Pair Confirmation & Status</h4>
-                      <p style={{fontSize: '0.9rem', color: '#64748b', marginTop: '6px'}}>
-                        Observer: {myConfirmedObservation.observerConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
-                      </p>
-                      <p style={{fontSize: '0.9rem', color: '#64748b', margin: '4px 0 10px'}}>
-                        You: {myConfirmedObservation.observeeConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
-                      </p>
-                      
-                      {!myConfirmedObservation.observeeConfirmed && myConfirmedObservation.status !== 'Deferred / Rolled Over' && (
-                        <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px'}}>
-                          <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-                            <button className="btn-primary sm" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I Was Observed</button>
-                            <button className="btn-secondary sm" style={{background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a'}} onClick={() => setShowDeferForm(!showDeferForm)}>
-                              {showDeferForm ? 'Cancel' : '⚠️ Could Not Complete Cycle'}
-                            </button>
-                          </div>
+      {/* ---------- OBSERVEE STATUS ---------- */}
+      {activeTab === 'observee-status' && (
+        myConfirmedObservation ? (
+          <div className="grid grid-340">
+            <section className="card card-lg stack">
+              <div className="row">
+                <div className="avatar avatar-lg">{initials(myConfirmedObservation.observerName)}</div>
+                <div className="grow">
+                  <div className="card-title">{myConfirmedObservation.observerName}</div>
+                  <div className="muted">Your confirmed observer</div>
+                </div>
+                <span className="push-right"><StatusBadge status={myConfirmedObservation.status} /></span>
+              </div>
+              <div className="grid grid-200">
+                <div className="info-tile"><div className="label">Date</div><div className="value">{myConfirmedObservation.scheduledDate ? `${shortDate(myConfirmedObservation.scheduledDate)}${myConfirmedObservation.scheduledTime ? ` · ${myConfirmedObservation.scheduledTime}` : ''}` : 'Not set yet'}</div></div>
+                <div className="info-tile"><div className="label">Course</div><div className="value">{myConfirmedObservation.courseCode}</div><div className="faint">{myConfirmedObservation.timing}</div></div>
+              </div>
 
-                          {showDeferForm && (
-                            <div style={{background: 'white', padding: '15px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '10px'}}>
-                              <label style={{display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px', color: '#0f172a'}}>
-                                Provide Reasoning for Incompletion / Rollover
-                              </label>
-                              <textarea 
-                                rows="3" 
-                                value={deferReason} 
-                                onChange={(e) => setDeferReason(e.target.value)} 
-                                placeholder="e.g., Extended medical leave or scheduling conflicts prevented this observation..." 
-                                style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', marginBottom: '10px'}}
-                              />
-                              <button className="btn-danger sm" onClick={() => handleDeferObservation(myConfirmedObservation.id)}>
-                                Submit Reason to Committee
-                              </button>
-                            </div>
-                          )}
+              {myConfirmedObservation.status === 'Pending Scheduling' && (
+                <ScheduleObservationForm
+                  observation={myConfirmedObservation}
+                  observationDeadline={globalDeadlines?.observation}
+                  onSchedule={handleScheduleDate}
+                />
+              )}
+
+              {(myConfirmedObservation.status === 'Scheduled' || myConfirmedObservation.status === 'Awaiting Confirmation') && (
+                <>
+                  <div className="grid grid-200">
+                    <div className={`confirm-tile${myConfirmedObservation.observerConfirmed ? ' done' : ''}`}><span className="confirm-dot" />Observer {myConfirmedObservation.observerConfirmed ? 'confirmed' : 'has not confirmed'}</div>
+                    <div className={`confirm-tile${myConfirmedObservation.observeeConfirmed ? ' done' : ''}`}><span className="confirm-dot" />You {myConfirmedObservation.observeeConfirmed ? 'confirmed' : 'have not confirmed'}</div>
+                  </div>
+                  {!myConfirmedObservation.observeeConfirmed && (
+                    <>
+                      <div className="row">
+                        <button type="button" className="btn btn-primary" onClick={() => confirmObservation(myConfirmedObservation.id, 'observee')}>I was observed</button>
+                        <button type="button" className="btn btn-ghost" aria-expanded={showDeferForm} onClick={() => setShowDeferForm(!showDeferForm)}>
+                          {showDeferForm ? 'Cancel' : 'Could not complete cycle'}
+                        </button>
+                      </div>
+                      {showDeferForm && (
+                        <div className="card card-warn stack-sm">
+                          <label className="field" htmlFor="defer-reason">
+                            <span className="text-warn">Reason for incompletion or rollover</span>
+                            <textarea id="defer-reason" rows="3" value={deferReason} onChange={(e) => setDeferReason(e.target.value)} placeholder="e.g., extended medical leave or scheduling conflicts prevented this observation" />
+                          </label>
+                          <div><button type="button" className="btn btn-danger" onClick={() => handleDeferObservation(myConfirmedObservation.id)}>Submit reason to committee</button></div>
                         </div>
                       )}
-                    </div>
+                    </>
                   )}
+                </>
+              )}
 
-                  {myConfirmedObservation.status === 'Deferred / Rolled Over' && (
-                    <div style={{padding: '15px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '15px'}}>
-                      <h4 style={{color: '#b45309', marginBottom: '5px'}}>Status: Deferred / Rolled Over</h4>
-                      <p style={{fontSize: '0.9rem', color: '#92400e', margin: 0}}>
-                        Reason submitted: "{myConfirmedObservation.deferralReason}"
-                      </p>
-                      <small style={{color: '#b45309', display: 'block', marginTop: '5px'}}>The Assessment Committee has been notified of your reasoning.</small>
-                    </div>
-                  )}
+              {myConfirmedObservation.status === 'Deferred / Rolled Over' && (
+                <Notice tone="warn" title="Deferred / rolled over">
+                  Reason submitted: "{myConfirmedObservation.deferralReason}". The Assessment Committee has been notified.
+                </Notice>
+              )}
+              {myConfirmedObservation.status === 'Missed' && (
+                <Notice tone="bad" title="Observation not held">
+                  This observation was reported as not held{myConfirmedObservation.missedReportedBy ? ` by ${myConfirmedObservation.missedReportedBy}` : ''}. Please contact the Assessment Committee.
+                </Notice>
+              )}
+              {myConfirmedObservation.status === 'Completed' && (
+                <Notice tone="good" title="Observation completed">
+                  You and your observer both confirmed the observation.
+                  {isSurveyClosed ? ` The survey deadline (${surveyDeadlineLabel}) has passed.` : ' Please take the final survey.'}
+                  {!isSurveyClosed && !hasSubmittedSurvey && <div className="section-gap" />}
+                  {!isSurveyClosed && !hasSubmittedSurvey && <button type="button" className="btn btn-primary btn-sm" onClick={() => goTo('survey')}>Take survey</button>}
+                </Notice>
+              )}
+            </section>
+            <Card title="Requests you sent" sub={mySignup ? `From ${plural((mySignup.eligibleObservers || []).length, 'eligible colleague')}` : undefined}>
+              {mySentRequests.length === 0 ? <p className="muted">The committee assigned your observer.</p> : mySentRequests.map(req => (
+                <div className="list-row" key={req.id}>
+                  <span className="grow list-title">{req.observerName}</span>
+                  <Badge tone={REQ_TONE[req.status]}>{req.status}</Badge>
+                </div>
+              ))}
+            </Card>
+          </div>
+        ) : (
+          <div className="stack">
+            <Card title="Request observers" sub="Ask one or more eligible colleagues; confirm the first who accepts.">
+              {!mySignup ? (
+                <Notice tone="info" title="Sign up first">
+                  Sign up a course on My cycle to get a list of eligible observers.
+                  <div className="section-gap" />
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => goTo('home')}>Go to My cycle</button>
+                </Notice>
+              ) : !isPastSignupDeadline ? (
+                <Notice tone="info" icon="clock" title="List hidden until sign-up closes">
+                  Potential observers appear once the sign-up deadline ({shortDate(globalDeadlines?.signup) || 'TBD'}) passes.
+                </Notice>
+              ) : !mySignup.listReleased ? (
+                <Notice tone="warn" icon="lock" title="Pending committee approval">
+                  The Assessment Committee is reviewing your list of potential observers. You will be notified when it is released.
+                </Notice>
+              ) : (mySignup.eligibleObservers || []).length === 0 ? (
+                <EmptyState icon="users" title="No eligible observers found">Contact the Assessment Committee.</EmptyState>
+              ) : (mySignup.eligibleObservers || []).map(observer => {
+                const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
+                return (
+                  <div className="list-row" key={observer.professor_id}>
+                    <span className="avatar">{initials(observer.name)}</span>
+                    <span className="grow"><span className="list-title">{observer.name}</span><span className="list-sub">{observer.department}</span></span>
+                    {hasRequested ? <Badge tone="warn">Request sent</Badge> : <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSendRequest(observer)}><Icon name="send" size={15} /> Send request</button>}
+                  </div>
+                );
+              })}
+            </Card>
 
-                  {myConfirmedObservation.status === 'Missed' && (
-                    <p style={{color: '#b91c1c', fontSize: '0.9rem'}}>This observation was reported as not held{myConfirmedObservation.missedReportedBy ? ` by ${myConfirmedObservation.missedReportedBy}` : ''}. Please contact the Assessment Committee.</p>
-                  )}
-                  {myConfirmedObservation.status === 'Completed' && (
-                     <div style={{padding: '15px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px'}}>
-                        <h4>Observation Completed!</h4>
-                        {isSurveyClosed ? (
-                          <p style={{fontSize: '0.9rem', color: '#64748b', margin: 0}}>You and your observer both confirmed the observation. The survey deadline ({surveyDeadlineLabel}) has passed.</p>
+            <Card title="Track and confirm" sub="When a colleague accepts, confirm them as your observer.">
+              {mySentRequests.length === 0 ? <p className="muted">No requests sent yet.</p> : mySentRequests.map(req => (
+                <div className="list-row" key={req.id}>
+                  <span className="grow list-title">{req.observerName}</span>
+                  <Badge tone={REQ_TONE[req.status]}>{req.status}</Badge>
+                  {req.status === 'Accepted' && <button type="button" className="btn btn-primary btn-sm" onClick={() => handleFinalConfirm(req)}>Confirm final match</button>}
+                </div>
+              ))}
+            </Card>
+          </div>
+        )
+      )}
+
+      {/* ---------- MY DUTIES ---------- */}
+      {activeTab === 'observer-duties' && (
+        <div className="stack">
+          <div className="grid grid-340">
+            {pendingDuties.map(req => (
+              <section key={req.id} className="card card-warn stack-sm">
+                <span><Badge tone="warn">New request</Badge></span>
+                <div className="card-title">{req.observeeName}</div>
+                <div className="muted">wants you to observe <span className="mono">{req.courseCode}</span> · {req.timing}</div>
+                <div className="row">
+                  <button type="button" className="btn btn-primary" onClick={() => handleObserverAction(req.id, 'Accepted')}>Accept</button>
+                  <button type="button" className="btn btn-warn" onClick={() => handleObserverAction(req.id, 'Declined')}>Decline</button>
+                </div>
+              </section>
+            ))}
+
+            {myAssignedObservations.map(o => {
+              // VALIDATION: "Evaluation Completed" is locked until the evaluation form is submitted
+              const hasSubmittedEvaluation = (globalEvaluations || []).some(e => e.observationId === o.id);
+              const draft = evaluationDrafts?.[o.id];
+              const answered = draft ? Object.values(draft.answers || {}).filter(a => a?.rating || a?.notes).length : 0;
+              const canComplete = hasSubmittedEvaluation && !isPastObservationDeadline;
+              return (
+                <section key={o.id} className="card stack-sm">
+                  <div className="row-between">
+                    {o.scheduledDate ? <Badge tone="info">{shortDate(o.scheduledDate)}{o.scheduledTime ? ` · ${o.scheduledTime}` : ''}</Badge> : <Badge tone="warn">Date not set</Badge>}
+                    <StatusBadge status={o.status} />
+                  </div>
+                  <div className="card-title">{o.observeeName}</div>
+                  <div className="muted"><span className="mono">{o.courseCode}</span> · {o.timing}</div>
+
+                  {o.status === 'Missed' || o.status === 'Completed' ? null : o.observerConfirmed ? (
+                    <Notice tone="info" title="Waiting for the observee">You confirmed this observation. It completes once {o.observeeName} confirms.</Notice>
+                  ) : (
+                    <>
+                      {hasSubmittedEvaluation ? (
+                        <span className="row text-good"><Icon name="checkCircle" size={16} /> Evaluation submitted</span>
+                      ) : draft ? (
+                        <>
+                          <Meter value={activeCriteria.length ? (answered / activeCriteria.length) * 100 : 0} tone="warn" label={`${answered} of ${activeCriteria.length} answered`} />
+                          <span className="faint">Draft: {answered} of {activeCriteria.length} answered · saved {draft.savedAt}</span>
+                        </>
+                      ) : null}
+                      <div className="row">
+                        {!hasSubmittedEvaluation && (isPastObservationDeadline ? (
+                          <Badge tone="bad"><Icon name="lock" size={13} /> Deadline passed</Badge>
                         ) : (
-                          <>
-                            <p style={{fontSize: '0.9rem', color: '#64748b', marginBottom: '10px'}}>You and your observer both confirmed the observation. Please proceed to the final survey.</p>
-                            <button className="btn-primary sm" onClick={() => setActiveTab('survey')}>Take Survey</button>
-                          </>
-                        )}
-                     </div>
+                          <button type="button" className="btn btn-primary" onClick={() => openEvaluation(o)}>{draft ? 'Continue evaluation' : 'Begin evaluation'}</button>
+                        ))}
+                        <button
+                          type="button"
+                          className={hasSubmittedEvaluation ? 'btn btn-primary' : 'btn btn-secondary'}
+                          disabled={!canComplete}
+                          title={isPastObservationDeadline ? 'Observation deadline has passed' : hasSubmittedEvaluation ? '' : 'Submit the evaluation form first'}
+                          onClick={() => confirmObservation(o.id, 'observer')}
+                        >Mark completed</button>
+                        <button type="button" className="btn btn-text" onClick={() => reportMissedObservation(o.id)}>Did not happen</button>
+                      </div>
+                      {!hasSubmittedEvaluation && !isPastObservationDeadline && <span className="faint">Submit the evaluation form before marking it completed.</span>}
+                    </>
                   )}
-                </div>
-              ) : (
-                <>
-                  <div className="bento-card full-span">
-                    <h3>Step 2: Request Observers</h3>
-                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : 
-                      !isPastSignupDeadline ? (
-                        <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
-                          <h4 style={{ color: '#0f172a', marginBottom: '5px' }}>List Hidden</h4>
-                          <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '500' }}>
-                            Potential observers will show up once the Signup Deadline ({globalDeadlines?.signup || 'TBD'}) passes.
-                          </p>
-                        </div>
-                      ) : !mySignup.listReleased ? (
-                        <div style={{ textAlign: 'center', padding: '40px', background: '#fffbeb', borderRadius: '12px', border: '1px dashed #fde68a' }}>
-                          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🔒</div>
-                          <h4 style={{ color: '#b45309', marginBottom: '5px' }}>Pending Committee Approval</h4>
-                          <p style={{ color: '#92400e', fontSize: '1rem', fontWeight: '500' }}>
-                            Waiting for the Assessment Committee to review and release your list of potential observers. You will be notified.
-                          </p>
-                        </div>
-                      ) : (
-                      <div className="modern-table-wrapper">
-                        <table className="data-table">
-                          <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
-                          <tbody>
-                            {mySignup.eligibleObservers?.length === 0 ? (
-                              <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No eligible observers found.</td></tr>
-                            ) : (
-                              (mySignup.eligibleObservers || []).map(observer => {
-                                const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
-                                return (
-                                  <tr key={observer.professor_id}>
-                                    <td><strong>{observer.name}</strong></td>
-                                    <td>{hasRequested ? <span className="badge badge-warning">Request Sent</span> : <button className="btn-secondary btn-3d sm" onClick={() => handleSendRequest(observer)}>Send Request</button>}</td>
-                                  </tr>
-                                );
-                              })
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
+                </section>
+              );
+            })}
+          </div>
 
-                  <div className="bento-card full-span">
-                    <h3>Step 3: Track & Confirm</h3>
-                    <div className="modern-table-wrapper">
-                      <table className="data-table">
-                        <thead><tr><th>Observer</th><th>Status</th><th>Final Action</th></tr></thead>
-                        <tbody>
-                          {mySentRequests.length === 0 ? <tr><td colSpan="3" style={{textAlign: 'center'}}>No requests sent yet.</td></tr> : (
-                            mySentRequests.map(req => (
-                              <tr key={req.id}>
-                                <td><strong>{req.observerName}</strong></td>
-                                <td>
-                                  {req.status === 'Pending' && <span className="badge badge-warning">Pending</span>}
-                                  {req.status === 'Accepted' && <span className="badge badge-success">Accepted</span>}
-                                  {req.status === 'Declined' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>Declined</span>}
-                                  {req.status === 'Cancelled' && <span>Cancelled</span>}
-                                </td>
-                                <td>
-                                  {req.status === 'Accepted' && <button className="btn-primary sm" onClick={() => handleFinalConfirm(req)}>Confirm Final Match</button>}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+          {pendingDuties.length === 0 && myAssignedObservations.length === 0 && (
+            <EmptyState icon="signups" title="No duties right now">When a colleague asks you to observe them, the request shows up here.</EmptyState>
           )}
 
-          {activeTab === 'observer-duties' && (
-            <div className="bento-grid">
-              <div className="bento-card full-span">
-                <h3>Incoming Observation Requests</h3>
-                <div className="modern-table-wrapper">
-                  <table className="data-table">
-                    <thead><tr><th>Requesting Professor</th><th>Course to Observe</th><th>Status/Action</th></tr></thead>
-                    <tbody>
-                      {myIncomingDuties.filter(r => r.status === 'Pending').length === 0 ? (
-                        <tr><td colSpan="3" style={{textAlign: 'center'}}>No pending duties.</td></tr>
-                      ) : (
-                        myIncomingDuties.filter(r => r.status === 'Pending').map(req => (
-                          <tr key={req.id}>
-                            <td><strong>{req.observeeName}</strong></td>
-                            <td>{req.courseCode} ({req.timing})</td>
-                            <td>
-                              <div style={{display: 'flex', gap: '10px'}}>
-                                <button className="btn-success btn-3d sm" onClick={() => handleObserverAction(req.id, 'Accepted')}>Accept</button>
-                                <button className="btn-danger btn-3d sm" onClick={() => handleObserverAction(req.id, 'Declined')}>Decline</button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+          {pastDuties.length > 0 && (
+            <Card title="Past requests">
+              {pastDuties.map(req => (
+                <div className="list-row" key={req.id}>
+                  <span className="grow">{req.observeeName} <span className="mono faint">{req.courseCode}</span></span>
+                  <Badge tone={REQ_TONE[req.status]}>{req.status}</Badge>
                 </div>
-              </div>
-
-              <div className="bento-card full-span">
-                <h3>My Confirmed Observation Appointments</h3>
-                <div className="modern-table-wrapper">
-                  <table className="data-table">
-                    <thead><tr><th className="nowrap">Observee</th><th>Course</th><th>Time</th><th>Status & Action</th></tr></thead>
-                    <tbody>
-                      {myAssignedObservations.length === 0 ? (
-                        <tr><td colSpan="4" style={{textAlign: 'center'}}>No confirmed duties.</td></tr>
-                      ) : (
-                        myAssignedObservations.map(obs => {
-                          // VALIDATION: "Evaluation Completed" is locked until the evaluation form is submitted
-                          const hasSubmittedEvaluation = (globalEvaluations || []).some(e => e.observationId === obs.id);
-                          return (
-                          <tr key={obs.id}>
-                            <td className="nowrap"><strong>{obs.observeeName}</strong></td>
-                            <td style={{ whiteSpace: 'nowrap' }}>{obs.courseCode}</td>
-                            <td>
-                              <div style={{ whiteSpace: 'nowrap' }}>{obs.timing}</div>
-                              {obs.scheduledDate && (
-                                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px', whiteSpace: 'nowrap' }}>
-                                  🗓️ {formatDate(obs.scheduledDate)}{obs.scheduledTime ? ` at ${obs.scheduledTime}` : ''}
-                                </div>
-                              )}
-                            </td>
-                            <td>
-                              {obs.status === 'Missed' ? (
-                                <span className="badge badge-error">Missed</span>
-                              ) : obs.status === 'Completed' ? (
-                                <span className="badge badge-success">Completed</span>
-                              ) : obs.observerConfirmed ? (
-                                <span className="badge badge-warning">Awaiting observee confirmation</span>
-                              ) : (
-                                <div>
-                                {/* Buttons stay on one row; the hint goes on its own single line underneath */}
-                                <div style={{display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap'}}>
-                                  {hasSubmittedEvaluation ? (
-                                    <span className="badge badge-success">✓ Evaluation Submitted</span>
-                                  ) : isPastObservationDeadline ? (
-                                    <span className="badge badge-error" style={{ padding: '8px', fontSize: '0.85rem' }}>🔒 Deadline Passed</span>
-                                  ) : (
-                                    <button 
-                                      className="btn-secondary sm" 
-                                      style={{background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}} 
-                                      onClick={() => openEvaluation(obs)}
-                                    >
-                                      {evaluationDrafts?.[obs.id] ? '📝 Continue Evaluation' : '📝 Begin Evaluation'}
-                                    </button>
-                                  )}
-                                  
-                                  <button
-                                    className="btn-primary sm"
-                                    disabled={!hasSubmittedEvaluation || isPastObservationDeadline}
-                                    title={isPastObservationDeadline ? 'Observation deadline has passed' : hasSubmittedEvaluation ? '' : 'Submit the evaluation form (Begin Evaluation) first'}
-                                    style={{padding: '5px 10px', borderRadius: '4px', opacity: (hasSubmittedEvaluation && !isPastObservationDeadline) ? 1 : 0.5, cursor: (hasSubmittedEvaluation && !isPastObservationDeadline) ? 'pointer' : 'not-allowed'}}
-                                    onClick={async () => {
-                                      if (!(await confirmObservation(obs.id, 'observer'))) return;
-                                      alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
-                                    }}
-                                  >Evaluation Completed</button>
-
-                                  <button className="btn-danger sm" style={{background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px'}} onClick={() => reportMissedObservation(obs.id)}>Did Not Happen</button>
-                                </div>
-
-                                  {!hasSubmittedEvaluation && !isPastObservationDeadline && (
-                                    <small style={{ display: 'block', marginTop: '8px', whiteSpace: 'nowrap', color: '#64748b', fontSize: '0.8rem' }}>
-                                      {evaluationDrafts?.[obs.id] ? `Draft saved ${evaluationDrafts[obs.id].savedAt}. ` : ''}Complete the evaluation form before marking it completed.
-                                    </small>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-          {activeTab === 'live-evaluation' && activeEvaluationTarget && (
-            <div className="bento-grid">
-              <div className="bento-card full-span">
-                <div className="card-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.4rem', color: 'var(--utd-green)' }}>Live Observation: {activeEvaluationTarget.observeeName}</h3>
-                    <p className="subtitle" style={{ marginTop: '5px' }}>Evaluating {activeEvaluationTarget.courseCode} ({activeEvaluationTarget.timing})</p>
-                    {evaluationDrafts?.[activeEvaluationTarget.id] && (
-                      <small style={{ color: '#64748b' }}>Last saved: {evaluationDrafts[activeEvaluationTarget.id].savedAt}</small>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="button" className="btn-secondary sm" onClick={handleCancelEvaluation}>Cancel & Return</button>
-                    <button type="button" className="btn-success sm" onClick={handleSaveDraft}>💾 Save & Return</button>
-                  </div>
-                </div>
-
-                <form className="modern-form" onSubmit={async (e) => {
-                  e.preventDefault();
-                  const activeItems = (evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester);
-                  // PATCH .../form { ratings, items, submit: true }: the server keeps a snapshot of the criteria
-                  // (so later template edits don't alter this form), clears the draft and notifies both people
-                  const ok = await run(() => api.form(activeEvaluationTarget.id, {
-                    ratings: evalAnswers,
-                    items: activeItems.map(({ id, criteria, ratingScale }) => ({ id, criteria, ratingScale })),
-                    submit: true,
-                  }), "Digital evaluation successfully recorded and sent to the Committee!");
-                  if (ok) { await refresh(); closeEvaluation(); }
-                }}>
-                  {(evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester).map((item, index) => (
-                    <div key={item.id} style={{ marginBottom: '30px', paddingBottom: '25px', borderBottom: '1px solid #f1f5f9' }}>
-                      <label style={{ fontSize: '1.1rem', marginBottom: '15px', display: 'block', color: '#0f172a' }}>
-                        <strong>{index + 1}.</strong> {item.criteria}
-                      </label>
-                      
-                      <div style={{ marginBottom: '15px', paddingLeft: '20px' }}>
-                        {getRatingLegend(item.ratingScale) && (
-                          <p className="rating-legend">{getRatingLegend(item.ratingScale)}</p>
-                        )}
-                        {item.ratingScale.includes('1 to 5') && (
-                          <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
-                            {[1, 2, 3, 4, 5].map(num => (
-                              <label key={num} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
-                                <input type="radio" name={`rating-${item.id}`} value={num} required checked={evalAnswers[item.id]?.rating === String(num)} onChange={(e) => updateEvalAnswer(item.id, 'rating', e.target.value)} style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {num}
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {item.ratingScale.includes('Yes / No') && (
-                          <div className="radio-group" style={{ display: 'flex', gap: '20px' }}>
-                            {['Yes', 'No', 'N/A'].map(opt => (
-                              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
-                                <input type="radio" name={`rating-${item.id}`} value={opt} required checked={evalAnswers[item.id]?.rating === opt} onChange={(e) => updateEvalAnswer(item.id, 'rating', e.target.value)} style={{ width: '18px', height: '18px', accentColor: 'var(--utd-green)' }} /> {opt}
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div style={{ paddingLeft: '20px' }}>
-                        <textarea placeholder="Observer notes and feedback..." rows="3" required value={evalAnswers[item.id]?.notes || ''} onChange={(e) => updateEvalAnswer(item.id, 'notes', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}></textarea>
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
-                    <button type="submit" className="btn-primary btn-3d" style={{ padding: '12px 30px', fontSize: '1.1rem' }}>Submit Digital Evaluation</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'my-evaluations' && (
-            <div className="bento-grid">
-              {viewingEvaluation ? (
-                <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} />
-              ) : (
-                <>
-                  <div className="bento-card full-span">
-                    <h3>Evaluations I Submitted (as Observer)</h3>
-                    <div className="modern-table-wrapper">
-                      <table className="data-table nowrap-table">
-                        <thead><tr><th>Date Submitted</th><th>Observee</th><th>Course</th><th>Action</th></tr></thead>
-                        <tbody>
-                          {mySubmittedEvaluations.length === 0 ? (
-                            <tr><td colSpan="4" style={{ textAlign: 'center' }}>You haven't submitted any evaluations yet.</td></tr>
-                          ) : mySubmittedEvaluations.slice().reverse().map(ev => (
-                            <tr key={ev.id}>
-                              <td>{formatDate(ev.dateSubmitted)}</td>
-                              <td><strong>{ev.observeeName}</strong></td>
-                              <td>{ev.courseCode}</td>
-                              <td><button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="bento-card full-span">
-                    <h3>Evaluations of My Teaching (as Observee)</h3>
-                    <div className="modern-table-wrapper">
-                      <table className="data-table nowrap-table">
-                        <thead><tr><th>Date Submitted</th><th>Observer</th><th>Course</th><th>Action</th></tr></thead>
-                        <tbody>
-                          {evaluationsOfMe.length === 0 ? (
-                            <tr><td colSpan="4" style={{ textAlign: 'center' }}>No evaluations have been submitted for you yet.</td></tr>
-                          ) : evaluationsOfMe.slice().reverse().map(ev => (
-                            <tr key={ev.id}>
-                              <td>{formatDate(ev.dateSubmitted)}</td>
-                              <td><strong>{ev.observerName}</strong></td>
-                              <td>{ev.courseCode}</td>
-                              <td><button type="button" className="btn-secondary sm" onClick={() => setViewingEvaluation(ev)}>View Form</button></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <div className="bento-grid">
-              <div className="bento-card full-span">
-                <div className="card-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0 }}>My Notifications</h3>
-                    <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px' }}>
-                      <button className="btn-secondary sm" style={{ border: 'none', background: notifTab === 'inbox' ? 'white' : 'transparent', boxShadow: notifTab === 'inbox' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: notifTab === 'inbox' ? '#0f172a' : '#64748b' }} onClick={() => setNotifTab('inbox')}>Inbox ({unreadCount})</button>
-                      <button className="btn-secondary sm" style={{ border: 'none', background: notifTab === 'archive' ? 'white' : 'transparent', boxShadow: notifTab === 'archive' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: notifTab === 'archive' ? '#0f172a' : '#64748b' }} onClick={() => setNotifTab('archive')}>Archive</button>
-                    </div>
-                  </div>
-                  {unreadCount > 0 && notifTab === 'inbox' && (
-                    <button className="btn-secondary sm" onClick={async () => {
-                      await run(() => Promise.all(myNotifications.filter(n => !n.read && !String(n.id).startsWith('sys-')).map(n => api.archive(n.id))));
-                      await refresh();
-                    }}>Move All to Archive</button>
-                  )}
-                </div>
-                
-                {myNotifications.filter(n => notifTab === 'inbox' ? !n.read : n.read).length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '10px' }}>📭</div>
-                    <p style={{ color: '#64748b' }}>{notifTab === 'inbox' ? "You're all caught up!" : "No archived notifications."}</p>
-                  </div>
-                ) : (
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {myNotifications.filter(n => notifTab === 'inbox' ? !n.read : n.read).slice().reverse().map(notif => (
-                      <li key={notif.id} style={{ padding: '16px 20px', marginBottom: '10px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
-                        <div style={{ fontSize: '1.5rem' }}>{notifTab === 'inbox' ? '📬' : '🗄️'}</div>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ margin: 0, color: '#0f172a', fontWeight: notifTab === 'inbox' ? '700' : '500' }}>{notif.message}</p>
-                          <small style={{ color: '#64748b', marginTop: '5px', display: 'block' }}>{notif.timestamp}</small>
-                        </div>
-                        {notifTab === 'inbox' && (
-                          !String(notif.id).startsWith('sys-') && <button className="btn-secondary sm" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={async () => {
-                            await run(() => api.archive(notif.id));
-                            await refresh();
-                          }}>Archive</button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={surveyDeadlineLabel} />
+              ))}
+            </Card>
           )}
         </div>
-      </div>
-    </div>
+      )}
+
+      {/* ---------- LIVE EVALUATION ---------- */}
+      {activeTab === 'live-evaluation' && activeEvaluationTarget && (
+        <form className="stack max-920" onSubmit={async (e) => {
+          e.preventDefault();
+          // PATCH .../form { ratings, items, submit: true }: the server keeps a snapshot of the criteria
+          // (so later template edits don't alter this form), clears the draft and notifies both people
+          const ok = await run(() => api.form(activeEvaluationTarget.id, {
+            ratings: evalAnswers,
+            items: activeCriteria.map(({ id, criteria, ratingScale }) => ({ id, criteria, ratingScale })),
+            submit: true,
+          }), 'Evaluation submitted and sent to the committee.');
+          if (ok) { await refresh(); closeEvaluation(); }
+        }}>
+          <div className="card row-between">
+            <span className="muted">
+              <span className="mono text-warn">{answeredCount}/{activeCriteria.length}</span> answered
+              {evaluationDrafts?.[activeEvaluationTarget.id] && ` · last saved ${evaluationDrafts[activeEvaluationTarget.id].savedAt}`}
+            </span>
+            <div className="row">
+              <button type="button" className="btn btn-ghost" onClick={handleCancelEvaluation}>Cancel</button>
+              <button type="button" className="btn btn-accent" onClick={handleSaveDraft}>Save and return</button>
+            </div>
+          </div>
+
+          {activeCriteria.map((item, index) => {
+            const isScore = item.ratingScale.includes('1 to 5');
+            const isYesNo = item.ratingScale.includes('Yes / No');
+            const options = isScore ? ['1', '2', '3', '4', '5'] : isYesNo ? ['Yes', 'No', 'N/A'] : [];
+            return (
+              <fieldset key={item.id} className="criterion-fieldset">
+                <legend><span className="mono text-good">{String(index + 1).padStart(2, '0')}</span> {item.criteria}</legend>
+                {getRatingLegend(item.ratingScale) && <span className="legend-text">{getRatingLegend(item.ratingScale)}</span>}
+                {options.length > 0 && (
+                  <div className="choice-group">
+                    {options.map(opt => (
+                      <label key={opt} className={`choice${evalAnswers[item.id]?.rating === opt ? ' selected' : ''}`}>
+                        <input type="radio" name={`rating-${item.id}`} value={opt} required checked={evalAnswers[item.id]?.rating === opt} onChange={(e) => updateEvalAnswer(item.id, 'rating', e.target.value)} />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <textarea className="textarea" aria-label={`Notes for criterion ${index + 1}`} placeholder="Observer notes and feedback" rows="3" required value={evalAnswers[item.id]?.notes || ''} onChange={(e) => updateEvalAnswer(item.id, 'notes', e.target.value)} />
+              </fieldset>
+            );
+          })}
+          <div><button type="submit" className="btn btn-primary btn-lg">Submit evaluation</button></div>
+        </form>
+      )}
+
+      {/* ---------- MY EVALUATIONS ---------- */}
+      {activeTab === 'my-evaluations' && (
+        viewingEvaluation ? (
+          <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} backLabel="My evaluations" />
+        ) : (
+          <div className="grid grid-340">
+            <Card title="About my teaching" sub="Evaluations submitted for you as observee">
+              {evaluationsOfMe.length === 0 ? <EmptyState icon="form" title="None yet">Forms about your teaching appear here once your observer submits them.</EmptyState>
+                : evaluationsOfMe.slice().reverse().map(ev => (
+                  <div className="list-row" key={ev.id}>
+                    <span className="grow"><span className="list-title"><span className="mono">{ev.courseCode}</span> · {ev.term}</span><span className="list-sub">Observed by {ev.observerName} · {formatDate(ev.dateSubmitted)}</span></span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setViewingEvaluation(ev)}>Open form</button>
+                  </div>
+                ))}
+            </Card>
+            <Card title="Submitted as observer" sub="Evaluations you wrote">
+              {mySubmittedEvaluations.length === 0 ? <EmptyState icon="form" title="Nothing submitted yet">Evaluations you submit as an observer appear here.</EmptyState>
+                : mySubmittedEvaluations.slice().reverse().map(ev => (
+                  <div className="list-row" key={ev.id}>
+                    <span className="grow"><span className="list-title">{ev.observeeName}</span><span className="list-sub"><span className="mono">{ev.courseCode}</span> · {formatDate(ev.dateSubmitted)}</span></span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setViewingEvaluation(ev)}>Open form</button>
+                  </div>
+                ))}
+            </Card>
+          </div>
+        )
+      )}
+
+      {/* ---------- NOTIFICATIONS ---------- */}
+      {activeTab === 'notifications' && (
+        <div className="stack max-880">
+          <div className="row">
+            <div className="segmented" role="tablist" aria-label="Notification folders">
+              <button type="button" role="tab" aria-selected={notifTab === 'inbox'} className={notifTab === 'inbox' ? 'active' : ''} onClick={() => setNotifTab('inbox')}>Inbox {unreadCount}</button>
+              <button type="button" role="tab" aria-selected={notifTab === 'archive'} className={notifTab === 'archive' ? 'active' : ''} onClick={() => setNotifTab('archive')}>Archive</button>
+            </div>
+            {unreadCount > 0 && notifTab === 'inbox' && (
+              <button type="button" className="btn btn-ghost btn-sm push-right" onClick={async () => {
+                await run(() => Promise.all(myNotifications.filter(n => !n.read && !String(n.id).startsWith('sys-')).map(n => api.archive(n.id))), 'All notifications archived.');
+                await refresh();
+              }}><Icon name="archive" size={15} /> Archive all</button>
+            )}
+          </div>
+
+          {(notifTab === 'inbox' ? inbox : archived).length === 0 ? (
+            <EmptyState icon="inbox" title={notifTab === 'inbox' ? "You're all caught up" : 'No archived notifications'} />
+          ) : notifTab === 'inbox' ? inbox.map(notif => (
+            <article key={notif.id} className="notif">
+              <span className="notif-dot" />
+              <span>
+                <span className="notif-time">{notif.timestamp}</span>
+                <span className="notif-msg">{notif.message}</span>
+              </span>
+              {!String(notif.id).startsWith('sys-') && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { await run(() => api.archive(notif.id)); await refresh(); }}>Archive</button>
+              )}
+            </article>
+          )) : archived.map(notif => (
+            <article key={notif.id} className="notif read">
+              <span><span className="notif-time">{notif.timestamp}</span> {notif.message}</span>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'survey' && (
+        <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={surveyDeadlineLabel} />
+      )}
+    </AppShell>
   );
 }

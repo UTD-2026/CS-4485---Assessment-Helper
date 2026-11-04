@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client.js';
+import Icon from './Icon.jsx';
+import { Badge } from './ui.jsx';
 
 /**
  * Login page "Need more test accounts?" list: every professor in the database with their
@@ -35,49 +37,49 @@ export default function TestAccountsDialog({ onClose, onPick }) {
   const committeeCount = (accounts || []).filter((a) => a.role === 'Committee').length;
 
   return (
-    <div className="test-accounts-overlay" onClick={onClose}>
-      <div className="test-accounts-dialog" role="dialog" aria-modal="true" aria-labelledby="test-accounts-title" onClick={(e) => e.stopPropagation()}>
-        <div className="test-accounts-head">
+    <div className="dialog-overlay" onClick={onClose}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="test-accounts-title" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-head">
           <div>
-            <h3 id="test-accounts-title">Test accounts</h3>
-            <p>
+            <h2 id="test-accounts-title" className="card-title">Test accounts</h2>
+            <p className="card-sub">
               {accounts ? `${accounts.length} accounts · ${committeeCount} committee · ${accounts.length - committeeCount} professors · ` : ''}
-              Password for all: <strong>Password123!</strong>
+              Password for all: <span className="mono">Password123!</span>
             </p>
           </div>
-          <button type="button" className="test-accounts-close" onClick={onClose} aria-label="Close">×</button>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close"><Icon name="x" /></button>
         </div>
 
-        <div className="test-accounts-filters">
-          <input ref={searchRef} type="search" placeholder="Search by username, name, or department…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search accounts" />
-          <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Filter by role">
+        <div className="dialog-filters">
+          <input ref={searchRef} className="input" type="search" placeholder="Search by username, name or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search accounts" />
+          <select className="select" value={role} onChange={(e) => setRole(e.target.value)} aria-label="Filter by role">
             <option value="all">All roles</option>
             <option value="Committee">Committee</option>
             <option value="Professor">Professor</option>
           </select>
         </div>
 
-        <div className="test-accounts-list">
-          {error ? <p className="test-accounts-msg error">Could not load accounts: {error}</p>
-            : !accounts ? <p className="test-accounts-msg">Loading accounts…</p>
+        <div className="dialog-body">
+          {error ? <p className="empty-cell text-bad">Could not load accounts: {error}</p>
+            : !accounts ? <p className="empty-cell muted">Loading accounts…</p>
             : (
-              <table>
+              <table className="data-table">
                 <thead><tr><th>Username</th><th>Name</th><th>Dept</th><th>Role</th></tr></thead>
                 <tbody>
-                  {shown.length === 0 && <tr><td colSpan="4" className="test-accounts-msg">No accounts match.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan="4" className="empty-cell">No accounts match.</td></tr>}
                   {shown.map((a) => (
                     <tr key={a.netid}>
-                      <td><button type="button" className="test-accounts-pick" onClick={() => onPick(a.netid)} title="Use this username">{a.netid}</button></td>
-                      <td>{a.name}</td>
+                      <td><button type="button" className="btn-link mono" onClick={() => onPick(a.netid)} title="Use this username">{a.netid}</button></td>
+                      <td className="strong">{a.name}</td>
                       <td>{a.department}</td>
-                      <td><span className={`badge ${a.role === 'Committee' ? 'badge-warning' : 'badge-neutral'}`}>{a.role}</span></td>
+                      <td><Badge tone={a.role === 'Committee' ? 'warn' : 'neutral'}>{a.role}</Badge></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
         </div>
-        <p className="test-accounts-foot">Click a username to fill it in.</p>
+        <p className="dialog-foot">Click a username to fill it in.</p>
       </div>
     </div>
   );

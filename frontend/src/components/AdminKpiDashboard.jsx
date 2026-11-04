@@ -1,219 +1,201 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { computeAllKpis, VIOLATION_TYPES, TARGET_LIST_SIZE } from '../utils/kpis.js';
 import { isSurveyClosed, formatSurveyDeadline } from '../utils/deadlines.js';
+import { Badge, Card, Meter } from './ui.jsx';
+import { plural } from '../utils/format.js';
 
 /**
- * Committee KPI dashboard: implements the 4 KPI groups from the project spec.
+ * Committee "Live metrics": the 4 KPI groups from the project spec.
  *
- * Props: global app state (signups, requests, observations, surveySubmissions, deadlines).
+ * Props: global app state (signups, requests, observations, surveySubmissions, deadlines, professors, courses)
+ * and onNavigate(tab, filters) so cards can jump to the matching list.
  * surveySubmissions only carries WHO submitted (never answers), so survey anonymity is preserved.
  */
 
 const toneFor = (rate, good = 80, ok = 50) => (rate == null ? 'neutral' : rate >= good ? 'good' : rate >= ok ? 'warn' : 'bad');
+const pct = (n) => `${n}%`;
 
-function RateBar({ rate, tone }) {
+function KpiCard({ id, label, value, tone, meter, sub, formula, children }) {
   return (
-    <div className="kpi-bar" aria-hidden="true">
-      <div className={`kpi-bar-fill tone-${tone}`} style={{ width: `${Math.min(rate ?? 0, 100)}%` }} />
-    </div>
-  );
-}
-
-function Metric({ id, title, value, formula, detail, tone = 'neutral', rate, children }) {
-  return (
-    <div className={`kpi-metric tone-border-${tone}`}>
-      <div className="kpi-metric-head">
-        <span className="kpi-id">{id}</span>
-        <h4>{title}</h4>
+    <div className="card kpi-card">
+      <div className="row-between">
+        <span className="kpi-label">{label}</span>
+        <Badge tone={tone}>{id}</Badge>
       </div>
-      <div className={`kpi-value tone-text-${tone}`}>{value}</div>
-      {rate !== undefined && <RateBar rate={rate} tone={tone} />}
-      {detail && <p className="kpi-detail">{detail}</p>}
-      <p className="kpi-formula">{formula}</p>
+      <div className={`kpi-value text-${tone}`}>{value}</div>
+      {meter !== undefined && <Meter value={meter} tone={tone} label={`${label}: ${value}`} />}
+      <div className="kpi-sub">{sub}</div>
       {children}
+      {formula && <div className="formula">{formula}</div>}
     </div>
   );
 }
 
-function KpiGroup({ number, title, children }) {
+function KpiCompact({ id, label, value, tone, sub, formula, children }) {
   return (
-    <section className="kpi-group">
-      <h3 className="kpi-group-title"><span>{number}</span>{title}</h3>
-      <div className="kpi-group-grid">{children}</div>
-    </section>
+    <div className="card kpi-compact">
+      <div className={`kpi-value kpi-value-sm text-${tone}`}>{value}</div>
+      <div className="stack-sm">
+        <div><strong>{label}</strong> <span className="faint mono">{id}</span></div>
+        <div className="kpi-sub">{sub}</div>
+        {children}
+        {formula && <div className="formula">{formula}</div>}
+      </div>
+    </div>
   );
 }
 
-const Empty = ({ children }) => <p className="kpi-empty">{children}</p>;
-
-export default function AdminKpiDashboard({ signups, requests, observations, surveySubmissions, deadlines, professors, courses }) {
+export default function AdminKpiDashboard({ signups, requests, observations, surveySubmissions, deadlines, professors, courses, onNavigate }) {
   const k = useMemo(
     () => computeAllKpis({ signups, requests, observations, surveySubmissions, deadlines, professors, courses }),
     [signups, requests, observations, surveySubmissions, deadlines, professors, courses]
   );
   const { eligibility, overdue, participation, utilization, sufficiency, missing, survey } = k;
-  // The Survey KPI is only generated/shown once the survey (feedback) deadline has passed
+  const [showIncorrect, setShowIncorrect] = useState(false);
+
+  // The survey KPI is only generated once the survey (feedback) deadline has passed
   const surveyKpiReady = isSurveyClosed(deadlines?.survey, deadlines?.surveyTime);
+  const surveyDeadline = deadlines?.survey ? formatSurveyDeadline(deadlines.survey, deadlines.surveyTime) : '';
+  // Before the survey closes, the funnel stops at "was observed" so survey progress stays hidden
+  const funnel = surveyKpiReady ? survey.funnel : survey.funnel.filter((s) => s.key !== 'surveyed');
+  const eligibilityTone = eligibility.rate == null ? 'neutral' : eligibility.incorrect.length ? 'bad' : 'good';
+  const overdueShown = overdue.overdue.slice(0, 6);
 
   return (
-    <div className="kpi-dashboard">
-      {/* ---------- 1. FACULTY EVALUATION ---------- */}
-      <KpiGroup number="1" title="Faculty Evaluation KPI">
-        <Metric
-          id="1a"
-          title="Evaluation Eligibility Accuracy"
-          value={eligibility.rate == null ? '0' : `${eligibility.rate}%`}
-          rate={eligibility.rate ?? 0}
-          tone={eligibility.rate == null ? 'neutral' : eligibility.incorrect.length ? 'bad' : 'good'}
-          detail={eligibility.total
-            ? `${eligibility.correct} of ${eligibility.total} observer pairings pass every rule · ${eligibility.incorrect.length} incorrect occurrence(s)`
-            : 'No observer pairings to audit yet.'}
-          formula="Correct pairings ÷ all audited pairings (recommended + confirmed observers)"
-        >
-          <table className="kpi-mini-table">
-            <thead><tr><th>Incorrect occurrence</th><th>Count</th></tr></thead>
-            <tbody>
-              {Object.entries(VIOLATION_TYPES).map(([key, v]) => (
-                <tr key={key}>
-                  <td>({v.code}) {v.label}</td>
-                  <td><span className={`badge ${eligibility.byType[key] ? 'badge-error' : 'badge-success'}`}>{eligibility.byType[key]}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {eligibility.incorrect.length > 0 && (
-            <ul className="kpi-list">
-              {eligibility.incorrect.map((a, i) => (
-                <li key={i}>
-                  <strong>{a.observerName}</strong> → {a.observeeName} ({a.courseCode}, {a.timing}) · {a.source}:{' '}
-                  {a.violations.map(v => `(${VIOLATION_TYPES[v].code})`).join(' ')}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Metric>
-
-        <Metric
-          id="1b"
-          title="Overdue Evaluation Count"
+    <div className="stack">
+      {/* 1-2: the four headline KPIs */}
+      <section className="grid grid-230" aria-label="Headline KPIs">
+        <KpiCard
+          id="1a" label="Eligibility accuracy" tone={eligibilityTone}
+          value={eligibility.rate == null ? '—' : pct(eligibility.rate)} meter={eligibility.rate ?? 0}
+          sub={eligibility.total ? `${eligibility.correct} of ${eligibility.total} pairings pass every rule` : 'No observer pairings to audit yet'}
+          formula="Correct pairings ÷ audited pairings (recommended + confirmed)"
+        />
+        <KpiCard
+          id="1b" label="Overdue evaluations" tone={overdue.count === 0 ? 'good' : overdue.notSignedUp ? 'bad' : 'warn'}
           value={overdue.count}
-          tone={overdue.count === 0 ? 'good' : overdue.notSignedUp ? 'bad' : 'warn'}
-          detail={`${overdue.count} overdue · ${overdue.notSignedUp} of them not signed up yet`}
-          formula="Evaluation Cycle: Assistant: due throughout the following calendar year. Associate/Full: due in the same semester two years later; overdue after that semester."
-        >
-          {overdue.overdue.length === 0 ? <Empty>No overdue faculty.</Empty> : (
-            <div className="kpi-table-scroll">
-              <table className="kpi-mini-table">
-                <thead><tr><th className="nowrap">Professor</th><th className="nowrap">Last eval</th><th>Overdue</th><th className="nowrap">Signed up</th></tr></thead>
-                <tbody>
-                  {overdue.overdue.map(f => (
-                    <tr key={f.professor_id}>
-                      <td className="nowrap">{f.name}</td>
-                      <td className="nowrap">{f.last_evaluation || 'Never'}</td>
-                      <td><span className="badge badge-error">{f.overdue_by} sem</span></td>
-                      <td>{f.signedUp ? <span className="badge badge-success">Yes</span> : <span className="badge badge-warning">No</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Metric>
-      </KpiGroup>
-
-      {/* ---------- 2. ASSESSMENT PARTICIPATION ---------- */}
-      <KpiGroup number="2" title="Assessment Participation KPI">
-        <Metric
-          id="2a"
-          title="Assessment Participation Rate"
-          value={`${participation.rate}%`}
-          rate={participation.rate}
-          tone={toneFor(participation.rate)}
-          detail={`${participation.numerator} signed up of ${participation.denominator} due`}
-          formula="# of Profs who signed up this cycle ÷ # of Profs who were due"
+          sub={overdue.count ? `${overdue.notSignedUp} of them have not signed up` : 'Nobody is overdue'}
+          formula="Assistant: due through the next calendar year · Associate/Full: same semester two years later"
         />
-        <Metric
-          id="2b"
-          title="Observer Utilization Rate"
-          value={`${utilization.rate}%`}
-          rate={utilization.rate}
-          tone={toneFor(utilization.rate)}
-          detail={`${utilization.numerator} observer(s) for ${utilization.denominator} sign-up(s)${utilization.observers.length ? ': ' + utilization.observers.map(o => o.name).join(', ') : ''}`}
-          formula="# of Profs who took on the Observer role ÷ # of Profs who signed up"
+        <KpiCard
+          id="2a" label="Participation rate" tone={toneFor(participation.rate)}
+          value={pct(participation.rate)} meter={participation.rate}
+          sub={`${participation.numerator} of ${participation.denominator} due faculty signed up`}
+          formula="Signed up this cycle ÷ due this cycle"
         />
-      </KpiGroup>
+        <KpiCard
+          id="2b" label="Observer utilization" tone={toneFor(utilization.rate)}
+          value={pct(utilization.rate)} meter={utilization.rate}
+          sub={`${plural(utilization.numerator, 'observer')} for ${plural(utilization.denominator, 'sign-up')}`}
+          formula="Professors who took on the observer role ÷ sign-ups"
+        />
+      </section>
 
-      {/* ---------- 3. RECOMMENDATION ENGINE ---------- */}
-      <KpiGroup number="3" title="Recommendation Engine KPI">
-        <Metric
-          id="3a"
-          title="List Sufficiency Rate"
-          value={<>{sufficiency.average.toFixed(1)}<small className="kpi-unit"> avg observers / sign-up</small></>}
-          rate={sufficiency.rateOfTarget}
-          tone={sufficiency.signups ? toneFor(sufficiency.rateOfTarget) : 'neutral'}
-          detail={`${sufficiency.totalMatches} total matches across ${sufficiency.signups} sign-up(s) · ${sufficiency.rateOfTarget}% of the ${TARGET_LIST_SIZE}-observer target`}
-          formula="Total # of observer matches ÷ # of sign-ups (average list size)"
+      {/* 3-4: compact KPIs */}
+      <section className="grid grid-230 section-gap" aria-label="More KPIs">
+        <KpiCompact
+          id="3a" label="List sufficiency" tone={sufficiency.signups ? toneFor(sufficiency.rateOfTarget) : 'neutral'}
+          value={sufficiency.average.toFixed(1)}
+          sub={`Avg list size · ${sufficiency.rateOfTarget}% of the ${TARGET_LIST_SIZE}-observer target`}
         >
-          <div className="kpi-chips">
-            <span className="badge badge-success">{sufficiency.fullLists} full list</span>
-            <span className="badge badge-warning">{sufficiency.insufficient} insufficient observer{sufficiency.insufficient === 1 ? '' : 's'}</span>
-            <span className="badge badge-error">{sufficiency.none} ineligible observer{sufficiency.none === 1 ? '' : 's'}</span>
+          <div className="row">
+            <Badge tone="good">{sufficiency.fullLists} full</Badge>
+            <Badge tone="warn">{sufficiency.insufficient} insufficient</Badge>
+            <Badge tone="bad">{sufficiency.none} none eligible</Badge>
           </div>
-        </Metric>
-      </KpiGroup>
-
-      {/* ---------- 4. SURVEY & OBSERVATION COMPLETION ---------- */}
-            <KpiGroup number="4" title="Survey & Observation Completion KPI">
-        <Metric
-          id="4a"
-          title="Missing Observation Count"
+        </KpiCompact>
+        <KpiCompact
+          id="4a" label="Missing observations" tone={missing.count ? 'bad' : 'good'}
           value={missing.count}
-          tone={missing.count ? 'bad' : 'good'}
-          detail={`${missing.approved} approved · ${missing.pairConfirmed} pair-confirmed · ${missing.awaiting} awaiting confirmation${missing.deadlinePassed ? ' · observation deadline has passed' : ''}`}
-          formula="Approved appointments that did not go through: reported as not held, or not pair-confirmed (observer + observee) by the observation deadline"
-        >
-          {missing.missing.length > 0 && (
-            <ul className="kpi-list">
-              {missing.missing.map(o => (
-                <li key={o.id}><strong>{o.observeeName}</strong> ← {o.observerName} ({o.courseCode}): {o.reason}</li>
-              ))}
-            </ul>
-          )}
-        </Metric>
-
-        {!surveyKpiReady ? (
-          <Metric
-            id="4b"
-            title="Survey Completion Rate"
-            value="🔒"
-            tone="neutral"
-            detail={`Locked until the survey deadline${deadlines?.survey ? ` (${formatSurveyDeadline(deadlines.survey, deadlines.surveyTime)})` : ''} passes. This KPI is generated once the survey window closes.`}
-            formula="# of submitted surveys (full process) ÷ # of sign-ups"
+          sub={`${missing.approved} approved · ${missing.pairConfirmed} pair-confirmed · ${missing.awaiting} awaiting${missing.deadlinePassed ? ' · deadline passed' : ''}`}
+        />
+        {surveyKpiReady ? (
+          <KpiCompact
+            id="4b" label="Survey completion" tone={survey.denominator ? toneFor(survey.rate) : 'neutral'}
+            value={pct(survey.rate)}
+            sub={`${survey.numerator} of ${survey.denominator} sign-ups completed the whole process`}
           />
         ) : (
-          <Metric
-            id="4b"
-            title="Survey Completion Rate"
-            value={`${survey.rate}%`}
-            rate={survey.rate}
-            tone={survey.denominator ? toneFor(survey.rate) : 'neutral'}
-            detail={`${survey.numerator} of ${survey.denominator} sign-up(s) completed the entire process`}
-            formula="# of submitted surveys (full process) ÷ # of sign-ups. Process = Sign up AND sent request(s) AND 1 request confirmed AND was observed AND took the final survey"
-          >
-            <div className="kpi-funnel">
-              {survey.funnel.map(step => (
-                <div className="kpi-funnel-row" key={step.key}>
-                  <span className="kpi-funnel-label">{step.label}</span>
-                  <div className="kpi-funnel-track">
-                    <div className="kpi-funnel-fill" style={{ width: `${survey.denominator ? (step.count / survey.denominator) * 100 : 0}%` }} />
-                  </div>
-                  <span className="kpi-funnel-count">{step.count}</span>
+          <KpiCompact
+            id="4b" label="Survey completion" tone="neutral" value="Locked"
+            sub={`Calculated after the survey closes${surveyDeadline ? ` (${surveyDeadline})` : ''}`}
+          />
+        )}
+      </section>
+
+      <div className="grid grid-460">
+        <Card title="Process funnel" sub={surveyKpiReady ? 'Sign up → request → confirm → observed → survey' : 'Survey step appears after the survey closes'}>
+          {funnel.map((step) => (
+            <div className="bar-row" key={step.key}>
+              <span>{step.label}</span>
+              <Meter size="lg" tone="info" value={survey.denominator ? (step.count / survey.denominator) * 100 : 0} label={`${step.label}: ${step.count}`} />
+              <span>{step.count}</span>
+            </div>
+          ))}
+        </Card>
+
+        <Card
+          title="Eligibility audit"
+          sub={eligibility.incorrect.length ? `${plural(eligibility.incorrect.length, 'pairing')} break a rule` : 'Every audited pairing passes'}
+          actions={eligibility.incorrect.length > 0 && (
+            <button type="button" className="btn btn-ghost btn-sm" aria-expanded={showIncorrect} onClick={() => setShowIncorrect(!showIncorrect)}>
+              {showIncorrect ? 'Hide pairings' : 'Show pairings'}
+            </button>
+          )}
+        >
+          {Object.entries(VIOLATION_TYPES).map(([key, v]) => (
+            <div className="list-row" key={key}>
+              <span className="code-chip">{v.code}</span>
+              <span className="grow">{v.label}</span>
+              <Badge tone={eligibility.byType[key] ? 'bad' : 'good'}>{eligibility.byType[key]}</Badge>
+            </div>
+          ))}
+          {showIncorrect && (
+            <div className="inset scroll-list">
+              {eligibility.incorrect.map((a, i) => (
+                <div className="list-row" key={i}>
+                  <span className="grow">
+                    <span className="list-title">{a.observerName}</span> <span className="muted">→ {a.observeeName}</span>
+                    <span className="list-sub">{a.courseCode} · {a.timing} · {a.source}</span>
+                  </span>
+                  <span className="mono faint">{a.violations.map((v) => `(${VIOLATION_TYPES[v].code})`).join(' ')}</span>
                 </div>
               ))}
             </div>
-          </Metric>
-        )}
-      </KpiGroup>
+          )}
+        </Card>
+
+        <Card
+          title="Most overdue"
+          sub={overdue.count ? `${overdueShown.length} of ${overdue.count} shown` : undefined}
+          actions={overdue.count > 0 && onNavigate && (
+            <button type="button" className="btn btn-accent btn-sm" onClick={() => onNavigate('faculty', { status: 'Overdue' })}>All {overdue.count}</button>
+          )}
+        >
+          {overdueShown.length === 0 ? <p className="muted">No overdue faculty.</p> : overdueShown.map((f) => (
+            <div className="list-row" key={f.professor_id}>
+              <span className="grow">
+                <span className="list-title">{f.name}</span>
+                <span className="list-sub">Last evaluated {f.last_evaluation || 'never'}</span>
+              </span>
+              <span className="mono text-bad nowrap">{f.overdue_by} sem late</span>
+              <Badge tone={f.signedUp ? 'good' : 'warn'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge>
+            </div>
+          ))}
+        </Card>
+
+        <Card title="Reported not held" sub="Approved appointments that did not go through">
+          {missing.missing.length === 0 ? <p className="muted">No missing observations.</p> : missing.missing.map((o) => (
+            <div className="list-row" key={o.id}>
+              <span className="grow">
+                <span className="list-title">{o.observeeName}</span> <span className="muted">· {o.observerName}</span>
+                <span className="list-sub">{o.reason}</span>
+              </span>
+              <span className="mono faint nowrap">{o.courseCode}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
     </div>
   );
 }

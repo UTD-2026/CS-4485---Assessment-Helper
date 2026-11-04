@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { parseLocalDate } from '../utils/scheduling.js';
+import Icon from './Icon.jsx';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -52,15 +53,15 @@ export default function ClassDayPicker({ id, value, onChange, allowedDays, minDa
     <div className="class-day-picker" ref={rootRef}>
       <button type="button" id={id} className="class-day-picker-input" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className={value ? '' : 'placeholder'}>{value ? display(value) : 'MM/DD/YYYY'}</span>
-        <span aria-hidden="true">📅</span>
+        <Icon name="calendar" size={16} />
       </button>
 
       {open && (
         <div className="class-day-picker-pop" role="dialog" aria-label="Choose an observation date">
           <div className="class-day-picker-head">
-            <button type="button" onClick={() => shift(-1)} disabled={!canPrev} aria-label="Previous month">‹</button>
+            <button type="button" onClick={() => shift(-1)} disabled={!canPrev} aria-label="Previous month"><Icon name="chevronLeft" size={16} /></button>
             <strong>{MONTHS[view.m]} {view.y}</strong>
-            <button type="button" onClick={() => shift(1)} disabled={!canNext} aria-label="Next month">›</button>
+            <button type="button" onClick={() => shift(1)} disabled={!canNext} aria-label="Next month"><Icon name="chevronRight" size={16} /></button>
           </div>
           <div className="class-day-picker-grid">
             {WEEKDAYS.map((w, i) => (
