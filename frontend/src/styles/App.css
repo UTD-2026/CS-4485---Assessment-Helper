@@ -186,6 +186,7 @@ a:hover { color: #a6ecc3; }
   cursor: pointer;
 }
 .icon-button:hover { color: var(--text); background: var(--raised); }
+.logout-button:hover, .logout-button:focus-visible { color: var(--bad-fg); background: var(--bad-bg); border-color: var(--bad-line); }
 
 .main {
   flex: 1 1 auto;
@@ -657,11 +658,12 @@ a:hover { color: #a6ecc3; }
 
 /* ---------- Notifications ---------- */
 
-.notif { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
-.notif-dot { width: 10px; height: 10px; margin-top: 7px; border-radius: 50%; background: var(--utd-orange); }
-.notif.read { grid-template-columns: minmax(0, 1fr); background: transparent; border-color: #1f2a25; color: var(--muted); }
-.notif-time { font-family: var(--mono); font-size: 12px; color: var(--faint); }
-.notif-msg { color: var(--text-2); }
+.notif { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.notif.read { grid-template-columns: 100px minmax(0, 1fr); background: transparent; border-color: #1f2a25; color: var(--muted); }
+/* Fixed width + right border = the divider lands in the same place on every card; text is top-centered within the column. */
+.notif-when { display: flex; flex-direction: column; align-items: center; align-self: stretch; padding-right: 14px; border-right: 1px solid var(--border); font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--faint); text-align: center; white-space: nowrap; }
+.notif-msg { min-width: 0; color: var(--text-2); line-height: 1.5; }
+.notif.read .notif-msg { color: var(--muted); }
 
 /* ---------- Loading / errors ---------- */
 
@@ -669,28 +671,77 @@ a:hover { color: #a6ecc3; }
 
 /* ---------- Login ---------- */
 
+/* The login page is exactly one screen tall and never scrolls; the card is kept short enough to float inside it. */
 .login-page {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: grid;
   place-items: center;
-  padding: 32px 16px;
-  background: var(--bg);
+  padding: 24px 16px;
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 50% 45%, #121b17 0%, var(--bg) 55%, #0a0f0d 100%);
 }
+/* "Rising Marks" canvas (components/LoginBackground.jsx) sits behind the card. */
+.login-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 .login-card {
-  width: min(440px, 100%);
-  background: var(--surface);
+  /* Narrow and tall: ~340px x ~680px on screen. Sizes below are pre-zoom (x0.82). */
+  position: relative;
+  z-index: 1;
+  width: min(415px, 100%);
+  min-height: 830px;
+  zoom: 0.82;
+  /* Slightly translucent with a blur so the symbols show softly through and around the card. */
+  background: rgba(21, 31, 26, 0.74);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 32px;
+  border-radius: 20px;
+  padding: 44px 26px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  justify-content: center;
+  gap: 30px;
 }
-.login-brand { display: flex; align-items: center; gap: 14px; }
-.login-brand h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
-.login-form { display: flex; flex-direction: column; gap: 14px; }
-.login-hint { padding: 14px; border-radius: var(--r-md); background: var(--sunken); border: 1px solid var(--border-soft); font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
-.login-hint-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.login-brand { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.login-logo {
+  flex: none;
+  width: 76px;
+  height: 76px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--utd-orange);
+  color: var(--on-orange);
+  font-size: 22px;
+  font-weight: 900;
+  -webkit-text-stroke: 0.6px currentColor; /* extra weight beyond the font's heaviest cut */
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 18px rgba(232, 117, 0, 0.55), 0 0 44px rgba(232, 117, 0, 0.25);
+}
+.login-brand h1 {
+  margin: 0;
+  font-family: 'Oswald', var(--font);
+  font-size: 39px;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(231, 238, 233, 0.28), 0 0 22px rgba(232, 117, 0, 0.18);
+}
+.login-form { display: flex; flex-direction: column; gap: 18px; }
+.login-form .btn-lg { min-height: 52px; }
+.login-hint { padding: 22px 16px; border-radius: var(--r-md); background: var(--sunken); border: 1px solid var(--border-soft); font-size: 13px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.login-hint-title { font-size: 13px; }
+.login-hint-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+.login-hint-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.login-hint-pw { margin-top: 10px; }
+.login-hint-head { padding: 0 6px 4px; border-bottom: 1px solid var(--border-strong); color: var(--text-3); font-weight: 700; }
+.login-hint-acct { display: flex; flex-direction: column; align-items: center; line-height: 1.3; }
+.login-hint-acct small { font-size: 11px; color: var(--faint); }
 .login-hint .mono { color: var(--text-2); }
 
 /* ---------- Test accounts dialog ---------- */
@@ -706,6 +757,14 @@ a:hover { color: #a6ecc3; }
   border-radius: var(--r-xl);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
+/* Logout confirmation */
+.confirm-dialog { width: min(400px, 100%); align-items: center; gap: 14px; padding: 28px 24px 24px; text-align: center; }
+.confirm-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: var(--bad-bg); color: var(--bad-fg); }
+.confirm-title { margin: 0; font-size: 18px; font-weight: 800; color: var(--text); }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
+.btn-confirm-yes { background: var(--good-fill); color: #04140b; font-weight: 800; }
+.btn-confirm-no { background: var(--bad-fill); color: #1f0805; font-weight: 800; }
+.btn-confirm-yes:hover, .btn-confirm-no:hover { filter: brightness(1.08); }
 .dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
 .dialog-body { overflow: auto; flex: 1; }
 .dialog-foot { padding: 12px 20px; border-top: 1px solid var(--border); color: var(--faint); font-size: 13px; }
@@ -773,7 +832,9 @@ a:hover { color: #a6ecc3; }
   .rating-row .meter { display: none; }
   .criterion-row { grid-template-columns: 32px minmax(0, 1fr); }
   .criterion-row > :last-child { grid-column: 2; }
-  .login-card { padding: 24px 20px; }
+  .login-card { padding: 24px 20px; min-height: 0; }
+  .login-logo { width: 56px; height: 56px; font-size: 16px; border-radius: 14px; }
+  .login-brand h1 { font-size: 22px; letter-spacing: 0.05em; white-space: normal; }
   .grid { --min: 100% !important; }
 }
 
@@ -785,6 +846,9 @@ a:hover { color: #a6ecc3; }
 .list-plain { list-style: none; margin: 0; padding: 0; }
 .grid-260 { --min: 260px; }
 .grow { flex: 1; min-width: 0; }
-.notif-time { display: block; }
-.notif.read .notif-time { display: inline; margin-right: 8px; }
 .toast-title { color: var(--text); }
+
+/* Short windows: drop the tall minimum so the login card still fits without scrolling. */
+@media (max-height: 760px) {
+  .login-card { min-height: 0; padding-top: 28px; padding-bottom: 28px; gap: 22px; }
+}

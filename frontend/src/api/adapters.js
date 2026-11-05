@@ -183,6 +183,18 @@ export function adaptNotification(n) {
     read: Boolean(n.archived),
     seen: Boolean(n.read),
     timestamp: new Date(n.created_at).toLocaleDateString(),
+    createdAt: n.created_at,
+  };
+}
+
+/** Timestamp -> { date: "10/5/2026", time: "9:10 PM" } in the viewer's local time, for the notification date column. */
+export function notifDateParts(value) {
+  const d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) return { date: String(value || ''), time: '' };
+  const hour = d.getHours() % 12 || 12;
+  return {
+    date: `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`,
+    time: `${hour}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`,
   };
 }
 

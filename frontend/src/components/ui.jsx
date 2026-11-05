@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Icon from './Icon.jsx';
 
 /* Shared building blocks for the Night Desk UI. Styling lives in styles/App.css. */
 
 // Icon rail + main column. items: [{ id, label, icon, count }]
 export function AppShell({ label, items, active, onSelect, onLogout, children }) {
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   return (
     <div className="app-shell">
       <aside className="rail">
@@ -27,12 +28,35 @@ export function AppShell({ label, items, active, onSelect, onLogout, children })
           ))}
         </nav>
         <div className="rail-footer">
-          <button type="button" className="icon-button" onClick={onLogout} aria-label="Sign out" title="Sign out">
+          <button type="button" className="icon-button logout-button" onClick={() => setConfirmingLogout(true)} aria-label="Log out">
             <Icon name="logout" />
           </button>
         </div>
       </aside>
       <main className="main">{children}</main>
+      {confirmingLogout && <LogoutConfirm onYes={onLogout} onNo={() => setConfirmingLogout(false)} />}
+    </div>
+  );
+}
+
+function LogoutConfirm({ onYes, onNo }) {
+  const noRef = useRef(null);
+  useEffect(() => {
+    noRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onNo(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onNo]);
+  return (
+    <div className="dialog-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onNo(); }}>
+      <div className="dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+        <div className="confirm-icon"><Icon name="logout" size={22} /></div>
+        <h2 id="logout-confirm-title" className="confirm-title">Are you sure you want to log out?</h2>
+        <div className="confirm-actions">
+          <button type="button" className="btn btn-confirm-yes" onClick={onYes}><Icon name="check" size={16} /> Yes</button>
+          <button type="button" ref={noRef} className="btn btn-confirm-no" onClick={onNo}><Icon name="x" size={16} /> No</button>
+        </div>
+      </div>
     </div>
   );
 }

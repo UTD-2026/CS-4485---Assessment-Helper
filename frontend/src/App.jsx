@@ -7,6 +7,7 @@ import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import CommitteeReports from './components/CommitteeReports.jsx';
 import TestAccountsDialog from './components/TestAccountsDialog.jsx';
 import Toaster from './components/Toaster.jsx';
+import LoginBackground from './components/LoginBackground.jsx';
 import Icon from './components/Icon.jsx';
 import { AppShell, PageHeader, Badge, Card, Notice, EmptyState, Meter } from './components/ui.jsx';
 import { daysUntil, initials, plural } from './utils/format.js';
@@ -15,8 +16,19 @@ import { isPastDeadline, isSurveyClosed as surveyIsClosed, formatSurveyDeadline 
 import { createFacultyCsv } from './utils/facultyCsv.js';
 import { toast } from './utils/toast.js';
 import { api, setToken, hasToken } from './api/client.js';
-import { adaptProfessor, formatDate } from './api/adapters.js';
+import { adaptProfessor, formatDate, notifDateParts } from './api/adapters.js';
 import useAppData from './api/useAppData.js';
+
+/** Fixed-width date/time column of a notification card, so the divider sits at the same spot on every card. */
+function NotifWhen({ value }) {
+  const { date, time } = notifDateParts(value);
+  return (
+    <span className="notif-when">
+      <span>{date}</span>
+      {time && <span>{time}</span>}
+    </span>
+  );
+}
 
 // "Fall 2026" -> "Spring 2027"
 function nextTermOf(term = '') {
@@ -218,13 +230,11 @@ function Login({ onLogin }) {
 
   return (
     <div className="login-page">
+      <LoginBackground />
       <div className="login-card">
         <div className="login-brand">
-          <div className="rail-logo" aria-hidden="true">UTD</div>
-          <div>
-            <h1>Assessment Helper</h1>
-            <p className="muted">Peer teaching observations · Faculty sign in</p>
-          </div>
+          <div className="login-logo" aria-hidden="true">UTD</div>
+          <h1>ASSESSMENT HELPER</h1>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
@@ -241,20 +251,20 @@ function Login({ onLogin }) {
         </form>
 
         <div className="login-hint">
-          <span className="section-label">Test credentials</span>
+          <span className="section-label login-hint-title">Test credentials</span>
           <div className="login-hint-cols">
-            <div className="stack-sm">
-              <span>Professors</span>
-              <span><span className="mono">nal595463</span> observee</span>
-              <span><span className="mono">jlh753843</span> observer</span>
-              <span><span className="mono">jdf262865</span> scheduled</span>
+            <div className="login-hint-col">
+              <span className="login-hint-head">Professors</span>
+              <span className="login-hint-acct"><span className="mono">nal595463</span><small>(observee)</small></span>
+              <span className="login-hint-acct"><span className="mono">jlh753843</span><small>(observer)</small></span>
+              <span className="login-hint-acct"><span className="mono">jdf262865</span><small>(scheduled)</small></span>
             </div>
-            <div className="stack-sm">
-              <span>Committee</span>
-              <span className="mono">ddr199513</span>
+            <div className="login-hint-col">
+              <span className="login-hint-head">Committee</span>
+              <span className="login-hint-acct"><span className="mono">ddr199513</span></span>
             </div>
           </div>
-          <span>Password: <span className="mono">Password123!</span></span>
+          <span className="login-hint-pw">Password: <span className="mono">Password123!</span></span>
           <span>Need more? <button type="button" className="btn-link" onClick={() => setShowAccounts(true)}>Browse all test accounts</button></span>
         </div>
       </div>
@@ -885,7 +895,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
     dynamicSystemNotifs.push({
       id: 'sys-due', recipientId: user?.professor_id,
       message: `You are ${myStatus.status.toLowerCase()} for an evaluation this cycle. Please sign up a course.`,
-      read: false, timestamp: new Date().toLocaleDateString()
+      read: false, timestamp: new Date().toLocaleDateString(), createdAt: new Date().toISOString()
     });
   }
 
@@ -1419,11 +1429,11 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
 
       {/* ---------- NOTIFICATIONS ---------- */}
       {activeTab === 'notifications' && (
-        <div className="stack max-880">
+        <div className="stack">
           <div className="row">
             <div className="segmented" role="tablist" aria-label="Notification folders">
-              <button type="button" role="tab" aria-selected={notifTab === 'inbox'} className={notifTab === 'inbox' ? 'active' : ''} onClick={() => setNotifTab('inbox')}>Inbox {unreadCount}</button>
-              <button type="button" role="tab" aria-selected={notifTab === 'archive'} className={notifTab === 'archive' ? 'active' : ''} onClick={() => setNotifTab('archive')}>Archive</button>
+              <button type="button" role="tab" aria-selected={notifTab === 'inbox'} className={notifTab === 'inbox' ? 'active' : ''} onClick={() => setNotifTab('inbox')}>Inbox{notifTab === 'inbox' ? ` ${inbox.length}` : ''}</button>
+              <button type="button" role="tab" aria-selected={notifTab === 'archive'} className={notifTab === 'archive' ? 'active' : ''} onClick={() => setNotifTab('archive')}>Archive{notifTab === 'archive' ? ` ${archived.length}` : ''}</button>
             </div>
             {unreadCount > 0 && notifTab === 'inbox' && (
               <button type="button" className="btn btn-ghost btn-sm push-right" onClick={async () => {
@@ -1437,18 +1447,16 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
             <EmptyState icon="inbox" title={notifTab === 'inbox' ? "You're all caught up" : 'No archived notifications'} />
           ) : notifTab === 'inbox' ? inbox.map(notif => (
             <article key={notif.id} className="notif">
-              <span className="notif-dot" />
-              <span>
-                <span className="notif-time">{notif.timestamp}</span>
-                <span className="notif-msg">{notif.message}</span>
-              </span>
-              {!String(notif.id).startsWith('sys-') && (
+              <NotifWhen value={notif.createdAt} />
+              <span className="notif-msg">{notif.message}</span>
+              {!String(notif.id).startsWith('sys-') ? (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { await run(() => api.archive(notif.id)); await refresh(); }}>Archive</button>
-              )}
+              ) : <span />}
             </article>
           )) : archived.map(notif => (
             <article key={notif.id} className="notif read">
-              <span><span className="notif-time">{notif.timestamp}</span> {notif.message}</span>
+              <NotifWhen value={notif.createdAt} />
+              <span className="notif-msg">{notif.message}</span>
             </article>
           ))}
         </div>
