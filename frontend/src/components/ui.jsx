@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from './Icon.jsx';
+import { useTheme, setTheme } from '../utils/theme.js';
 
-/* Shared building blocks for the Night Desk UI. Styling lives in styles/App.css. */
+/* Shared building blocks for the UI. Styling lives in styles/App.css. */
 
 // Icon rail + main column. items: [{ id, label, icon, count }]
 export function AppShell({ label, items, active, onSelect, onLogout, children }) {
@@ -57,6 +58,71 @@ function LogoutConfirm({ onYes, onNo }) {
           <button type="button" ref={noRef} className="btn btn-confirm-no" onClick={onNo}><Icon name="x" size={16} /> No</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// The user's initials in the page header. Glows on hover; clicking opens a small menu with the theme switch.
+export function UserMenu({ name, initials, role }) {
+  const [open, setOpen] = useState(false);
+  const theme = useTheme();
+  const rootRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); } };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const choose = (next) => {
+    if (next === theme) return;
+    // Briefly animate colors so the switch feels smooth instead of snapping.
+    const root = document.documentElement;
+    root.classList.add('theme-switching');
+    setTheme(next);
+    window.setTimeout(() => root.classList.remove('theme-switching'), 300);
+  };
+
+  return (
+    <div className="user-menu" ref={rootRef}>
+      <button
+        type="button"
+        ref={buttonRef}
+        className="avatar avatar-button"
+        title={name}
+        aria-label={`${name || 'Account'}: account and theme`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {initials}
+      </button>
+      {open && (
+        <div className="user-menu-pop" role="dialog" aria-label="Account and theme">
+          <div className="user-menu-who">
+            <span className="user-menu-name">{name}</span>
+            {role && <span className="user-menu-role">{role}</span>}
+          </div>
+          <div>
+            <div className="section-label" id="theme-switch-label">Theme</div>
+            <div className="theme-switch" role="radiogroup" aria-labelledby="theme-switch-label">
+              <button type="button" role="radio" aria-checked={theme === 'light'} onClick={() => choose('light')}>
+                <Icon name="sun" size={16} /> Light
+              </button>
+              <button type="button" role="radio" aria-checked={theme === 'dark'} onClick={() => choose('dark')}>
+                <Icon name="moon" size={16} /> Dark
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,10 +9,10 @@ import TestAccountsDialog from './components/TestAccountsDialog.jsx';
 import Toaster from './components/Toaster.jsx';
 import LoginBackground from './components/LoginBackground.jsx';
 import Icon from './components/Icon.jsx';
-import { AppShell, PageHeader, Badge, Card, Notice, EmptyState, Meter } from './components/ui.jsx';
+import { AppShell, PageHeader, Badge, Card, Notice, EmptyState, Meter, UserMenu } from './components/ui.jsx';
 import { daysUntil, initials, plural } from './utils/format.js';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
-import { isPastDeadline, isSurveyClosed as surveyIsClosed, formatSurveyDeadline } from './utils/deadlines.js';
+import { isPastDeadline, isSurveyClosed as surveyIsClosed, formatDeadline, formatTime12 } from './utils/deadlines.js';
 import { createFacultyCsv } from './utils/facultyCsv.js';
 import { toast } from './utils/toast.js';
 import { api, setToken, hasToken } from './api/client.js';
@@ -55,6 +55,30 @@ function shortDate(value) {
   if (!m) return value || '';
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// ("2026-11-13", "17:00") -> "Fri, Nov 13 at 5:00 PM";  no time -> "Fri, Nov 13" (closes at the end of the day)
+function shortDeadline(date, time) {
+  if (!date) return '';
+  return time ? `${shortDate(date)} at ${formatTime12(time)}` : shortDate(date);
+}
+
+// One deadline card on the committee's Deadlines tab: big date + close time, a date picker and an optional time picker.
+function DeadlineCard({ id, title, date, time, onChange, status, hint, className = '' }) {
+  return (
+    <div className={`card deadline-card ${className}`.trim()}>
+      <span className="row-between"><strong>{title}</strong>{status}</span>
+      <span className="deadline-date">{date ? shortDate(date) : '—'} <small>{formatTime12(time)}</small></span>
+      <span className="field-hint">
+        {date ? `Closes ${formatDeadline(date, time)}.` : ''} {hint}
+        {!time && ' Leave the time blank to close at the end of the day.'}
+      </span>
+      <div className="row">
+        <input id={`${id}-date`} aria-label={`${title} date`} className="input field-grow" type="date" value={date} onChange={e => onChange({ date: e.target.value })} />
+        <input id={`${id}-time`} aria-label={`${title} time`} className="input field-grow" type="time" value={time || ''} onChange={e => onChange({ time: e.target.value })} />
+      </div>
+    </div>
+  );
 }
 
 const RATING_SCALES = ['1 to 5 (Poor to Excellent)', 'Yes / No / N/A', 'Text Feedback Only'];
@@ -265,7 +289,7 @@ function Login({ onLogin }) {
             </div>
           </div>
           <span className="login-hint-pw">Password: <span className="mono">Password123!</span></span>
-          <span>Need more? <button type="button" className="btn-link" onClick={() => setShowAccounts(true)}>Browse all test accounts</button></span>
+          <span>Need more? <button type="button" className="btn-link login-hint-link" onClick={() => setShowAccounts(true)}>Browse all test accounts</button></span>
         </div>
       </div>
 
@@ -299,7 +323,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   const [reportsVersion, setReportsVersion] = useState(0);
   // Deadlines form edits a local copy, saved with PATCH /api/evaluation-cycles/:term
   const [deadlineForm, setDeadlineForm] = useState(globalDeadlines);
-  useEffect(() => { setDeadlineForm(globalDeadlines); }, [globalDeadlines.signup, globalDeadlines.observation, globalDeadlines.survey, globalDeadlines.surveyTime]);
+  useEffect(() => { setDeadlineForm(globalDeadlines); }, [globalDeadlines.signup, globalDeadlines.signupTime, globalDeadlines.observation, globalDeadlines.observationTime, globalDeadlines.survey, globalDeadlines.surveyTime]);
   // Template Editor: each term has its own template JSON file; edits default to NEXT term so the form in use doesn't change mid-cycle
   const termOptions = [...new Set([...(data.cycles || []).map(c => c.term), nextTermOf(currentSemester)])];
   const [templateTerm, setTemplateTerm] = useState(nextTermOf(currentSemester));
@@ -331,9 +355,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   const [manualObserverId, setManualObserverId] = useState('');
 
   // Check if observation deadline passed
-  const isPastObservationDeadline = globalDeadlines?.observation
-    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`)
-    : false;
+  const isPastObservationDeadline = isPastDeadline(globalDeadlines?.observation, globalDeadlines?.observationTime);
 
   const goTo = (id, filters = {}) => {
     setActiveTab(id);
@@ -435,7 +457,11 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   };
 
   const handleSaveDeadlines = async () => {
-    await run(() => api.updateCycle(currentSemester, { signup_deadline: deadlineForm.signup, observation_deadline: deadlineForm.observation, feedback_deadline: deadlineForm.survey, feedback_deadline_time: deadlineForm.surveyTime || null }),
+    await run(() => api.updateCycle(currentSemester, {
+      signup_deadline: deadlineForm.signup, signup_deadline_time: deadlineForm.signupTime || null,
+      observation_deadline: deadlineForm.observation, observation_deadline_time: deadlineForm.observationTime || null,
+      feedback_deadline: deadlineForm.survey, feedback_deadline_time: deadlineForm.surveyTime || null,
+    }),
       'Deadlines updated. Faculty have been notified.');
     await refresh();
   };
@@ -469,10 +495,10 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   ];
 
   const obsDays = daysUntil(globalDeadlines?.observation);
-  const deadlineStatus = (dateStr, endOfDayTime) => {
+  const deadlineStatus = (dateStr, timeStr) => {
     const days = daysUntil(dateStr);
     if (days == null) return <Badge>Not set</Badge>;
-    if (days < 0 || (days === 0 && endOfDayTime === 'passed')) return <Badge>Closed</Badge>;
+    if (isPastDeadline(dateStr, timeStr)) return <Badge>Closed</Badge>;
     if (days === 0) return <Badge tone="warn">Today</Badge>;
     return <Badge tone={days <= 14 ? 'warn' : 'info'}>{plural(days, 'day')} left</Badge>;
   };
@@ -487,7 +513,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
             {obsDays > 0 ? <><strong>{obsDays}d</strong> until observations close</> : obsDays === 0 ? 'Observations close today' : 'Observation period has ended'}
           </span>
         )}
-        <div className="avatar" title={`${user.name} (Committee member)`}>{initials(user.name)}</div>
+        <UserMenu name={user.name} initials={initials(user.name)} role="Assessment Committee" />
       </PageHeader>
 
       {data.error && <Notice tone="bad" title="Could not refresh data" className="section-gap">{data.error}</Notice>}
@@ -664,30 +690,27 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
       {activeTab === 'deadlines' && (
         <>
           <div className="grid grid-260 section-gap-lg">
-            <label className="card deadline-card" htmlFor="deadline-signup">
-              <span className="row-between"><strong>Sign-up deadline</strong>{deadlineStatus(deadlineForm.signup)}</span>
-              <span className="deadline-date">{deadlineForm.signup ? shortDate(deadlineForm.signup) : '—'}</span>
-              <span className="field-hint">Sign-up closes at the end of this day.</span>
-              <input id="deadline-signup" className="input" type="date" value={deadlineForm.signup} onChange={e => setDeadlineForm({ ...deadlineForm, signup: e.target.value })} />
-            </label>
-            <label className={`card deadline-card${obsDays != null && obsDays >= 0 && obsDays <= 14 ? ' card-warn' : ''}`} htmlFor="deadline-observation">
-              <span className="row-between"><strong>Observation period ends</strong>{deadlineStatus(deadlineForm.observation)}</span>
-              <span className="deadline-date">{deadlineForm.observation ? shortDate(deadlineForm.observation) : '—'}</span>
-              <span className="field-hint">Unconfirmed observations count as missing after this. Survey reminders unlock.</span>
-              <input id="deadline-observation" className="input" type="date" value={deadlineForm.observation} onChange={e => setDeadlineForm({ ...deadlineForm, observation: e.target.value })} />
-            </label>
-            <div className="card deadline-card">
-              <span className="row-between"><strong>Survey hand-off</strong>{deadlineStatus(deadlineForm.survey)}</span>
-              <span className="deadline-date">{deadlineForm.survey ? shortDate(deadlineForm.survey) : '—'} <small>{deadlineForm.surveyTime || '11:59 PM'}</small></span>
-              <span className="field-hint">
-                {deadlineForm.survey ? `Survey closes ${formatSurveyDeadline(deadlineForm.survey, deadlineForm.surveyTime)}.` : ''}
-                {!deadlineForm.surveyTime && ' Leave the time blank to close at the end of the day.'}
-              </span>
-              <div className="row">
-                <input id="survey-deadline-date" aria-label="Survey deadline date" className="input field-grow" type="date" value={deadlineForm.survey} onChange={e => setDeadlineForm({ ...deadlineForm, survey: e.target.value })} />
-                <input type="time" aria-label="Survey closing time" className="input field-grow" value={deadlineForm.surveyTime || ''} onChange={e => setDeadlineForm({ ...deadlineForm, surveyTime: e.target.value })} />
-              </div>
-            </div>
+            <DeadlineCard
+              id="deadline-signup" title="Sign-up deadline"
+              date={deadlineForm.signup} time={deadlineForm.signupTime}
+              onChange={({ date = deadlineForm.signup, time = deadlineForm.signupTime }) => setDeadlineForm({ ...deadlineForm, signup: date, signupTime: time })}
+              status={deadlineStatus(deadlineForm.signup, deadlineForm.signupTime)}
+              hint="Professors can no longer sign up after this."
+            />
+            <DeadlineCard
+              id="deadline-observation" title="Observation period ends"
+              className={obsDays != null && obsDays >= 0 && obsDays <= 14 ? 'card-warn' : ''}
+              date={deadlineForm.observation} time={deadlineForm.observationTime}
+              onChange={({ date = deadlineForm.observation, time = deadlineForm.observationTime }) => setDeadlineForm({ ...deadlineForm, observation: date, observationTime: time })}
+              status={deadlineStatus(deadlineForm.observation, deadlineForm.observationTime)}
+              hint="Unconfirmed observations count as missing after this. Survey reminders unlock."
+            />
+            <DeadlineCard
+              id="deadline-survey" title="Survey hand-off"
+              date={deadlineForm.survey} time={deadlineForm.surveyTime}
+              onChange={({ date = deadlineForm.survey, time = deadlineForm.surveyTime }) => setDeadlineForm({ ...deadlineForm, survey: date, surveyTime: time })}
+              status={deadlineStatus(deadlineForm.survey, deadlineForm.surveyTime)}
+            />
           </div>
           <div className="row">
             <button type="button" className="btn btn-primary btn-lg" onClick={handleSaveDeadlines}>Update deadlines</button>
@@ -794,7 +817,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
           canSendReminders={isPastObservationDeadline}
           remindersHint={isPastObservationDeadline
             ? 'Notifies observees who have not submitted yet.'
-            : `Available after the observation period ends${globalDeadlines?.observation ? ` (${shortDate(globalDeadlines.observation)})` : ''}.`}
+            : `Available after the observation period ends${globalDeadlines?.observation ? ` (${shortDeadline(globalDeadlines.observation, globalDeadlines.observationTime)})` : ''}.`}
         />
       )}
     </AppShell>
@@ -879,16 +902,14 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   const myCourses = (data.courses || []).filter(c => c.instructor_id === user?.professor_id);
   const mySignup = (globalSignups || []).find(s => s.observeeId === user?.professor_id);
   const myConfirmedObservation = (globalObservations || []).find(o => o.observeeId === user?.professor_id);
-  // Sign-up closes at the end of the deadline day (same rule the backend enforces)
-  const isPastSignupDeadline = isPastDeadline(globalDeadlines?.signup);
+  // Sign-up closes at the deadline's time, or the end of the deadline day (same rule the backend enforces)
+  const isPastSignupDeadline = isPastDeadline(globalDeadlines?.signup, globalDeadlines?.signupTime);
 
-  const isPastObservationDeadline = globalDeadlines?.observation
-    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`)
-    : false;
+  const isPastObservationDeadline = isPastDeadline(globalDeadlines?.observation, globalDeadlines?.observationTime);
 
   // Once the admin-set survey deadline passes, the survey tab only shows a "closed" notice
   const isSurveyClosed = surveyIsClosed(globalDeadlines?.survey, globalDeadlines?.surveyTime);
-  const surveyDeadlineLabel = globalDeadlines?.survey ? formatSurveyDeadline(globalDeadlines.survey, globalDeadlines.surveyTime) : '';
+  const surveyDeadlineLabel = globalDeadlines?.survey ? formatDeadline(globalDeadlines.survey, globalDeadlines.surveyTime) : '';
 
   const dynamicSystemNotifs = [];
   if (isDue && !mySignup) {
@@ -998,7 +1019,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   const obs = myConfirmedObservation;
   const obsBad = obs && (obs.status === 'Missed' || obs.status === 'Deferred / Rolled Over');
   const stepDefs = [
-    ['Sign up', mySignup ? `${mySignup.courseCode} in the pool` : isDue ? `Closes ${shortDate(globalDeadlines?.signup)}` : 'Not due this cycle', Boolean(mySignup)],
+    ['Sign up', mySignup ? `${mySignup.courseCode} in the pool` : isDue ? `Closes ${shortDeadline(globalDeadlines?.signup, globalDeadlines?.signupTime)}` : 'Not due this cycle', Boolean(mySignup)],
     ['List released', mySignup?.listReleased ? plural((mySignup.eligibleObservers || []).length, 'eligible colleague') : 'By the committee', Boolean(obs) || Boolean(mySignup?.listReleased)],
     ['Requests sent', mySentRequests.length ? plural(mySentRequests.length, 'request') : 'Ask colleagues', Boolean(obs) || mySentRequests.length > 0],
     ['Observer confirmed', obs ? obs.observerName : 'Confirm one who accepts', Boolean(obs)],
@@ -1021,12 +1042,12 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   if (!isDue && !mySignup) {
     hero = { tone: 'neutral', title: 'You are not due for an evaluation this cycle', text: `Next evaluation: ${myStatus.next_eval}. Colleagues may still ask you to observe them.` };
   } else if (!mySignup && isPastSignupDeadline) {
-    hero = { tone: 'bad', title: 'Sign-up closed', text: `Sign-up for ${currentSemester} closed on ${shortDate(globalDeadlines?.signup)}. Please contact the Assessment Committee.` };
+    hero = { tone: 'bad', title: 'Sign-up closed', text: `Sign-up for ${currentSemester} closed on ${shortDeadline(globalDeadlines?.signup, globalDeadlines?.signupTime)}. Please contact the Assessment Committee.` };
   } else if (!mySignup) {
-    hero = { tone: 'warn', signup: true, title: 'Sign up a course to be observed', text: `You are ${myStatus.status.toLowerCase()} this cycle. Sign-up closes ${shortDate(globalDeadlines?.signup)}.` };
+    hero = { tone: 'warn', signup: true, title: 'Sign up a course to be observed', text: `You are ${myStatus.status.toLowerCase()} this cycle. Sign-up closes ${shortDeadline(globalDeadlines?.signup, globalDeadlines?.signupTime)}.` };
   } else if (!obs) {
     const accepted = mySentRequests.find(r => r.status === 'Accepted');
-    if (!isPastSignupDeadline) hero = { tone: 'info', title: 'Your observer list is on its way', text: `Eligible colleagues appear after sign-up closes on ${shortDate(globalDeadlines?.signup)}.` };
+    if (!isPastSignupDeadline) hero = { tone: 'info', title: 'Your observer list is on its way', text: `Eligible colleagues appear after sign-up closes on ${shortDeadline(globalDeadlines?.signup, globalDeadlines?.signupTime)}.` };
     else if (!mySignup.listReleased) hero = { tone: 'info', title: 'Waiting for the committee', text: 'The Assessment Committee is reviewing your list of potential observers. You will be notified.' };
     else if (accepted) hero = { tone: 'good', title: `${accepted.observerName} accepted`, text: 'Confirm them as your observer to continue.', action: ['Confirm my observer', 'observee-status'] };
     else if (mySentRequests.some(r => r.status === 'Pending')) hero = { tone: 'info', title: 'Waiting for replies', text: `${plural(mySentRequests.filter(r => r.status === 'Pending').length, 'request')} pending. You can ask more colleagues meanwhile.`, action: ['View requests', 'observee-status'] };
@@ -1070,8 +1091,8 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
   return (
     <AppShell label="Professor sections" items={nav} active={activeTab === 'live-evaluation' ? 'observer-duties' : activeTab} onSelect={goTo} onLogout={onLogout}>
       <PageHeader eyebrow={`Professor portal · ${currentSemester}`} title={title} subtitle={subtitle}>
-        {/* Shows first + last name initials (e.g. "Dr. Alice Smith" -> "AS"); hover shows full name */}
-        <div className="avatar" title={user?.name || ''}>{initials(user?.name)}</div>
+        {/* First + last name initials (e.g. "Dr. Alice Smith" -> "AS"); click for account menu + theme switch */}
+        <UserMenu name={user?.name || ''} initials={initials(user?.name)} role="Professor" />
       </PageHeader>
 
       {data.error && <Notice tone="bad" title="Could not refresh data" className="section-gap">{data.error}</Notice>}
@@ -1233,7 +1254,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
                 </Notice>
               ) : !isPastSignupDeadline ? (
                 <Notice tone="info" icon="clock" title="List hidden until sign-up closes">
-                  Potential observers appear once the sign-up deadline ({shortDate(globalDeadlines?.signup) || 'TBD'}) passes.
+                  Potential observers appear once the sign-up deadline ({shortDeadline(globalDeadlines?.signup, globalDeadlines?.signupTime) || 'TBD'}) passes.
                 </Notice>
               ) : !mySignup.listReleased ? (
                 <Notice tone="warn" icon="lock" title="Pending committee approval">

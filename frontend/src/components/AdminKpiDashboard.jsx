@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { computeAllKpis, VIOLATION_TYPES, TARGET_LIST_SIZE } from '../utils/kpis.js';
 import { isSurveyClosed, formatSurveyDeadline } from '../utils/deadlines.js';
 import { Badge, Card, Meter } from './ui.jsx';
 import { plural } from '../utils/format.js';
+import { PairingsDialog, MissingDialog } from './KpiListDialogs.jsx';
 
 /**
  * Committee "Live metrics": the 4 KPI groups from the project spec.
@@ -31,27 +32,14 @@ function KpiCard({ id, label, value, tone, meter, sub, formula, children }) {
   );
 }
 
-function KpiCompact({ id, label, value, tone, sub, formula, children }) {
-  return (
-    <div className="card kpi-compact">
-      <div className={`kpi-value kpi-value-sm text-${tone}`}>{value}</div>
-      <div className="stack-sm">
-        <div><strong>{label}</strong> <span className="faint mono">{id}</span></div>
-        <div className="kpi-sub">{sub}</div>
-        {children}
-        {formula && <div className="formula">{formula}</div>}
-      </div>
-    </div>
-  );
-}
-
 export default function AdminKpiDashboard({ signups, requests, observations, surveySubmissions, deadlines, professors, courses, onNavigate }) {
   const k = useMemo(
     () => computeAllKpis({ signups, requests, observations, surveySubmissions, deadlines, professors, courses }),
     [signups, requests, observations, surveySubmissions, deadlines, professors, courses]
   );
   const { eligibility, overdue, participation, utilization, sufficiency, missing, survey } = k;
-  const [showIncorrect, setShowIncorrect] = useState(false);
+  const [openList, setOpenList] = useState(null); // 'pairings' | 'missing' | null: which pop-up list is open
+  const closeList = useCallback(() => setOpenList(null), []);
 
   // The survey KPI is only generated once the survey (feedback) deadline has passed
   const surveyKpiReady = isSurveyClosed(deadlines?.survey, deadlines?.surveyTime);
@@ -60,11 +48,12 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
   const funnel = surveyKpiReady ? survey.funnel : survey.funnel.filter((s) => s.key !== 'surveyed');
   const eligibilityTone = eligibility.rate == null ? 'neutral' : eligibility.incorrect.length ? 'bad' : 'good';
   const overdueShown = overdue.overdue.slice(0, 6);
+  const missingShown = missing.missing.slice(0, 6); // same preview length as Most overdue; the rest are in the pop-up
 
   return (
     <div className="stack">
-      {/* 1-2: the four headline KPIs */}
-      <section className="grid grid-230" aria-label="Headline KPIs">
+      {/* One row per KPI section (1-4); each row splits its width evenly between that section's metrics. */}
+      <section className="kpi-row" style={{ '--cols': 2 }} aria-label="KPI section 1">
         <KpiCard
           id="1a" label="Eligibility accuracy" tone={eligibilityTone}
           value={eligibility.rate == null ? '—' : pct(eligibility.rate)} meter={eligibility.rate ?? 0}
@@ -77,6 +66,9 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           sub={overdue.count ? `${overdue.notSignedUp} of them have not signed up` : 'Nobody is overdue'}
           formula="Assistant: due through the next calendar year · Associate/Full: same semester two years later"
         />
+      </section>
+
+      <section className="kpi-row" style={{ '--cols': 2 }} aria-label="KPI section 2">
         <KpiCard
           id="2a" label="Participation rate" tone={toneFor(participation.rate)}
           value={pct(participation.rate)} meter={participation.rate}
@@ -91,39 +83,53 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
         />
       </section>
 
-      {/* 3-4: compact KPIs */}
-      <section className="grid grid-230 section-gap" aria-label="More KPIs">
-        <KpiCompact
+      <section className="kpi-row" style={{ '--cols': 1 }} aria-label="KPI section 3">
+        <KpiCard
           id="3a" label="List sufficiency" tone={sufficiency.signups ? toneFor(sufficiency.rateOfTarget) : 'neutral'}
-          value={sufficiency.average.toFixed(1)}
+          value={sufficiency.average.toFixed(1)} meter={sufficiency.rateOfTarget}
           sub={`Avg list size · ${sufficiency.rateOfTarget}% of the ${TARGET_LIST_SIZE}-observer target`}
+          formula={`Eligible observers per sign-up ÷ ${TARGET_LIST_SIZE}-observer target`}
         >
-          <div className="row">
+          <div className="kpi-chips">
             <Badge tone="good">{sufficiency.fullLists} full</Badge>
             <Badge tone="warn">{sufficiency.insufficient} insufficient</Badge>
             <Badge tone="bad">{sufficiency.none} none eligible</Badge>
           </div>
-        </KpiCompact>
-        <KpiCompact
+        </KpiCard>
+      </section>
+
+      <section className="kpi-row section-gap" style={{ '--cols': 2 }} aria-label="KPI section 4">
+        <KpiCard
           id="4a" label="Missing observations" tone={missing.count ? 'bad' : 'good'}
           value={missing.count}
-          sub={`${missing.approved} approved · ${missing.pairConfirmed} pair-confirmed · ${missing.awaiting} awaiting${missing.deadlinePassed ? ' · deadline passed' : ''}`}
-        />
+          sub={missing.count ? `${missing.count} of ${missing.approved} approved appointments did not go through` : 'Every approved appointment went through'}
+          formula="Reported not held, or not confirmed by both people after the observation deadline"
+        >
+          <div className="kpi-chips">
+            <Badge tone="info">{missing.approved} approved</Badge>
+            <Badge tone="good">{missing.pairConfirmed} pair-confirmed</Badge>
+            <Badge tone="warn">{missing.awaiting} awaiting</Badge>
+            {missing.deadlinePassed && <Badge>Deadline passed</Badge>}
+          </div>
+        </KpiCard>
         {surveyKpiReady ? (
-          <KpiCompact
+          <KpiCard
             id="4b" label="Survey completion" tone={survey.denominator ? toneFor(survey.rate) : 'neutral'}
-            value={pct(survey.rate)}
+            value={pct(survey.rate)} meter={survey.rate}
             sub={`${survey.numerator} of ${survey.denominator} sign-ups completed the whole process`}
+            formula="Sign-ups that finished every step through the survey ÷ sign-ups"
           />
         ) : (
-          <KpiCompact
+          <KpiCard
             id="4b" label="Survey completion" tone="neutral" value="Locked"
             sub={`Calculated after the survey closes${surveyDeadline ? ` (${surveyDeadline})` : ''}`}
+            formula="Sign-ups that finished every step through the survey ÷ sign-ups"
           />
         )}
       </section>
 
-      <div className="grid grid-460">
+      {/* grid-stretch: the two boxes in each row (funnel + audit, overdue + not held) are always the same height */}
+      <div className="grid grid-460 grid-stretch">
         <Card title="Process funnel" sub={surveyKpiReady ? 'Sign up → request → confirm → observed → survey' : 'Survey step appears after the survey closes'}>
           {funnel.map((step) => (
             <div className="bar-row" key={step.key}>
@@ -138,9 +144,7 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           title="Eligibility audit"
           sub={eligibility.incorrect.length ? `${plural(eligibility.incorrect.length, 'pairing')} break a rule` : 'Every audited pairing passes'}
           actions={eligibility.incorrect.length > 0 && (
-            <button type="button" className="btn btn-ghost btn-sm" aria-expanded={showIncorrect} onClick={() => setShowIncorrect(!showIncorrect)}>
-              {showIncorrect ? 'Hide pairings' : 'Show pairings'}
-            </button>
+            <button type="button" className="btn btn-ghost btn-sm" aria-haspopup="dialog" onClick={() => setOpenList('pairings')}>Show pairings</button>
           )}
         >
           {Object.entries(VIOLATION_TYPES).map(([key, v]) => (
@@ -150,19 +154,6 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
               <Badge tone={eligibility.byType[key] ? 'bad' : 'good'}>{eligibility.byType[key]}</Badge>
             </div>
           ))}
-          {showIncorrect && (
-            <div className="inset scroll-list">
-              {eligibility.incorrect.map((a, i) => (
-                <div className="list-row" key={i}>
-                  <span className="grow">
-                    <span className="list-title">{a.observerName}</span> <span className="muted">→ {a.observeeName}</span>
-                    <span className="list-sub">{a.courseCode} · {a.timing} · {a.source}</span>
-                  </span>
-                  <span className="mono faint">{a.violations.map((v) => `(${VIOLATION_TYPES[v].code})`).join(' ')}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </Card>
 
         <Card
@@ -184,8 +175,14 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           ))}
         </Card>
 
-        <Card title="Reported not held" sub="Approved appointments that did not go through">
-          {missing.missing.length === 0 ? <p className="muted">No missing observations.</p> : missing.missing.map((o) => (
+        <Card
+          title="Reported not held"
+          sub={missing.count ? `${missingShown.length} of ${missing.count} approved appointments that did not go through` : 'Approved appointments that did not go through'}
+          actions={missing.count > 0 && (
+            <button type="button" className="btn btn-accent btn-sm" aria-haspopup="dialog" onClick={() => setOpenList('missing')}>Show all {missing.count}</button>
+          )}
+        >
+          {missingShown.length === 0 ? <p className="muted">No missing observations.</p> : missingShown.map((o) => (
             <div className="list-row" key={o.id}>
               <span className="grow">
                 <span className="list-title">{o.observeeName}</span> <span className="muted">· {o.observerName}</span>
@@ -196,6 +193,9 @@ export default function AdminKpiDashboard({ signups, requests, observations, sur
           ))}
         </Card>
       </div>
+
+      {openList === 'pairings' && <PairingsDialog pairings={eligibility.incorrect} onClose={closeList} />}
+      {openList === 'missing' && <MissingDialog missing={missing.missing} onClose={closeList} />}
     </div>
   );
 }

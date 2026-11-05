@@ -199,8 +199,11 @@ export function notifDateParts(value) {
 }
 
 export const adaptDeadlines = (cycle) => ({
+  // Each deadline has an optional close time: "HH:MM" (24-hour); '' = closes at 11:59 PM
   signup: cycle?.signup_deadline || '',
+  signupTime: cycle?.signup_deadline_time || '',
   observation: cycle?.observation_deadline || '',
+  observationTime: cycle?.observation_deadline_time || '',
   survey: cycle?.feedback_deadline || '',
-  surveyTime: cycle?.feedback_deadline_time || '', // "HH:MM" (24-hour); '' = closes at 11:59 PM
+  surveyTime: cycle?.feedback_deadline_time || '',
 });

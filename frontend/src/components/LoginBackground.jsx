@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from '../utils/theme.js';
 
 /*
  * "Rising Marks" login background.
@@ -6,17 +7,37 @@ import React, { useEffect, useRef } from 'react';
  * One full-screen <canvas>, drawn with requestAnimationFrame. Each symbol's glow is pre-rendered once to an
  * offscreen canvas, so a frame is just ~60-130 drawImage calls.
  * Pauses while the tab is hidden; draws a single still frame when the user prefers reduced motion.
+ * Symbols are only bright orange or bright green. Dark theme: neon that adds up where glows overlap. Light theme:
+ * the same colors drawn normally (adding light would wash out to white) with a 25% stronger glow so they still pop.
  */
 
 const SYMBOLS = ['A+', 'A', 'B+', '4.0', '5/5', '✓', '★', 'Σ', 'π', 'σ', 'x̄', '%', '≈', '∫', '√', '→', '100'];
 
-// [core text color, glow color]
-const PALETTE = [
-  ['#ffd2a3', '#e87500'], // UTD orange
-  ['#ffc58a', '#ff8a1f'], // bright orange
-  ['#d6ffe7', '#4fbf83'], // green
-  ['#c9ffe0', '#7fdca6'], // mint green
-];
+// Per theme: [core text color, glow color] pairs, how glows combine, and how strong the symbols are.
+const LOOK = {
+  dark: {
+    palette: [
+      ['#ffd2a3', '#e87500'], // UTD orange
+      ['#ffc58a', '#ff8a1f'], // bright orange
+      ['#d6ffe7', '#4fbf83'], // green
+      ['#c9ffe0', '#7fdca6'], // mint green
+    ],
+    blend: 'lighter', // overlapping glows add up like real neon
+    alpha: [0.22, 0.6],
+    glow: 1,
+  },
+  light: {
+    palette: [
+      ['#ff8a1f', '#ff7a00'], // bright orange
+      ['#ffa040', '#e87500'], // UTD orange, lifted
+      ['#22d36f', '#16c060'], // bright green
+      ['#3fe08a', '#1fbf6a'], // neon green
+    ],
+    blend: 'source-over',
+    alpha: [0.44, 0.56],      // 25% brighter than before (0.35-0.90 -> 0.44-1.0)
+    glow: 1.25,               // 25% wider neon halo
+  },
+};
 
 const PUSH_RADIUS = 150;  // px around the cursor that symbols are pushed out of
 const PUSH_STRENGTH = 900;
@@ -26,11 +47,11 @@ const DAMPING = 3.2;
 const rand = (min, max) => min + Math.random() * (max - min);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-function makeSprite(text, size, [core, glow], dpr) {
+function makeSprite(text, size, [core, glow], dpr, boost = 1) {
   const font = `800 ${size}px 'Manrope Variable', 'Manrope', system-ui, sans-serif`;
   const measure = document.createElement('canvas').getContext('2d');
   measure.font = font;
-  const pad = Math.ceil(size * 0.9); // room for the glow
+  const pad = Math.ceil(size * 0.9 * boost); // room for the glow
   const w = Math.ceil(measure.measureText(text).width) + pad * 2;
   const h = Math.ceil(size * 1.3) + pad * 2;
 
@@ -45,9 +66,9 @@ function makeSprite(text, size, [core, glow], dpr) {
   ctx.fillStyle = core;
   ctx.shadowColor = glow;
   // Layered blurs give the neon tube look: a wide halo, a tighter glow, then a crisp core.
-  ctx.shadowBlur = size * 0.9; ctx.fillText(text, w / 2, h / 2);
-  ctx.shadowBlur = size * 0.4; ctx.fillText(text, w / 2, h / 2);
-  ctx.shadowBlur = size * 0.12; ctx.fillText(text, w / 2, h / 2);
+  ctx.shadowBlur = size * 0.9 * boost; ctx.fillText(text, w / 2, h / 2);
+  ctx.shadowBlur = size * 0.4 * boost; ctx.fillText(text, w / 2, h / 2);
+  ctx.shadowBlur = size * 0.12 * boost; ctx.fillText(text, w / 2, h / 2);
   return { canvas, w, h };
 }
 
@@ -63,17 +84,17 @@ function shuffledSlots(n) {
 }
 
 // slot: when given, the symbol starts at that evenly spaced height on screen; otherwise it enters from below.
-function makeMark(width, height, dpr, lane, lanes, slot) {
+function makeMark(look, width, height, dpr, lane, lanes, slot) {
   const depth = rand(0.35, 1); // 1 = closest: bigger, faster, brighter
-  const size = Math.round(12 + depth * 26);
+  const size = Math.round((12 + depth * 26) * 1.25); // 15-47px font size (25% larger than the original 12-38px)
   return {
-    sprite: makeSprite(pick(SYMBOLS), size, pick(PALETTE), dpr),
+    sprite: makeSprite(pick(SYMBOLS), size, pick(look.palette), dpr, look.glow),
     depth,
     lane,
     x: laneX(lane, lanes, width),
     y: slot === undefined ? height + rand(20, 120) : ((slot + rand(0.1, 0.9)) / lanes) * height,
     speed: 10 + depth * 32,             // px per second, upward
-    alpha: 0.22 + depth * 0.6,
+    alpha: look.alpha[0] + depth * look.alpha[1],
     swayAmp: rand(6, 22),
     swayFreq: rand(0.25, 0.7),
     phase: rand(0, Math.PI * 2),
@@ -84,8 +105,10 @@ function makeMark(width, height, dpr, lane, lanes, slot) {
 
 export default function LoginBackground() {
   const canvasRef = useRef(null);
+  const theme = useTheme();
 
   useEffect(() => {
+    const look = LOOK[theme] || LOOK.light;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -126,13 +149,13 @@ export default function LoginBackground() {
     const rebuild = () => {
       const n = targetCount();
       const slots = shuffledSlots(n);
-      marks = Array.from({ length: n }, (_, i) => makeMark(width, height, dpr, i, n, slots[i]));
+      marks = Array.from({ length: n }, (_, i) => makeMark(look, width, height, dpr, i, n, slots[i]));
     };
 
     const draw = () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.globalCompositeOperation = 'lighter'; // overlapping glows add up like real neon
+      ctx.globalCompositeOperation = look.blend;
       for (const m of marks) {
         const sway = Math.sin(time * m.swayFreq + m.phase);
         const x = m.x + sway * m.swayAmp + m.ox;
@@ -171,7 +194,7 @@ export default function LoginBackground() {
         m.ox += m.vx * dt;
         m.oy += m.vy * dt;
 
-        if (m.y + m.oy < -60) marks[i] = makeMark(width, height, dpr, m.lane, marks.length);
+        if (m.y + m.oy < -60) marks[i] = makeMark(look, width, height, dpr, m.lane, marks.length);
       }
     };
 
@@ -219,7 +242,7 @@ export default function LoginBackground() {
       window.removeEventListener('blur', onLeave);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [theme]);
 
   return <canvas ref={canvasRef} className="login-bg" aria-hidden="true" />;
 }

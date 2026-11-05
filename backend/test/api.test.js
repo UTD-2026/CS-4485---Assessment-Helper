@@ -155,6 +155,15 @@ test("full observation workflow through the API", { skip }, async (t) => {
   assert.equal((await call("GET", "/surveys/status", prof)).body.data.deadline_time, "17:30");
   assert.equal((await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { feedback_deadline_time: null })).body.data.feedback_deadline_time, null);
 
+  // Sign-up and observation close times work the same way
+  assert.equal((await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { signup_deadline_time: "9:00" })).status, 400);
+  const timed = (await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { signup_deadline_time: "09:00", observation_deadline_time: "17:00" })).body.data;
+  assert.equal(timed.signup_deadline_time, "09:00");
+  assert.equal(timed.observation_deadline_time, "17:00");
+  const cleared = (await call("PATCH", "/evaluation-cycles/Fall%202026", ac, { signup_deadline_time: null, observation_deadline_time: null })).body.data;
+  assert.equal(cleared.signup_deadline_time, null);
+  assert.equal(cleared.observation_deadline_time, null);
+
   // Notifications
   const inbox = (await call("GET", "/notifications", prof)).body.data;
   assert.ok(inbox.some((n) => n.message.startsWith("Observation Completed")));

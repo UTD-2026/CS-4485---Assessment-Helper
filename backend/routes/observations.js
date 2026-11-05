@@ -8,7 +8,7 @@ const { CourseSection, Observation, ObserverMatch, Professor } = require("../mod
 const { isAc, requireAc } = require("../middleware/auth");
 const { badRequest, conflict, forbidden, notFound } = require("../middleware/errors");
 const {
-  sectionKey, keyFilter, loadTermContext, resolveTerm, observeeOf, isPastDeadline, todayISO, toISODate,
+  sectionKey, keyFilter, loadTermContext, resolveTerm, observeeOf, isSignupClosed, isObservationPeriodOver, todayISO, toISODate,
 } = require("../services/context");
 const { presentObservation, presentMatch, nameOf, flagFor } = require("../services/presenters");
 const { candidatesFor } = require("../services/matching");
@@ -100,8 +100,9 @@ router.post("/", async (req, res) => {
 
   const ctx = await loadTermContext(term);
   if (!ctx.cycle) throw badRequest(`There is no evaluation cycle for ${term}.`);
-  if (isPastDeadline(ctx.cycle.signup_deadline) && !isAc(req)) {
-    throw conflict(`Sign-up for ${term} closed on ${toISODate(ctx.cycle.signup_deadline)}.`);
+  if (isSignupClosed(ctx.cycle) && !isAc(req)) {
+    const at = ctx.cycle.signup_deadline_time ? ` at ${ctx.cycle.signup_deadline_time}` : "";
+    throw conflict(`Sign-up for ${term} closed on ${toISODate(ctx.cycle.signup_deadline)}${at}.`);
   }
   if (await Observation.exists({ course_code, section_number, term })) throw conflict("This section is already signed up.");
   if (ctx.observations.some((o) => observeeOf(ctx, o) === section.instructor_email)) {
@@ -187,7 +188,7 @@ router.patch(`${KEY}/status`, async (req, res) => {
 router.patch(`${KEY}/form`, async (req, res) => {
   const { observation, ctx, observee, role } = await load(req);
   const body = req.body || {};
-  const past = ctx.cycle && isPastDeadline(ctx.cycle.observation_deadline);
+  const past = ctx.cycle && isObservationPeriodOver(ctx.cycle);
   const active = ["scheduled", "awaiting_confirmation"].includes(observation.status);
   const observeeName = nameOf(ctx, observee);
 

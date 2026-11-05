@@ -16,19 +16,25 @@ function todayISO(now = new Date()) {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** A deadline stays open for its whole day (closes at 11:59:59 PM). */
-const isPastDeadline = (date, now = new Date()) => (date ? todayISO(now) > toISODate(date) : false);
-
-/** When the survey closes: feedback_deadline at feedback_deadline_time ("HH:MM", server local time), else 11:59:59 PM. */
-function surveyClosesAt(cycle) {
-  if (!cycle?.feedback_deadline) return null;
-  const time = cycle.feedback_deadline_time ? `${cycle.feedback_deadline_time}:00` : "23:59:59";
-  return new Date(`${toISODate(cycle.feedback_deadline)}T${time}`);
+/**
+ * When a deadline closes: its date at its optional time ("HH:MM", server local time), else 11:59:59 PM that day.
+ * Keep in step with deadlineClosesAt in frontend/src/utils/deadlines.js.
+ */
+function deadlineClosesAt(date, time) {
+  if (!date) return null;
+  return new Date(`${toISODate(date)}T${time ? `${time}:00` : "23:59:59"}`);
 }
-const isSurveyClosed = (cycle, now = new Date()) => {
-  const closesAt = surveyClosesAt(cycle);
+/** True once the deadline's closing moment has passed. With no time it stays open for its whole day. */
+const isPastDeadline = (date, time = null, now = new Date()) => {
+  const closesAt = deadlineClosesAt(date, time);
   return closesAt ? now >= closesAt : false;
 };
+
+/** Per-deadline shortcuts for an evaluation cycle. */
+const isSignupClosed = (cycle, now) => isPastDeadline(cycle?.signup_deadline, cycle?.signup_deadline_time, now);
+const isObservationPeriodOver = (cycle, now) => isPastDeadline(cycle?.observation_deadline, cycle?.observation_deadline_time, now);
+const surveyClosesAt = (cycle) => deadlineClosesAt(cycle?.feedback_deadline, cycle?.feedback_deadline_time);
+const isSurveyClosed = (cycle, now) => isPastDeadline(cycle?.feedback_deadline, cycle?.feedback_deadline_time, now);
 
 async function getCycles() {
   const cycles = await EvaluationCycle.find({}).lean();
@@ -40,7 +46,7 @@ async function getCurrentTerm(cycles) {
   if (env.currentTerm) return env.currentTerm;
   const list = cycles || (await getCycles());
   if (!list.length) return null;
-  const open = list.find((c) => !isPastDeadline(c.feedback_deadline));
+  const open = list.find((c) => !isPastDeadline(c.feedback_deadline)); // whole deadline day, ignoring the close time
   return (open || list[list.length - 1]).term;
 }
 
@@ -114,6 +120,9 @@ module.exports = {
   toISODate,
   todayISO,
   isPastDeadline,
+  deadlineClosesAt,
+  isSignupClosed,
+  isObservationPeriodOver,
   surveyClosesAt,
   isSurveyClosed,
   getCycles,

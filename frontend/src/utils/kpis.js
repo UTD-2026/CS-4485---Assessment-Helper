@@ -4,6 +4,8 @@
 // The same definitions run on the back end for GET /api/reports/kpis (backend/services/kpis.js).
 // professors / courses come from the API (see api/adapters.js); due status is computed by the server.
 
+import { isPastDeadline } from './deadlines.js';
+
 export const TARGET_LIST_SIZE = 5; // the backend's matching service lists up to 5 observers per sign-up
  
 const pct = (num, den) => (den ? Math.round((num / den) * 1000) / 10 : 0);
@@ -173,8 +175,8 @@ export const computeListSufficiency = (signups) => {
 // 4a. Missing Observation Count: approved (confirmed) appointments that did not go through.
 // Counted as missing when either party reports it did not happen, or when the observation
 // deadline has passed without BOTH the observer and the observee confirming it took place.
-export const computeMissingObservations = (observations, observationDeadline, today = new Date()) => {
-  const deadlinePassed = observationDeadline ? today > new Date(`${observationDeadline}T23:59:59`) : false;
+export const computeMissingObservations = (observations, observationDeadline, today = new Date(), observationTime = '') => {
+  const deadlinePassed = isPastDeadline(observationDeadline, observationTime, today);
  
   const missing = observations
     .map(o => {
@@ -237,7 +239,7 @@ export const computeAllKpis = ({ signups, requests, observations, surveySubmissi
     participation: computeParticipation(signups, overdue.due),
     utilization: computeObserverUtilization(signups, observations, professors),
     sufficiency: computeListSufficiency(signups),
-    missing: computeMissingObservations(observations, deadlines?.observation, today),
+    missing: computeMissingObservations(observations, deadlines?.observation, today, deadlines?.observationTime),
     survey: computeSurveyCompletion(signups, requests, observations, surveySubmissions),
   };
 };

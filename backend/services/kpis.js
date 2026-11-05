@@ -2,7 +2,7 @@
 // Definitions match the dashboard (frontend/src/utils/kpis.js) so the API and the UI agree;
 // the report shapes follow sriproflookup's Committee Reports (by hire level, unmatched, outstanding, workload).
 const { evaluateEligibility } = require("./eligibility");
-const { sectionKey, observeeOf, isPastDeadline, isSurveyClosed } = require("./context");
+const { sectionKey, observeeOf, isObservationPeriodOver, isSurveyClosed } = require("./context");
 const { levelLabel } = require("./dueStatus");
 const { flagFor } = require("./presenters");
 
@@ -48,7 +48,7 @@ function computeKpis(ctx, { surveys = [] } = {}) {
   const flags = signups.map(({ o }) => o.match_flag || flagFor(matchesFor(o).length));
 
   // 4a
-  const deadlinePassed = ctx.cycle ? isPastDeadline(ctx.cycle.observation_deadline) : false;
+  const deadlinePassed = ctx.cycle ? isObservationPeriodOver(ctx.cycle) : false;
   const paired = obs.filter((o) => o.observer_email);
   const missing = paired.filter((o) => o.status === "missed" || (deadlinePassed && !["completed", "deferred"].includes(o.status)));
 
