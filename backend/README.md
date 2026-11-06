@@ -102,7 +102,7 @@ Match statuses: `suggested → requested → accepted | declined → confirmed |
 | Method | Endpoint | Notes |
 |---|---|---|
 | GET | /api/surveys/status | `?term=`. Committee may add `all=true` to get who submitted (emails only, for the KPI) |
-| POST | /api/surveys | `{ process_ok, difficulties, improvements, has_attachment }`. Once per term, before the survey closes. `process_ok: false` requires both `difficulties` and `improvements` |
+| POST | /api/surveys | `{ rating, answers: [{ key, question, answer }], notes?, attachment_count? }`. `rating` is `difficult` / `manageable` / `smooth`, each with its own required answers (see `routes/surveys.js`). Once per term, before the survey closes. The older `{ process_ok, difficulties, improvements, has_attachment }` body is still accepted |
 | GET | /api/surveys/responses | Committee. Answers with a hashed `response_id` and `submitted_at` (ISO timestamp), no email |
 | POST | /api/surveys/reminders | **Extension.** Committee. Notifies signed-up professors who have not submitted (the "Request End-of-Process Surveys" button) |
 
@@ -127,7 +127,7 @@ Existing fields and keys are unchanged, so the seed data loads as before. Added:
   `list_released_date`, `selected_manually`, `evaluation_items`, `evaluation_submitted_date`, `evaluation_draft`,
   `evaluation_draft_saved`, `missed_reason`, `missed_reported_by`, `missed_date`, `deferral_reason`, `deferred_by`
 - `ObserverMatch`: `requested_date` optional (null for suggestions), `responded_date`
-- `Survey`: `process_ok`, `difficulties`, `improvements`, `has_attachment` (seeded `process_rating` / feedback fields still read)
+- `Survey`: `rating`, `answers`, `notes`, `attachment_count`, plus summary fields `process_ok`, `difficulties`, `improvements`, `has_attachment` (seeded `process_rating` / feedback fields still read)
 - New `Notification` collection (`setup-database.js` creates it)
 
 ## Tests

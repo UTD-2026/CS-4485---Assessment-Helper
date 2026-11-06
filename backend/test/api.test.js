@@ -140,13 +140,21 @@ test("full observation workflow through the API", { skip }, async (t) => {
   assert.equal(done.body.data.status, "completed");
   assert.ok(done.body.data.ratings[template[0].id]);
 
-  // Survey: once, anonymous; "not OK" needs both written answers
+  // Survey: once, anonymous; each rating has its own required follow-up answers
   assert.equal((await call("POST", "/surveys", prof, { process_ok: false, difficulties: "  ", improvements: "More time" })).status, 400);
-  assert.equal((await call("POST", "/surveys", prof, { process_ok: true, difficulties: "", improvements: "More time" })).status, 201);
+  assert.equal((await call("POST", "/surveys", prof, { rating: "great", answers: [] })).status, 400);
+  assert.equal((await call("POST", "/surveys", prof, { rating: "difficult", answers: [{ key: "challenges", answer: "Scheduling" }] })).status, 400);
+  assert.equal((await call("POST", "/surveys", prof, { rating: "smooth", answers: [{ key: "excelled", answer: "Matching" }, { key: "had_difficulties", answer: "yes" }] })).status, 400);
+  assert.equal((await call("POST", "/surveys", prof, {
+    rating: "smooth", notes: "", attachment_count: 1,
+    answers: [{ key: "excelled", question: "Q", answer: "Matching" }, { key: "had_difficulties", answer: "no" }, { key: "improve", answer: "" }],
+  })).status, 201);
   assert.equal((await call("POST", "/surveys", prof, { process_ok: true })).status, 409);
   const responses = (await call("GET", "/surveys/responses?term=Fall%202026", ac)).body.data;
   assert.ok(responses.length > 0 && responses.every((r) => !("professor_email" in r)));
   assert.ok(responses.every((r) => r.submitted_at === null || !Number.isNaN(Date.parse(r.submitted_at))));
+  const rated = responses.find((r) => r.rating === "smooth");
+  assert.ok(rated && rated.process_ok === true && rated.attachment_count === 1 && rated.answers.some((a) => a.key === "excelled"));
   assert.equal((await call("GET", "/surveys/status", prof)).body.data.submitted, true);
 
   // Survey close time on the feedback deadline

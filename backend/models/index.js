@@ -131,6 +131,11 @@ const surveySchema = new Schema({
   difficulties: { type: String, default: "" },
   improvements: { type: String, default: "" },
   has_attachment: { type: Boolean, default: false },
+  // Rating-based form: difficult | manageable | smooth, each with its own follow-up questions
+  rating: { type: String, enum: ["difficult", "manageable", "smooth", null], default: null },
+  answers: { type: [{ _id: false, key: String, question: String, answer: String }], default: [] },
+  notes: { type: String, default: "" },
+  attachment_count: { type: Number, default: 0 },
   submitted_date: { type: Date, default: null },
 });
 

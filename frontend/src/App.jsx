@@ -728,8 +728,8 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
       {activeTab === 'template' && (
         <div className="stack">
-          <div className="row">
-            <label className="row" htmlFor="template-term">
+          <div className="template-term-row">
+            <label className="template-term-label" htmlFor="template-term">
               <strong>Template for</strong>
               <select id="template-term" className="select" value={templateTerm} onChange={e => { setTemplateTerm(e.target.value); setEditingId(null); }}>
                 {termOptions.map(t => <option key={t} value={t}>{t}{t === currentSemester ? ' (current)' : ''}</option>)}
@@ -741,7 +741,26 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
             </span>
           </div>
 
-          {editedTemplate.length === 0 && <EmptyState icon="sliders" title="No criteria yet">Add the first criterion below.</EmptyState>}
+          <div className="card card-dashed">
+            <div className="row align-end">
+              <label className="field field-grow-3" htmlFor="new-criterion">
+                Add a criterion
+                <input id="new-criterion" type="text" value={newCriteria} onChange={(e) => setNewCriteria(e.target.value)} placeholder="e.g., Uses multimedia effectively" />
+              </label>
+              <label className="field field-grow" htmlFor="new-criterion-scale">
+                Rating scale
+                <select id="new-criterion-scale" value={newRating} onChange={(e) => setNewRating(e.target.value)}>
+                  {RATING_SCALES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <button type="button" className="btn btn-accent" onClick={handleAddCriteria}><Icon name="plus" size={16} /> Add</button>
+            </div>
+          </div>
+          <div>
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => saveTemplate(editedTemplate, `Template saved and published for ${templateTerm}.`)}>Save and publish for {templateTerm}</button>
+          </div>
+
+          {editedTemplate.length === 0 && <EmptyState icon="sliders" title="No criteria yet">Add the first criterion above.</EmptyState>}
           {editedTemplate.map((item, index) => (
             <div key={item.id} className="card">
               {editingId === item.id ? (
@@ -774,25 +793,6 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
               )}
             </div>
           ))}
-
-          <div className="card card-dashed">
-            <div className="row align-end">
-              <label className="field field-grow-3" htmlFor="new-criterion">
-                Add a criterion
-                <input id="new-criterion" type="text" value={newCriteria} onChange={(e) => setNewCriteria(e.target.value)} placeholder="e.g., Uses multimedia effectively" />
-              </label>
-              <label className="field field-grow" htmlFor="new-criterion-scale">
-                Rating scale
-                <select id="new-criterion-scale" value={newRating} onChange={(e) => setNewRating(e.target.value)}>
-                  {RATING_SCALES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
-              <button type="button" className="btn btn-accent" onClick={handleAddCriteria}><Icon name="plus" size={16} /> Add</button>
-            </div>
-          </div>
-          <div>
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => saveTemplate(editedTemplate, `Template saved and published for ${templateTerm}.`)}>Save and publish for {templateTerm}</button>
-          </div>
         </div>
       )}
 
