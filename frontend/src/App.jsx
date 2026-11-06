@@ -475,10 +475,10 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   }).sort((a, b) => Number(b.needsAction) - Number(a.needsAction));
   const needsActionCount = signupRows.filter(r => r.needsAction).length;
   const SIGNUP_FILTERS = [
-    ['needs', 'Needs action', (r) => r.needsAction],
-    ['progress', 'In progress', (r) => !r.needsAction && !(r.obs && (r.obs.status === 'Completed'))],
-    ['completed', 'Completed', (r) => r.obs?.status === 'Completed'],
     ['all', 'All', () => true],
+    ['completed', 'Completed', (r) => r.obs?.status === 'Completed'],
+    ['progress', 'In progress', (r) => !r.needsAction && !(r.obs && (r.obs.status === 'Completed'))],
+    ['needs', 'Needs action', (r) => r.needsAction],
   ];
   const shownSignups = signupRows.filter(SIGNUP_FILTERS.find(f => f[0] === signupFilter)[2]);
   const flagCount = (flag) => (globalSignups || []).filter(s => s.matchFlag === flag).length;
@@ -607,6 +607,13 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
             <EmptyState icon="signups" title={signupRows.length ? 'Nothing here' : 'No sign-ups yet'}>{signupRows.length ? 'No sign-ups match this filter.' : 'Sign-ups appear here as due faculty choose a course.'}</EmptyState>
           ) : (
             <div className="stack-sm">
+              <div className="signup-row signup-head" aria-hidden="true">
+                <span>Observee</span>
+                <span>Class and day &amp; time</span>
+                <span>Status</span>
+                <span className="signup-observer">Observer</span>
+                <span className="signup-head-more">See more</span>
+              </div>
               {shownSignups.map(({ signup, obs, flagged }) => {
                 const isOpen = expandedSignup === signup.id;
                 const [flagLabel, flagTone] = FLAG[signup.matchFlag] || [signup.matchFlag, 'neutral'];
@@ -623,8 +630,8 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
                         <span className="list-sub">{signup.timing}</span>
                       </span>
                       <span><Badge tone={flagTone}>{flagLabel}</Badge></span>
-                      <span>
-                        {obs ? <span className="row">{obs.observerName} <StatusBadge status={obs.status} /></span> : <span className="faint">No observer yet</span>}
+                      <span className="signup-observer">
+                        {obs ? <><span className="signup-observer-name">{obs.observerName}</span><StatusBadge status={obs.status} /></> : <span className="faint">No observer yet</span>}
                       </span>
                       <button type="button" className="btn btn-secondary btn-sm" aria-expanded={isOpen} onClick={() => { setExpandedSignup(isOpen ? null : signup.id); setManualObserverId(''); }}>
                         {isOpen ? 'Hide' : 'Review'}
@@ -689,7 +696,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
       {activeTab === 'deadlines' && (
         <>
-          <div className="grid grid-260 section-gap-lg">
+          <div className="grid grid-260 deadline-grid section-gap-lg">
             <DeadlineCard
               id="deadline-signup" title="Sign-up deadline"
               date={deadlineForm.signup} time={deadlineForm.signupTime}

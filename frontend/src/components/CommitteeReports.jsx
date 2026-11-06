@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
-import { formatTiming } from '../api/adapters.js';
 import { downloadCsv } from '../utils/facultyCsv.js';
 import Icon from './Icon.jsx';
+import { NextActionButton, NextActionDialog, OutstandingDialog, UnmatchedDialog, WorkloadDialog } from './KpiListDialogs.jsx';
+import { DUE, STATUS, nextDetail, scheduleOf } from '../utils/nextSteps.js';
 import { Badge, Card, Notice } from './ui.jsx';
 
 // Committee Reports (from the sriproflookup branch). The tables come from the backend:
@@ -10,15 +11,27 @@ import { Badge, Card, Notice } from './ui.jsx';
 //   GET /api/reports/unmatched-faculty         -> unmatched faculty (include=all_due for every due/overdue professor)
 //   GET /api/reports/outstanding-observations  -> outstanding observations + breakdown by hire level
 
-const STATUS = {
-  signed_up: ['Signed up', 'neutral'], unmatched: ['No eligible observer', 'bad'], matched: ['Pending scheduling', 'warn'],
-  scheduled: ['Scheduled', 'info'], awaiting_confirmation: ['Awaiting confirmation', 'warn'], missed: ['Missed', 'bad'],
-};
-const DUE = { due: ['Due', 'warn'], overdue: ['Overdue', 'bad'], not_due: ['Not due', 'neutral'] };
+// How many rows the long report cards show before "Show all" opens the full, filterable list.
+const PREVIEW_ROWS = 8;
 
-// One report: a card with a table and a CSV export of exactly what the table shows.
+// One headline figure per row: the number, a short label and a plain-language explanation.
+function StatRow({ value, label, tone = '', children }) {
+  return (
+    <div className="card stat-row">
+      <div className={`big-number${tone ? ` text-${tone}` : ''}`}>{value}</div>
+      <div>
+        <div className="stat-row-label">{label}</div>
+        <p className="stat-row-text">{children}</p>
+      </div>
+    </div>
+  );
+}
+
+// One report: a card with a table and a CSV export of every row (even when only a preview is shown).
 // columns: [{ label, render?(row) }]; csv: rows of plain values for export.
-function ReportTable({ title, description, columns, rows, csv, empty, filename, term }) {
+// limit + onShowAll: show only the first `limit` rows and a "Show all" button that opens the full list.
+function ReportTable({ title, description, columns, rows, csv, empty, filename, term, limit, onShowAll, compact }) {
+  const visible = limit ? rows.slice(0, limit) : rows;
   return (
     <Card
       flush
@@ -32,16 +45,22 @@ function ReportTable({ title, description, columns, rows, csv, empty, filename, 
       )}
     >
       <div className="table-wrap">
-        <table className="data-table">
+        <table className={`data-table${compact ? ' data-table-compact' : ''}`}>
           <caption className="sr-only">{title}</caption>
           <thead><tr>{columns.map((c) => <th key={c.label} scope="col">{c.label}</th>)}</tr></thead>
           <tbody>
-            {rows.length ? rows.map((row, i) => (
+            {visible.length ? visible.map((row, i) => (
               <tr key={i}>{columns.map((c, j) => <td key={c.label} className={j === 0 ? 'strong nowrap' : c.className}>{c.render(row)}</td>)}</tr>
             )) : <tr><td colSpan={columns.length} className="empty-cell">{empty}</td></tr>}
           </tbody>
         </table>
       </div>
+      {limit && rows.length > limit && (
+        <div className="card-foot row-between">
+          <span>Showing {limit} of {rows.length}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onShowAll}>Show all {rows.length}</button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -49,6 +68,10 @@ function ReportTable({ title, description, columns, rows, csv, empty, filename, 
 export default function CommitteeReports({ term, refreshKey }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState('');
+  // Which pop-up is open: 'workload' | 'unmatched' | 'outstanding' | { observation } (one next-action explanation).
+  const [dialog, setDialog] = useState(null);
+  const closeDialog = useCallback(() => setDialog(null), []);
+  const openNextAction = useCallback((observation) => setDialog({ observation }), []);
 
   useEffect(() => {
     if (!term) return;
@@ -66,20 +89,29 @@ export default function CommitteeReports({ term, refreshKey }) {
 
   const workload = report.kpis.observer_workload;
   const active = workload.filter((p) => p.assigned > 0);
-  const average = active.length ? active.reduce((s, p) => s + p.assigned, 0) / active.length : 0;
+  const totalAssigned = active.reduce((s, p) => s + p.assigned, 0);
+  const average = active.length ? totalAssigned / active.length : 0;
   const byLevel = report.byLevel.map((l) => `${l.hire_level_label} ${l.count}`).join(' · ') || 'none';
-  const schedule = (o) => [o.observation_date, formatTiming(o.timing)].filter(Boolean).join(' · ') || '—';
 
   return (
     <div className="stack">
-      <div className="grid grid-200">
-        <div className="card"><div className="big-number">{active.length}</div><div className="muted">assigned observers</div></div>
-        <div className="card"><div className="big-number">{average.toFixed(1)}</div><div className="muted">avg observations per assigned observer</div></div>
-        <div className="card"><div className="big-number text-warn">{report.outstanding.length}</div><div className="muted">outstanding · {byLevel}</div></div>
-      </div>
+      <StatRow value={active.length} label="Assigned observers">
+        Faculty observing at least one colleague this cycle. Signing up alone doesn't count; a professor has to
+        actually be paired with someone. Every assignment counts, whether it's scheduled, completed or missed.
+      </StatRow>
+      <StatRow value={average.toFixed(1)} label="Avg observations per assigned observer">
+        On average, each assigned observer has this many observations ({totalAssigned} in total). Faculty with none are
+        left out, so this shows how busy the active observers are, not how evenly the work is spread.
+        See Observer workload below for each person's count.
+      </StatRow>
+      <StatRow value={report.outstanding.length} tone="warn" label={`Outstanding · ${byLevel}`}>
+        Observations this term that aren't finished yet: they still need an observer, a date, a confirmation, or a
+        follow-up after a missed session. Split by the observee's hiring level. Each one is listed with its next step in
+        Outstanding observations below.
+      </StatRow>
       <p className="faint">Reports update as faculty sign up, select observers and confirm observations. Workload counts every assignment this cycle, including completed and missed ones.</p>
 
-      <div className="grid grid-420">
+      <div className="stack">
         <ReportTable
           term={term} filename="evaluation-by-level" title="Due by hiring level"
           description="Assistant every calendar year; Associate and Full every two years"
@@ -96,7 +128,7 @@ export default function CommitteeReports({ term, refreshKey }) {
         <ReportTable
           term={term} filename="observer-workload" title="Observer workload"
           description="All faculty, so unused capacity is visible"
-          rows={workload}
+          rows={workload} limit={PREVIEW_ROWS} onShowAll={() => setDialog('workload')}
           columns={[
             { label: 'Professor', render: (p) => p.name },
             { label: 'Department', render: (p) => p.department },
@@ -113,7 +145,7 @@ export default function CommitteeReports({ term, refreshKey }) {
       <ReportTable
         term={term} filename="unmatched-faculty" title="Unmatched faculty"
         description="No eligible observer candidates first, then other due or overdue faculty without an observer"
-        rows={report.unmatched}
+        rows={report.unmatched} limit={PREVIEW_ROWS} onShowAll={() => setDialog('unmatched')}
         columns={[
           { label: 'Professor', render: (p) => p.name },
           { label: 'Department', render: (p) => p.department },
@@ -128,19 +160,23 @@ export default function CommitteeReports({ term, refreshKey }) {
       <ReportTable
         term={term} filename="outstanding-observations" title="Outstanding observations"
         description="Signed-up observations that are not complete, including missed sessions that need follow-up"
-        rows={report.outstanding}
+        rows={report.outstanding} limit={PREVIEW_ROWS} onShowAll={() => setDialog('outstanding')} compact
         columns={[
           { label: 'Observee', render: (o) => o.observee_name },
           { label: 'Hiring level', render: (o) => o.hire_level_label },
           { label: 'Observer', className: 'nowrap', render: (o) => o.observer_name || '—' },
           { label: 'Course', className: 'nowrap', render: (o) => <span className="mono">{o.course_code}</span> },
-          { label: 'Schedule', className: 'nowrap', render: schedule },
+          { label: 'Schedule', className: 'nowrap', render: scheduleOf },
           { label: 'Status', render: (o) => { const [l, t] = STATUS[o.status] || [o.status, 'neutral']; return <Badge tone={t}>{l}</Badge>; } },
-          { label: 'Next action', render: (o) => o.next_action },
+          { label: 'Next action', className: 'nowrap', render: (o) => <NextActionButton observation={o} onOpen={openNextAction} /> },
         ]}
-        csv={report.outstanding.map((o) => [o.observee_name, o.hire_level_label, o.observer_name || '—', o.course_code, schedule(o), (STATUS[o.status] || [o.status])[0], o.next_action])}
+        csv={report.outstanding.map((o) => [o.observee_name, o.hire_level_label, o.observer_name || '—', o.course_code, scheduleOf(o), (STATUS[o.status] || [o.status])[0], nextDetail(o)])}
         empty="No outstanding observations."
       />
+      {dialog === 'workload' && <WorkloadDialog workload={workload} onClose={closeDialog} />}
+      {dialog === 'unmatched' && <UnmatchedDialog faculty={report.unmatched} onClose={closeDialog} />}
+      {dialog === 'outstanding' && <OutstandingDialog observations={report.outstanding} onClose={closeDialog} />}
+      {dialog?.observation && <NextActionDialog observation={dialog.observation} onClose={closeDialog} />}
     </div>
   );
 }

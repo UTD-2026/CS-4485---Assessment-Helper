@@ -133,6 +133,7 @@ function outstandingObservations(ctx) {
         status: o.status, observation_date: o.observation_date ? new Date(o.observation_date).toISOString().slice(0, 10) : null,
         timing: ctx.sectionByKey.get(sectionKey(o))?.timing || null,
         observer_confirmed: Boolean(o.observer_signed_date), observee_confirmed: Boolean(o.observee_signed_date),
+        missed_reason: o.missed_reason || null,
         next_action: NEXT_ACTION[o.status] || "Review",
       };
     });

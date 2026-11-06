@@ -466,6 +466,11 @@ a:hover { color: var(--accent-hover); }
 .kpi-row { display: grid; gap: 14px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); align-items: stretch; }
 .big-number { font-family: var(--mono); font-size: 30px; font-weight: 700; line-height: 1.15; }
 .big-number .faint { font-size: 0.6em; }
+/* Committee reports: one full-width stat per row, number on the left and a plain-language explanation beside it. */
+.stat-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 18px; align-items: center; }
+.stat-row-label { font-weight: 600; margin-bottom: 4px; }
+.stat-row-text { color: var(--muted); font-size: 13.5px; line-height: 1.5; margin: 0; }
+@media (max-width: 560px) { .stat-row { grid-template-columns: 1fr; gap: 6px; } }
 
 /* ---------- Meters / bars ---------- */
 
@@ -632,7 +637,17 @@ a:hover { color: var(--accent-hover); }
 
 .segmented { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
 .segmented button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
-.segmented button.active { background: var(--segment-active-bg); color: var(--segment-active-fg); box-shadow: var(--shadow-sm); font-weight: 700; }
+.segmented button { transition: background-color 0.15s, color 0.15s, box-shadow 0.15s; }
+.segmented button:hover:not(.active) { background: var(--sunken); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+.segmented button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
+/* Selected tab: tinted with the accent and outlined, so it stands out from the others. */
+.segmented button.active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--segment-active-bg));
+  color: var(--segment-active-fg);
+  box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-sm);
+  font-weight: 700;
+}
+.segmented button.active .mono { color: var(--accent); }
 
 /* ---------- Lists & tables ---------- */
 
@@ -749,6 +764,12 @@ a:hover { color: var(--accent-hover); }
   align-items: center;
   padding: 14px 18px;
 }
+/* Column key above the sign-up cards (same grid as each row). */
+.signup-head { padding-top: 4px; padding-bottom: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.signup-head-more { text-align: center; }
+/* Observer name with the observation status underneath, both centered. */
+.signup-observer { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.signup-observer-name { color: var(--text); font-weight: 600; }
 .signup-detail { padding: 0 18px 18px; display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .scroll-list { margin-top: 12px; max-height: 260px; overflow-y: auto; }
 .inset { background: var(--sunken); border: 1px solid var(--border-soft); border-radius: var(--r); padding: 12px 14px; }
@@ -756,6 +777,9 @@ a:hover { color: var(--accent-hover); }
 /* ---------- Deadlines ---------- */
 
 .deadline-card { display: flex; flex-direction: column; gap: 10px; }
+/* Deadline cards share one height (the tallest hint sets it); the date and time inputs sit at the bottom so they line up. */
+.deadline-grid { align-items: stretch; }
+.deadline-card > .row:last-child { margin-top: auto; }
 .deadline-date { font-family: var(--mono); font-size: 26px; font-weight: 700; }
 .deadline-date small { font-size: 14px; color: var(--muted); }
 
@@ -962,6 +986,8 @@ a:hover { color: var(--accent-hover); }
 @media (max-width: 900px) {
   .signup-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .signup-row > :last-child { justify-self: start; }
+  .signup-head { display: none; }
+  .signup-observer { align-items: flex-start; text-align: left; }
 }
 
 @media (max-width: 720px) {
@@ -1010,3 +1036,23 @@ a:hover { color: var(--accent-hover); }
 @media (max-height: 760px) {
   .login-card { min-height: 0; padding-top: 28px; padding-bottom: 28px; gap: 22px; }
 }
+
+/* ---------- Committee reports: compact rows + next-action preview ---------- */
+
+.data-table-compact td { padding-top: 7px; padding-bottom: 7px; }
+.next-action-btn {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 300px;
+  padding: 4px 9px; border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--text-3); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.next-action-btn:hover { border-color: var(--text-3); color: var(--text); }
+.next-action-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
+.next-action-who { font-weight: 700; color: var(--text); }
+.next-action-what { overflow: hidden; text-overflow: ellipsis; }
+.next-action-btn svg { flex: none; opacity: 0.7; }
+.next-action-dialog { width: min(480px, 100%); }
+.next-action-body { padding: 16px 20px 20px; overflow: auto; }
+.next-action-facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 16px; font-size: 13.5px; }
+.next-action-facts dt { color: var(--faint); }
+.next-action-facts dd { margin: 0; color: var(--text-3); }
+.next-action-detail { margin: 6px 0 0; line-height: 1.55; color: var(--text); }
