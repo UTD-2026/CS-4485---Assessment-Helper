@@ -961,7 +961,8 @@ a:hover { color: var(--accent-hover); }
 
 /* ---------- Test accounts dialog ---------- */
 
-.dialog-overlay { position: fixed; inset: 0; z-index: 900; background: var(--overlay); display: grid; place-items: center; padding: 16px; }
+/* minmax(0, 1fr): the column is the screen width, not the width of a wide table inside, so dialogs stay centered. */
+.dialog-overlay { position: fixed; inset: 0; z-index: 900; background: var(--overlay); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); place-items: center; padding: 16px; }
 .dialog {
   width: min(760px, 100%);
   max-height: min(720px, calc(100vh - 32px));
@@ -987,7 +988,7 @@ a:hover { color: var(--accent-hover); }
 .dialog-filters .input { flex: 1 1 260px; }
 .dialog-filters .select { flex: 0 1 180px; }
 /* Wider dialog for the KPI pop-up lists (more columns than Test accounts) */
-.dialog-wide { width: min(1040px, 100%); }
+.dialog-wide { width: min(1200px, 100%); }
 .dialog-wide .dialog-filters .select { flex: 0 1 240px; }
 .code-chip-bad { background: var(--bad-bg); color: var(--bad-fg); font-weight: 700; }
 
