@@ -3,6 +3,8 @@ import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
 import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
+import MetricDetail from './components/MetricDetails.jsx';
+import { METRIC_PAGES } from './utils/metricPages.js';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import CommitteeReports from './components/CommitteeReports.jsx';
 import TestAccountsDialog from './components/TestAccountsDialog.jsx';
@@ -315,7 +317,11 @@ const ADMIN_TITLES = {
   template: ['Template editor', 'Criteria observers rate during in-person evaluations'],
   evaluations: ['Digital evaluations', 'Forms submitted this cycle'],
   surveys: ['Survey responses', 'Anonymous end-of-process feedback'],
+  // One page per KPI, listed under Metrics in the side rail
+  ...Object.fromEntries(METRIC_PAGES.map(p => [p.id, [`${p.code} · ${p.title}`, p.subtitle]])),
 };
+const METRIC_NAV = METRIC_PAGES.map(({ id, code, label, title }) => ({ id, code, label, title: `${code} · ${title}` }));
+const isMetricPage = (id) => METRIC_PAGES.some(p => p.id === id);
 
 function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, globalObservations, globalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, globalEvaluations }) {
   const { term: currentSemester, professors, courses, refresh } = data;
@@ -358,6 +364,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   const isPastObservationDeadline = isPastDeadline(globalDeadlines?.observation, globalDeadlines?.observationTime);
 
   const goTo = (id, filters = {}) => {
+    if (id !== activeTab) window.scrollTo({ top: 0 });
     setActiveTab(id);
     setViewingEvaluation(null);
     setEditingId(null);
@@ -484,7 +491,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   const flagCount = (flag) => (globalSignups || []).filter(s => s.matchFlag === flag).length;
 
   const nav = [
-    { id: 'metrics', label: 'Metrics', icon: 'metrics' },
+    { id: 'metrics', label: 'Metrics', icon: 'metrics', children: METRIC_NAV },
     { id: 'faculty', label: 'Faculty', icon: 'users' },
     { id: 'reports', label: 'Reports', icon: 'report' },
     { id: 'signups', label: 'Signups', icon: 'signups', count: needsActionCount },
@@ -520,6 +527,21 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
       {activeTab === 'metrics' && (
         <AdminKpiDashboard
+          signups={globalSignups}
+          requests={globalRequests}
+          observations={globalObservations}
+          surveySubmissions={surveySubmissions}
+          deadlines={globalDeadlines}
+          professors={professors}
+          courses={courses}
+          onNavigate={goTo}
+        />
+      )}
+
+      {isMetricPage(activeTab) && (
+        <MetricDetail
+          key={activeTab}
+          metric={activeTab}
           signups={globalSignups}
           requests={globalRequests}
           observations={globalObservations}

@@ -221,12 +221,25 @@ a:hover { color: var(--accent-hover); }
   letter-spacing: 0.04em;
 }
 
+/* The nav takes the space between the logo and log out, and scrolls on its own when a group is opened. */
 .rail-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 -4px;
+  padding: 2px 4px;           /* room for focus rings inside the scroll area */
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
+.rail-nav::-webkit-scrollbar { width: 6px; height: 6px; }
+.rail-nav::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+.rail-nav::-webkit-scrollbar-track { background: transparent; }
+.rail-nav > * { flex: none; }
 
 .rail-item {
   position: relative;
@@ -268,6 +281,52 @@ a:hover { color: var(--accent-hover); }
   display: grid;
   place-items: center;
 }
+
+/* Rail group: an item with a pull-down list of sub-pages (Metrics -> one page per metric). */
+.rail-group { display: flex; flex-direction: column; gap: 4px; }
+.rail-group-head { position: relative; }
+.rail-item.child-active { background: color-mix(in srgb, var(--selected) 50%, transparent); color: var(--selected-fg); }
+.rail-group-head > .rail-item { padding-right: 12px; } /* nudge the label left so the arrow sits beside it */
+.rail-toggle {
+  position: absolute;
+  right: 2px;
+  bottom: 8px;
+  width: 18px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.rail-toggle:hover { background: var(--rail-hover); color: var(--text); }
+.rail-item.active + .rail-toggle, .rail-item.child-active + .rail-toggle { color: var(--selected-fg); }
+.rail-item.active + .rail-toggle:hover, .rail-item.child-active + .rail-toggle:hover { background: color-mix(in srgb, var(--selected-fg) 10%, transparent); }
+.rail-sub { display: flex; flex-direction: column; gap: 5px; padding: 2px 2px 8px; animation: menu-in 0.14s ease-out; }
+.rail-subitem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 3px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.rail-subitem:hover { border-color: var(--accent); color: var(--text); }
+.rail-subitem.active { background: var(--selected); border-color: var(--border-selected); color: var(--selected-fg); box-shadow: inset 0 0 0 1px var(--border-selected); }
+.rail-subitem-code { font-family: var(--mono); font-size: 10px; font-weight: 700; line-height: 1.2; color: var(--accent); }
+.rail-subitem-label { font-size: 10.5px; font-weight: 600; line-height: 1.2; text-align: center; }
+.rail-subitem.active .rail-subitem-label { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .rail-sub { animation: none; } }
 
 .rail-footer { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
@@ -1043,8 +1102,12 @@ a:hover { color: var(--accent-hover); }
     border-bottom: 1px solid var(--line-faint);
   }
   .rail-logo { width: 38px; height: 38px; flex: none; }
-  .rail-nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; flex: 1; }
+  .rail-nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; flex: 1; margin: 0; padding: 2px; }
   .rail-item { width: auto; min-width: 72px; min-height: 52px; }
+  .rail-group { flex-direction: row; align-items: stretch; }
+  .rail-group-head .rail-item { height: 100%; padding-right: 20px; }
+  .rail-sub { flex-direction: row; align-items: stretch; padding: 0; }
+  .rail-subitem { width: auto; min-width: 72px; justify-content: center; }
   .rail-footer { margin: 0; }
   .main { padding: 20px 16px 48px; }
   .page-title { font-size: 24px; }
@@ -1095,3 +1158,44 @@ a:hover { color: var(--accent-hover); }
 .next-action-facts dt { color: var(--faint); }
 .next-action-facts dd { margin: 0; color: var(--text-3); }
 .next-action-detail { margin: 6px 0 0; line-height: 1.55; color: var(--text); }
+
+/* ---------- Metric detail pages ---------- */
+
+/* Inline version of the KPI pop-up lists */
+.list-panel .dialog-filters { background: var(--sunken); }
+.list-panel .dialog-filters .select { flex: 0 1 240px; width: auto; }
+.list-panel .table-wrap { max-height: 620px; overflow: auto; }
+.list-panel .data-table th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+/* Headline strip at the top of each detail page: the KPI itself plus the counts behind it. */
+.metric-hero { display: grid; grid-template-columns: minmax(220px, 1.2fr) repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; align-items: stretch; }
+.metric-stat { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.metric-stat-label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.metric-stat-value { font-family: var(--mono); font-size: 26px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+.metric-stat-sub { font-size: 12.5px; color: var(--faint); }
+/* Breakdown rows: label, meter, value and an optional fraction ("12 / 30") */
+.break-row { display: grid; grid-template-columns: minmax(90px, 170px) minmax(0, 1fr) minmax(48px, auto); gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border-soft); }
+.break-row:last-child { border-bottom: 0; }
+.break-row-label { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.break-row-value { font-family: var(--mono); font-weight: 700; text-align: right; white-space: nowrap; }
+.break-row-value .faint { font-weight: 500; font-size: 0.85em; }
+/* Simple column chart (list-size distribution) */
+.histo { display: grid; grid-template-columns: repeat(var(--bars, 6), minmax(0, 1fr)); gap: 10px; align-items: end; height: 170px; padding-top: 8px; }
+.histo-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+.histo-count { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+.histo-bar { width: 100%; max-width: 56px; min-height: 2px; border-radius: 6px 6px 2px 2px; background: var(--info-fill); }
+.histo-bar.good { background: var(--good-fill); }
+.histo-bar.warn { background: var(--warn-fill); }
+.histo-bar.bad { background: var(--bad-fill); }
+.histo-label { font-size: 12px; color: var(--muted); text-align: center; }
+/* Drop-off note under a funnel step */
+.funnel-drop { font-size: 12px; color: var(--bad-fg); margin: -2px 0 4px; padding-left: 172px; }
+.step-dots { display: inline-flex; gap: 4px; }
+.step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--track); }
+.step-dot.done { background: var(--good-fill); }
+.kpi-card-link { align-self: flex-start; margin-top: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+@media (max-width: 720px) {
+  .metric-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .metric-hero > :first-child { grid-column: 1 / -1; }
+  .break-row { grid-template-columns: 90px minmax(0, 1fr) minmax(44px, auto); }
+  .funnel-drop { padding-left: 132px; }
+}

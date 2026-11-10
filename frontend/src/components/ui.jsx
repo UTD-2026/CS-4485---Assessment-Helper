@@ -4,7 +4,84 @@ import { useTheme, setTheme } from '../utils/theme.js';
 
 /* Shared building blocks for the UI. Styling lives in styles/App.css. */
 
-// Icon rail + main column. items: [{ id, label, icon, count }]
+function RailButton({ item, active, onSelect }) {
+  return (
+    <button
+      type="button"
+      className={`rail-item${active === item.id ? ' active' : ''}`}
+      aria-current={active === item.id ? 'page' : undefined}
+      onClick={() => onSelect(item.id)}
+    >
+      <Icon name={item.icon} size={20} strokeWidth={1.7} />
+      <span className="rail-item-label">{item.label}</span>
+      {item.count > 0 && (
+        <span className="rail-count" aria-label={`${item.count} need attention`}>{item.count > 9 ? '9+' : item.count}</span>
+      )}
+    </button>
+  );
+}
+
+// A rail item with its own pull-down list of sub-pages (e.g. Metrics -> one page per metric).
+// The arrow points up while the list is closed and down while it is open.
+// Clicking the item itself opens its page and the list; the arrow only opens or closes the list.
+function RailGroup({ item, active, onSelect }) {
+  const childActive = item.children.some((c) => c.id === active);
+  const [open, setOpen] = useState(childActive);
+  // Opening one of the sub-pages (e.g. from a "Details" link) also opens the list, so the active page is visible
+  const [wasChildActive, setWasChildActive] = useState(childActive);
+  if (childActive !== wasChildActive) {
+    setWasChildActive(childActive);
+    if (childActive) setOpen(true);
+  }
+  const listId = `rail-sub-${item.id}`;
+
+  return (
+    <div className={`rail-group${open ? ' open' : ''}`}>
+      <div className="rail-group-head">
+        <button
+          type="button"
+          className={`rail-item${active === item.id ? ' active' : ''}${childActive ? ' child-active' : ''}`}
+          aria-current={active === item.id ? 'page' : undefined}
+          onClick={() => { onSelect(item.id); setOpen(true); }}
+        >
+          <Icon name={item.icon} size={20} strokeWidth={1.7} />
+          <span className="rail-item-label">{item.label}</span>
+        </button>
+        <button
+          type="button"
+          className="rail-toggle"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-label={`${open ? 'Hide' : 'Show'} ${item.label.toLowerCase()} pages`}
+          title={`${open ? 'Hide' : 'Show'} ${item.label.toLowerCase()} pages`}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <Icon name={open ? 'chevronDown' : 'chevronUp'} size={14} strokeWidth={2.4} />
+        </button>
+      </div>
+      {open && (
+        <div className="rail-sub" id={listId} role="group" aria-label={`${item.label} pages`}>
+          {item.children.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`rail-subitem${active === c.id ? ' active' : ''}`}
+              aria-current={active === c.id ? 'page' : undefined}
+              title={c.title || c.label}
+              onClick={() => onSelect(c.id)}
+            >
+              {c.code && <span className="rail-subitem-code">{c.code}</span>}
+              <span className="rail-subitem-label">{c.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Icon rail + main column. items: [{ id, label, icon, count, children?: [{ id, code, label, title }] }]
+// The nav scrolls on its own, so an opened group never pushes the other tabs (or log out) off screen.
 export function AppShell({ label, items, active, onSelect, onLogout, children }) {
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   return (
@@ -12,21 +89,9 @@ export function AppShell({ label, items, active, onSelect, onLogout, children })
       <aside className="rail">
         <div className="rail-logo" aria-hidden="true">UTD</div>
         <nav className="rail-nav" aria-label={label}>
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`rail-item${active === item.id ? ' active' : ''}`}
-              aria-current={active === item.id ? 'page' : undefined}
-              onClick={() => onSelect(item.id)}
-            >
-              <Icon name={item.icon} size={20} strokeWidth={1.7} />
-              <span className="rail-item-label">{item.label}</span>
-              {item.count > 0 && (
-                <span className="rail-count" aria-label={`${item.count} need attention`}>{item.count > 9 ? '9+' : item.count}</span>
-              )}
-            </button>
-          ))}
+          {items.map((item) => (item.children?.length
+            ? <RailGroup key={item.id} item={item} active={active} onSelect={onSelect} />
+            : <RailButton key={item.id} item={item} active={active} onSelect={onSelect} />))}
         </nav>
         <div className="rail-footer">
           <button type="button" className="icon-button logout-button" onClick={() => setConfirmingLogout(true)} aria-label="Log out">

@@ -3,12 +3,14 @@ import Icon from './Icon.jsx';
 import { Badge } from './ui.jsx';
 import { VIOLATION_TYPES } from '../utils/kpis.js';
 import { DUE, STATUS, nextActor, nextDetail, nextShort, scheduleOf } from '../utils/nextSteps.js';
+import { matches, countBy, optionsOf, MISSING_KINDS, kindOf } from '../utils/lists.js';
 
 /*
- * Pop-up lists opened from the committee's Live metrics page (same look as the login page's Test accounts dialog):
- *  - PairingsDialog: every audited pairing that breaks an eligibility rule (KPI 1a)
- *  - MissingDialog:  every approved appointment that did not go through (KPI 4a)
- * Each has a search box plus dropdown filters, and a live "Showing X of Y" count.
+ * Filterable lists for the committee pages. Each has a search box plus dropdown filters, and a live "Showing X of Y" count.
+ *  - Inline panels on the metric detail pages (ListPanel):
+ *      PairingsList: every audited pairing that breaks an eligibility rule (KPI 1a)
+ *      MissingList:  every approved appointment that did not go through (KPI 4a)
+ *  - Pop-ups on Committee reports (ListDialog, same look as the login page's Test accounts dialog).
  */
 
 // Rule codes are written "c:" rather than "(c)", which some fonts turn into the © symbol.
@@ -40,7 +42,24 @@ export function ListDialog({ titleId, title, sub, filters, footer, onClose, paus
   );
 }
 
-const matches = (q, ...fields) => !q || fields.some((f) => String(f || '').toLowerCase().includes(q));
+// Same layout as ListDialog, but sits in the page as a card (used on the metric detail pages).
+export function ListPanel({ titleId, title, sub, actions, filters, footer, children }) {
+  return (
+    <section className="card card-flush list-panel" aria-labelledby={titleId}>
+      <div className="card-head">
+        <div>
+          <h2 id={titleId} className="card-title">{title}</h2>
+          {sub && <p className="card-sub">{sub}</p>}
+        </div>
+        {actions && <div className="row">{actions}</div>}
+      </div>
+      {filters && <div className="dialog-filters">{filters}</div>}
+      <div className="table-wrap">{children}</div>
+      {footer && <p className="dialog-foot">{footer}</p>}
+    </section>
+  );
+}
+
 const useAutoFocus = () => {
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); }, []);
@@ -49,11 +68,10 @@ const useAutoFocus = () => {
 
 /* ---------- 1a: pairings that break a rule ---------- */
 
-export function PairingsDialog({ pairings, onClose }) {
+export function PairingsList({ pairings }) {
   const [query, setQuery] = useState('');
   const [rule, setRule] = useState('all');
   const [source, setSource] = useState('all');
-  const searchRef = useAutoFocus();
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -68,11 +86,11 @@ export function PairingsDialog({ pairings, onClose }) {
   const filtered = query || rule !== 'all' || source !== 'all';
 
   return (
-    <ListDialog
-      titleId="pairings-title" title="Pairings that break a rule" onClose={onClose}
+    <ListPanel
+      titleId="pairings-title" title="Pairings that break a rule"
       sub={`${pairings.length} pairings · ${pairings.length - confirmed} recommended · ${confirmed} confirmed`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by observer, observee, course or time" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search pairings" />
+        <input className="input" type="search" placeholder="Search by observer, observee, course or time" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search pairings" />
         <select className="select" value={rule} onChange={(e) => setRule(e.target.value)} aria-label="Filter by rule broken">
           <option value="all">All rules</option>
           {Object.entries(VIOLATION_TYPES).map(([key, v]) => <option key={key} value={key}>{v.code}: {v.label} · {ruleCounts[key]}</option>)}
@@ -106,7 +124,7 @@ export function PairingsDialog({ pairings, onClose }) {
           ))}
         </tbody>
       </table>
-    </ListDialog>
+    </ListPanel>
   );
 }
 
@@ -185,8 +203,6 @@ export function WorkloadDialog({ workload, onClose }) {
 
 /* ---------- Committee reports: unmatched faculty ---------- */
 
-const countBy = (rows, key) => rows.reduce((acc, r) => ({ ...acc, [r[key]]: (acc[r[key]] || 0) + 1 }), {});
-const optionsOf = (rows, key) => [...new Set(rows.map((r) => r[key]).filter(Boolean))].sort();
 
 export function UnmatchedDialog({ faculty, onClose }) {
   const [query, setQuery] = useState('');
@@ -376,20 +392,10 @@ export function OutstandingDialog({ observations, onClose }) {
 
 /* ---------- 4a: approved appointments that did not go through ---------- */
 
-const MISSING_KINDS = {
-  reported: { label: 'Reported not held', tone: 'bad' },
-  both: { label: 'Waiting on both', tone: 'warn' },
-  observer: { label: 'Waiting on observer', tone: 'warn' },
-  observee: { label: 'Waiting on observee', tone: 'warn' },
-};
-const kindOf = (o) => (o.status === 'Missed' ? 'reported'
-  : !o.observerConfirmed && !o.observeeConfirmed ? 'both'
-  : !o.observerConfirmed ? 'observer' : 'observee');
 
-export function MissingDialog({ missing, onClose }) {
+export function MissingList({ missing }) {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('all');
-  const searchRef = useAutoFocus();
 
   const rows = useMemo(() => missing.map((o) => ({ ...o, kind: kindOf(o) })), [missing]);
   const counts = useMemo(() => Object.fromEntries(Object.keys(MISSING_KINDS).map((k) => [k, rows.filter((r) => r.kind === k).length])), [rows]);
@@ -400,11 +406,11 @@ export function MissingDialog({ missing, onClose }) {
   const filtered = query || kind !== 'all';
 
   return (
-    <ListDialog
-      titleId="missing-title" title="Reported not held" onClose={onClose}
+    <ListPanel
+      titleId="missing-title" title="Appointments that did not go through"
       sub={`${missing.length} approved appointments did not go through · ${counts.reported} reported not held · ${missing.length - counts.reported} not confirmed by the deadline`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by observee, observer or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search appointments" />
+        <input className="input" type="search" placeholder="Search by observee, observer or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search appointments" />
         <select className="select" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filter by reason">
           <option value="all">All reasons</option>
           {Object.entries(MISSING_KINDS).map(([key, k]) => <option key={key} value={key}>{k.label} · {counts[key]}</option>)}
@@ -430,6 +436,6 @@ export function MissingDialog({ missing, onClose }) {
           ))}
         </tbody>
       </table>
-    </ListDialog>
+    </ListPanel>
   );
 }
