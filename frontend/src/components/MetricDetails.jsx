@@ -7,6 +7,7 @@ import { isSurveyClosed, formatDeadline, formatSurveyDeadline } from '../utils/d
 import { plural } from '../utils/format.js';
 import { ListPanel, MissingList, PairingsList } from './KpiListDialogs.jsx';
 import { MISSING_KINDS, kindOf, matches, optionsOf } from '../utils/lists.js';
+import { createFacultyCsv } from '../utils/facultyCsv.js';
 
 /*
  * Committee metric detail pages: one page per KPI, opened from the Metrics group in the side rail.
@@ -133,10 +134,32 @@ function EligibilityPage({ k, signups, observations }) {
 
 const lateBucket = (n) => (n >= 4 ? '4+ semesters' : plural(n, 'semester'));
 
-function OverduePage({ k, onNavigate }) {
+// Evaluation-status filter for the faculty list (same choices the old Faculty search tab had).
+const STATUS_FILTERS = [
+  ['Overdue', 'Overdue', (f) => f.status === 'Overdue'],
+  ['due-overdue', 'Due or overdue', (f) => f.status === 'Due' || f.status === 'Overdue'],
+  ['Due', 'Due', (f) => f.status === 'Due'],
+  ['Not Due', 'Not due', (f) => f.status !== 'Due' && f.status !== 'Overdue'],
+  ['all', 'All statuses', () => true],
+];
+const STATUS_ORDER = { Overdue: 0, Due: 1 };
+
+function StatusBadgeFor({ f }) {
+  if (f.status === 'Overdue') return <Badge tone="bad">Overdue · {f.overdue_by} sem</Badge>;
+  if (f.status === 'Due') return <Badge tone="warn">Due</Badge>;
+  return <Badge tone="neutral">Not due{f.next_eval ? ` · next ${f.next_eval}` : ''}</Badge>;
+}
+
+function OverduePage({ k, signups, professors = [], term, filters: initialFilters }) {
   const { overdue } = k;
   const rows = overdue.overdue;
   const dueOnly = overdue.due.length - overdue.count;
+  // Every professor (not just overdue), so the list can also show due and not-due faculty.
+  const signedIds = useMemo(() => new Set(signups.map((s) => s.observeeId)), [signups]);
+  const allFaculty = useMemo(() => professors
+    .map((f) => ({ ...f, signedUp: signedIds.has(f.professor_id) }))
+    .sort((a, b) => (STATUS_ORDER[a.status] ?? 2) - (STATUS_ORDER[b.status] ?? 2) || (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name)),
+  [professors, signedIds]);
   const maxLate = rows.reduce((m, f) => Math.max(m, f.overdue_by || 0), 0);
   const byLate = tally(rows, (f) => lateBucket(f.overdue_by || 0)).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
   const byDept = tally(rows, (f) => f.department);
@@ -146,17 +169,31 @@ function OverduePage({ k, onNavigate }) {
   const [dept, setDept] = useState('all');
   const [level, setLevel] = useState('all');
   const [signed, setSigned] = useState('all');
-  const departments = useMemo(() => optionsOf(rows, 'department'), [rows]);
-  const levels = useMemo(() => optionsOf(rows, 'hire_level'), [rows]);
+  const [status, setStatus] = useState(STATUS_FILTERS.some((s) => s[0] === initialFilters?.status) ? initialFilters.status : 'Overdue');
+  const departments = useMemo(() => optionsOf(allFaculty, 'department'), [allFaculty]);
+  const levels = useMemo(() => optionsOf(allFaculty, 'hire_level'), [allFaculty]);
+  const inStatus = useMemo(() => allFaculty.filter(STATUS_FILTERS.find((s) => s[0] === status)[2]), [allFaculty, status]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((f) =>
+    return inStatus.filter((f) =>
       (dept === 'all' || f.department === dept) &&
       (level === 'all' || f.hire_level === level) &&
       (signed === 'all' || (signed === 'yes') === f.signedUp) &&
       matches(q, f.name, f.department, f.email));
-  }, [rows, query, dept, level, signed]);
-  const filtered = query || dept !== 'all' || level !== 'all' || signed !== 'all';
+  }, [inStatus, query, dept, level, signed]);
+  const filtered = query || dept !== 'all' || level !== 'all' || signed !== 'all' || status !== 'Overdue';
+  const inStatusSigned = inStatus.filter((f) => f.signedUp).length;
+  const exportCsv = () => {
+    if (shown.length === 0) return;
+    const url = URL.createObjectURL(new Blob([createFacultyCsv(shown)], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `faculty-${String(term || 'cycle').toLowerCase().replaceAll(' ', '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   return (
     <div className="stack">
@@ -191,15 +228,18 @@ function OverduePage({ k, onNavigate }) {
       </div>
 
       <ListPanel
-        titleId="overdue-title" title="Overdue faculty"
-        sub={`${overdue.count} overdue · ${overdue.notSignedUp} not signed up · most overdue first`}
-        actions={onNavigate && (
-          <button type="button" className="btn btn-accent btn-sm" onClick={() => onNavigate('faculty', { status: 'Overdue' })}>
-            Open in Faculty search <Icon name="chevronRight" size={14} />
+        titleId="overdue-title" title={status === 'Overdue' ? 'Overdue faculty' : 'Faculty'}
+        sub={`${inStatus.length} ${STATUS_FILTERS.find((s) => s[0] === status)[1].toLowerCase()} · ${inStatus.length - inStatusSigned} not signed up · most overdue first`}
+        actions={
+          <button type="button" className="btn btn-primary btn-sm" onClick={exportCsv} disabled={shown.length === 0}>
+            <Icon name="download" size={14} /> Export CSV
           </button>
-        )}
+        }
         filters={<>
-          <input className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search overdue faculty" />
+          <input className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search faculty" />
+          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by evaluation status">
+            {STATUS_FILTERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
           <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
             <option value="all">All departments</option>
             {departments.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -210,24 +250,24 @@ function OverduePage({ k, onNavigate }) {
           </select>
           <select className="select" value={signed} onChange={(e) => setSigned(e.target.value)} aria-label="Filter by sign-up">
             <option value="all">Signed up or not</option>
-            <option value="no">Not signed up · {overdue.notSignedUp}</option>
-            <option value="yes">Signed up · {overdue.count - overdue.notSignedUp}</option>
+            <option value="no">Not signed up · {inStatus.length - inStatusSigned}</option>
+            <option value="yes">Signed up · {inStatusSigned}</option>
           </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); setLevel('all'); setSigned('all'); }} />
+          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); setLevel('all'); setSigned('all'); setStatus('Overdue'); }} />
         </>}
-        footer={`Showing ${shown.length} of ${overdue.count}.`}
+        footer={`Showing ${shown.length} of ${inStatus.length} · ${professors.length} professors in total.`}
       >
         <table className="data-table data-table-compact">
-          <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Last evaluated</th><th>Late by</th><th>This cycle</th></tr></thead>
+          <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Last evaluated</th><th>Status</th><th>This cycle</th></tr></thead>
           <tbody>
-            {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{overdue.count ? 'No faculty match these filters.' : 'Nobody is overdue.'}</td></tr>}
+            {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{inStatus.length ? 'No faculty match these filters.' : status === 'Overdue' ? 'Nobody is overdue.' : 'No faculty have this status.'}</td></tr>}
             {shown.map((f) => (
               <tr key={f.professor_id}>
                 <td className="strong nowrap">{f.name}</td>
                 <td>{f.hire_level}</td>
                 <td>{f.department}</td>
                 <td className="mono">{f.last_evaluation || 'Never'}</td>
-                <td className="mono text-bad nowrap">{f.overdue_by} sem</td>
+                <td className="nowrap"><StatusBadgeFor f={f} /></td>
                 <td><Badge tone={f.signedUp ? 'good' : 'warn'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
               </tr>
             ))}
@@ -314,8 +354,8 @@ function ParticipationPage({ k, signups, onNavigate }) {
         titleId="participation-title" title="Due faculty"
         sub={`${participation.denominator} due or overdue · ${missingCount} not signed up yet`}
         actions={onNavigate && (
-          <button type="button" className="btn btn-accent btn-sm" onClick={() => onNavigate('faculty', { status: 'due-overdue' })}>
-            Open in Faculty search <Icon name="chevronRight" size={14} />
+          <button type="button" className="btn btn-accent btn-sm" onClick={() => onNavigate('metric-1b', { status: 'due-overdue' })}>
+            Open in Overdue faculty <Icon name="chevronRight" size={14} />
           </button>
         )}
         filters={<>

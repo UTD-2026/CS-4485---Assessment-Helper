@@ -15,7 +15,6 @@ import { AppShell, PageHeader, Badge, Card, Notice, EmptyState, Meter, UserMenu 
 import { daysUntil, initials, plural } from './utils/format.js';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
 import { isPastDeadline, isSurveyClosed as surveyIsClosed, formatDeadline, formatTime12 } from './utils/deadlines.js';
-import { createFacultyCsv } from './utils/facultyCsv.js';
 import { toast } from './utils/toast.js';
 import { api, setToken, hasToken } from './api/client.js';
 import { adaptProfessor, formatDate, notifDateParts } from './api/adapters.js';
@@ -57,6 +56,18 @@ function shortDate(value) {
   if (!m) return value || '';
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// "2026-11-09" -> "Monday, November 9th"
+function longDate(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  if (!m) return value || '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const day = d.getDate();
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[day % 10] || 'th';
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = d.toLocaleDateString('en-US', { month: 'long' });
+  return `${weekday}, ${month} ${day}${suffix}`;
 }
 
 // ("2026-11-13", "17:00") -> "Fri, Nov 13 at 5:00 PM";  no time -> "Fri, Nov 13" (closes at the end of the day)
@@ -310,7 +321,6 @@ function Login({ onLogin }) {
 ========================================= */
 const ADMIN_TITLES = {
   metrics: ['Live metrics', 'KPIs recalculated as faculty act'],
-  faculty: ['Faculty search', 'Find professors and their evaluation status'],
   reports: ['Committee reports', 'Current-cycle reports from the database'],
   signups: ['Signup monitor', 'Release observer lists or resolve gaps by hand'],
   deadlines: ['Deadlines', 'Milestones for this evaluation cycle'],
@@ -340,10 +350,8 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
     api.template(templateTerm).then(res => { if (!cancelled) { setEditedTemplate(res.data.criteria || []); setTemplateSource(res.data.source); } }).catch(e => toast.error(e.message));
     return () => { cancelled = true; };
   }, [templateTerm]);
-  // Faculty Search (from the sriproflookup branch)
-  const [facultySearch, setFacultySearch] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('due-overdue');
+  // Filters handed to a metric page when another page links to it (e.g. 2a -> 1b with "due or overdue")
+  const [metricFilters, setMetricFilters] = useState({});
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
 
   // New criterion form
@@ -369,7 +377,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
     setViewingEvaluation(null);
     setEditingId(null);
     if (id === 'reports') setReportsVersion(v => v + 1);
-    if (filters.status) { setStatusFilter(filters.status); setFacultySearch(''); setDepartmentFilter('all'); }
+    setMetricFilters(filters);
   };
 
   // Blast out end-of-process survey reminders (POST /api/surveys/reminders)
@@ -423,31 +431,6 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
     saveTemplate(editedTemplate.filter(c => c.id !== item.id), 'Criterion removed.');
   };
 
-  // Due status comes from the backend (committee rule: Assistant yearly, Associate/Full every 2 years)
-  const allFacultyStatus = professors;
-  const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
-  const departments = [...new Set(allFacultyStatus.map(f => f.department))].sort();
-  const searchQuery = facultySearch.trim().toLowerCase();
-  const filteredFaculty = allFacultyStatus.filter(f => (
-    f.name.toLowerCase().includes(searchQuery)
-    && (departmentFilter === 'all' || f.department === departmentFilter)
-    && (statusFilter === 'all'
-      || (statusFilter === 'due-overdue' ? f.status === 'Due' || f.status === 'Overdue' : f.status === statusFilter))
-  ));
-  const clearFacultyFilters = () => { setFacultySearch(''); setDepartmentFilter('all'); setStatusFilter('all'); };
-  const exportFacultyCsv = () => {
-    if (filteredFaculty.length === 0) return;
-    const blob = new Blob([createFacultyCsv(filteredFaculty)], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `faculty-${currentSemester.toLowerCase().replaceAll(' ', '-')}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-
   // Admin releases the list of potential observers (POST .../release-observer-list)
   const handleReleaseList = async (signup) => {
     await run(() => api.releaseList(signup.id), `List released to ${signup.observeeName}.`);
@@ -492,7 +475,6 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
   const nav = [
     { id: 'metrics', label: 'Metrics', icon: 'metrics', children: METRIC_NAV },
-    { id: 'faculty', label: 'Faculty', icon: 'users' },
     { id: 'reports', label: 'Reports', icon: 'report' },
     { id: 'signups', label: 'Signups', icon: 'signups', count: needsActionCount },
     { id: 'deadlines', label: 'Deadlines', icon: 'calendar' },
@@ -549,65 +531,13 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
           deadlines={globalDeadlines}
           professors={professors}
           courses={courses}
+          term={currentSemester}
+          filters={metricFilters}
           onNavigate={goTo}
         />
       )}
 
       {activeTab === 'reports' && <CommitteeReports term={currentSemester} refreshKey={reportsVersion} />}
-
-      {activeTab === 'faculty' && (
-        <>
-          <div className="filter-bar" role="search" aria-label="Faculty search and filters">
-            <label className="field field-grow-2" htmlFor="faculty-search">
-              Professor name
-              <input id="faculty-search" type="search" placeholder="Search professors" value={facultySearch} onChange={e => setFacultySearch(e.target.value)} />
-            </label>
-            <label className="field field-grow" htmlFor="faculty-department">
-              Department
-              <select id="faculty-department" value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}>
-                <option value="all">All departments</option>
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </label>
-            <label className="field field-grow" htmlFor="faculty-status">
-              Evaluation status
-              <select id="faculty-status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                <option value="due-overdue">Due or overdue</option>
-                <option value="all">All statuses</option>
-                <option value="Due">Due</option>
-                <option value="Overdue">Overdue</option>
-                <option value="Not Due">Not due</option>
-              </select>
-            </label>
-            <button type="button" className="btn btn-ghost" onClick={clearFacultyFilters}>Clear</button>
-            <button type="button" className="btn btn-primary" onClick={exportFacultyCsv} disabled={filteredFaculty.length === 0}><Icon name="download" size={16} /> Export CSV</button>
-          </div>
-          <p className="muted section-gap" role="status">
-            Showing <span className="mono">{filteredFaculty.length}</span> of {allFacultyStatus.length} professors · <span className="mono">{dueFaculty.length}</span> due or overdue
-          </p>
-          <Card flush>
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last evaluation</th><th>Status</th></tr></thead>
-                <tbody>
-                  {filteredFaculty.length === 0 && (
-                    <tr><td colSpan="5" className="empty-cell">No professors match your search and filters.</td></tr>
-                  )}
-                  {filteredFaculty.map(f => (
-                    <tr key={f.professor_id}>
-                      <td className="strong">{f.name}</td>
-                      <td>{f.hire_level}</td>
-                      <td>{f.department}</td>
-                      <td className="mono">{f.last_evaluation || 'None'}</td>
-                      <td><DueBadge prof={f} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </>
-      )}
 
       {activeTab === 'signups' && (
         <>
@@ -1193,7 +1123,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
       {/* ---------- OBSERVEE STATUS ---------- */}
       {activeTab === 'observee-status' && (
         myConfirmedObservation ? (
-          <div className="grid grid-340">
+          <div className="grid grid-340 grid-stretch">
             <section className="card card-lg stack">
               <div className="row">
                 <div className="avatar avatar-lg">{initials(myConfirmedObservation.observerName)}</div>
@@ -1203,8 +1133,8 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
                 </div>
                 <span className="push-right"><StatusBadge status={myConfirmedObservation.status} /></span>
               </div>
-              <div className="grid grid-200">
-                <div className="info-tile"><div className="label">Date</div><div className="value">{myConfirmedObservation.scheduledDate ? `${shortDate(myConfirmedObservation.scheduledDate)}${myConfirmedObservation.scheduledTime ? ` · ${myConfirmedObservation.scheduledTime}` : ''}` : 'Not set yet'}</div></div>
+              <div className="grid grid-200 grid-stretch">
+                <div className="info-tile"><div className="label">Date</div><div className="value">{myConfirmedObservation.scheduledDate ? `${longDate(myConfirmedObservation.scheduledDate)}${myConfirmedObservation.scheduledTime ? ` · ${myConfirmedObservation.scheduledTime}` : ''}` : 'Not set yet'}</div></div>
                 <div className="info-tile"><div className="label">Course</div><div className="value">{myConfirmedObservation.courseCode}</div><div className="faint">{myConfirmedObservation.timing}</div></div>
               </div>
 
@@ -1216,12 +1146,22 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
                 />
               )}
 
+              {['Scheduled', 'Awaiting Confirmation', 'Missed', 'Deferred / Rolled Over'].includes(myConfirmedObservation.status) && (() => {
+                // Yellow while waiting, green once that side confirms, red if the observation ended without their confirmation.
+                const ended = myConfirmedObservation.status === 'Missed' || myConfirmedObservation.status === 'Deferred / Rolled Over';
+                const tone = (confirmed) => (confirmed ? 'good' : ended ? 'bad' : 'warn');
+                const observerTone = tone(myConfirmedObservation.observerConfirmed);
+                const observeeTone = tone(myConfirmedObservation.observeeConfirmed);
+                return (
+                  <div className="grid grid-200 grid-stretch">
+                    <div className={`confirm-tile ${observerTone}`}><span className="confirm-dot" />Observer {observerTone === 'good' ? 'confirmed' : observerTone === 'bad' ? 'did not confirm' : 'has not confirmed'}</div>
+                    <div className={`confirm-tile ${observeeTone}`}><span className="confirm-dot" />You {observeeTone === 'good' ? 'confirmed' : observeeTone === 'bad' ? 'did not confirm' : 'have not confirmed'}</div>
+                  </div>
+                );
+              })()}
+
               {(myConfirmedObservation.status === 'Scheduled' || myConfirmedObservation.status === 'Awaiting Confirmation') && (
                 <>
-                  <div className="grid grid-200">
-                    <div className={`confirm-tile${myConfirmedObservation.observerConfirmed ? ' done' : ''}`}><span className="confirm-dot" />Observer {myConfirmedObservation.observerConfirmed ? 'confirmed' : 'has not confirmed'}</div>
-                    <div className={`confirm-tile${myConfirmedObservation.observeeConfirmed ? ' done' : ''}`}><span className="confirm-dot" />You {myConfirmedObservation.observeeConfirmed ? 'confirmed' : 'have not confirmed'}</div>
-                  </div>
                   {!myConfirmedObservation.observeeConfirmed && (
                     <>
                       <div className="row">
@@ -1344,8 +1284,10 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
                     {o.scheduledDate ? <Badge tone="info">{shortDate(o.scheduledDate)}{o.scheduledTime ? ` · ${o.scheduledTime}` : ''}</Badge> : <Badge tone="warn">Date not set</Badge>}
                     <StatusBadge status={o.status} />
                   </div>
-                  <div className="card-title">{o.observeeName}</div>
-                  <div className="muted"><span className="mono">{o.courseCode}</span> · {o.timing}</div>
+                  <div className="title-pair">
+                    <div className="card-title">{o.observeeName}</div>
+                    <div className="muted"><span className="mono">{o.courseCode}</span> · {o.timing}</div>
+                  </div>
 
                   {o.status === 'Missed' || o.status === 'Completed' ? null : o.observerConfirmed ? (
                     <Notice tone="info" title="Waiting for the observee">You confirmed this observation. It completes once {o.observeeName} confirms.</Notice>
@@ -1390,7 +1332,10 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
             <Card title="Past requests">
               {pastDuties.map(req => (
                 <div className="list-row" key={req.id}>
-                  <span className="grow">{req.observeeName} <span className="mono faint">{req.courseCode}</span></span>
+                  <span className="grow title-pair">
+                    <span className="list-title">{req.observeeName}</span>
+                    <span className="list-sub mono">{req.courseCode}</span>
+                  </span>
                   <Badge tone={REQ_TONE[req.status]}>{req.status}</Badge>
                 </div>
               ))}
