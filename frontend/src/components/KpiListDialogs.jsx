@@ -145,30 +145,30 @@ const LOAD_SORTS = {
 
 export function WorkloadDialog({ workload, onClose }) {
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
+  const [major, setMajor] = useState('all');
   const [load, setLoad] = useState('all');
   const [sort, setSort] = useState('assigned');
   const searchRef = useAutoFocus();
 
-  const departments = useMemo(() => [...new Set(workload.map((p) => p.department).filter(Boolean))].sort(), [workload]);
+  const majors = useMemo(() => [...new Set(workload.map((p) => p.major).filter(Boolean))].sort(), [workload]);
   const loadCounts = useMemo(() => Object.fromEntries(Object.entries(LOAD_FILTERS).map(([k, f]) => [k, workload.filter(f.test).length])), [workload]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return workload
-      .filter((p) => (dept === 'all' || p.department === dept) && (load === 'all' || LOAD_FILTERS[load].test(p)) && matches(q, p.name, p.department))
+      .filter((p) => (major === 'all' || p.major === major) && (load === 'all' || LOAD_FILTERS[load].test(p)) && matches(q, p.name, p.major))
       .sort(LOAD_SORTS[sort].fn);
-  }, [workload, query, dept, load, sort]);
-  const filtered = query || dept !== 'all' || load !== 'all';
+  }, [workload, query, major, load, sort]);
+  const filtered = query || major !== 'all' || load !== 'all';
 
   return (
     <ListDialog
       titleId="workload-title" title="Observer workload" onClose={onClose}
       sub={`${workload.length} faculty · ${loadCounts.assigned} observing this cycle · ${loadCounts.none} with no assignments`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observers" />
-        <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-          <option value="all">All departments</option>
-          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+        <input ref={searchRef} className="input" type="search" placeholder="Search by professor or major" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observers" />
+        <select className="select" value={major} onChange={(e) => setMajor(e.target.value)} aria-label="Filter by major">
+          <option value="all">All majors</option>
+          {majors.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <select className="select" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Filter by workload">
           <option value="all">Any workload</option>
@@ -177,18 +177,18 @@ export function WorkloadDialog({ workload, onClose }) {
         <select className="select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
           {Object.entries(LOAD_SORTS).map(([key, s]) => <option key={key} value={key}>{s.label}</option>)}
         </select>
-        {filtered && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(''); setDept('all'); setLoad('all'); }}>Clear</button>}
+        {filtered && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(''); setMajor('all'); setLoad('all'); }}>Clear</button>}
       </>}
       footer={`Showing ${shown.length} of ${workload.length}. Assigned counts every assignment this cycle: completed, pending and missed.`}
     >
       <table className="data-table">
-        <thead><tr><th>Professor</th><th>Department</th><th>Assigned</th><th>Completed</th><th>Pending</th><th>Missed</th></tr></thead>
+        <thead><tr><th>Professor</th><th>Major</th><th>Assigned</th><th>Completed</th><th>Pending</th><th>Missed</th></tr></thead>
         <tbody>
           {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">No faculty match these filters.</td></tr>}
           {shown.map((p, i) => (
             <tr key={`${p.email || p.name}-${i}`}>
               <td className="strong nowrap">{p.name}</td>
-              <td>{p.department}</td>
+              <td>{p.major}</td>
               <td><strong className="num">{p.assigned}</strong></td>
               <td><span className="num">{p.completed}</span></td>
               <td><span className="num">{p.pending}</span></td>
@@ -221,7 +221,7 @@ export function UnmatchedDialog({ faculty, onClose }) {
       (level === 'all' || p.hire_level_label === level) &&
       (due === 'all' || p.evaluation_status === due) &&
       (reason === 'all' || p.reason === reason) &&
-      matches(q, p.name, p.department, p.course_code));
+      matches(q, p.name, p.major, p.course_code));
   }, [faculty, query, level, due, reason]);
   const filtered = query || level !== 'all' || due !== 'all' || reason !== 'all';
 
@@ -230,7 +230,7 @@ export function UnmatchedDialog({ faculty, onClose }) {
       titleId="unmatched-title" title="Unmatched faculty" onClose={onClose}
       sub={`${faculty.length} due or overdue faculty without an observer · ${dueCounts.overdue || 0} overdue · ${dueCounts.due || 0} due`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by professor, department or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search unmatched faculty" />
+        <input ref={searchRef} className="input" type="search" placeholder="Search by professor, major or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search unmatched faculty" />
         <select className="select" value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Filter by hiring level">
           <option value="all">All levels</option>
           {levels.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -248,7 +248,7 @@ export function UnmatchedDialog({ faculty, onClose }) {
       footer={`Showing ${shown.length} of ${faculty.length}.`}
     >
       <table className="data-table data-table-compact">
-        <thead><tr><th>Professor</th><th>Department</th><th>Level</th><th>Evaluation status</th><th>Course</th><th>Next action</th></tr></thead>
+        <thead><tr><th>Professor</th><th>Major</th><th>Level</th><th>Evaluation status</th><th>Course</th><th>Next action</th></tr></thead>
         <tbody>
           {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">No faculty match these filters.</td></tr>}
           {shown.map((p) => {
@@ -256,7 +256,7 @@ export function UnmatchedDialog({ faculty, onClose }) {
             return (
               <tr key={p.email || p.name}>
                 <td className="strong nowrap">{p.name}</td>
-                <td>{p.department}</td>
+                <td>{p.major}</td>
                 <td>{p.hire_level_label}</td>
                 <td><Badge tone={tone}>{label}</Badge></td>
                 <td className="mono nowrap">{p.course_code || '—'}</td>

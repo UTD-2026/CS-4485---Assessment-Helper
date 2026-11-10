@@ -7,6 +7,7 @@ const { loadTermContext, presentProfessor, resolveTerm } = require("../services/
 const { normalizeLevel } = require("../services/dueStatus");
 
 const router = express.Router();
+const MAJORS = ["BE", "CE", "CS", "EE", "ME", "SE"];
 
 // GET /api/professors?term=  (each professor includes evaluation_status for the term; default = current term)
 router.get("/", async (req, res) => {
@@ -14,6 +15,7 @@ router.get("/", async (req, res) => {
   const ctx = await loadTermContext(term);
   let list = ctx.professors.map((p) => presentProfessor(p, ctx.due.get(p.email)));
   if (req.query.department) list = list.filter((p) => p.department === req.query.department);
+  if (req.query.major) list = list.filter((p) => p.major === String(req.query.major).toUpperCase());
   list.sort((a, b) => a.name.localeCompare(b.name));
   res.json({ data: list, meta: { term } });
 });
@@ -31,10 +33,14 @@ router.patch("/:email", async (req, res) => {
   const self = req.user.email === email;
   if (!self && !isAc(req)) throw forbidden();
 
-  const allowed = isAc(req) ? ["name", "department", "hire_level", "is_ac_member", "last_observed"] : ["name"];
+  const allowed = isAc(req) ? ["name", "department", "major", "hire_level", "is_ac_member", "last_observed"] : ["name"];
   const updates = {};
   for (const field of allowed) if (req.body?.[field] !== undefined) updates[field] = req.body[field];
   if (!Object.keys(updates).length) throw badRequest(`Nothing to update. Allowed fields: ${allowed.join(", ")}.`);
+  if (updates.major !== undefined) {
+    updates.major = String(updates.major).trim().toUpperCase();
+    if (!MAJORS.includes(updates.major)) throw badRequest(`major must be one of ${MAJORS.join(", ")}.`);
+  }
   if (updates.hire_level !== undefined) {
     updates.hire_level = normalizeLevel(updates.hire_level);
     if (!["assistant", "associate", "full"].includes(updates.hire_level)) throw badRequest("hire_level must be assistant, associate or full.");

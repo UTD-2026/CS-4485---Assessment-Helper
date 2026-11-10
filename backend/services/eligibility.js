@@ -4,7 +4,8 @@
 //
 // A candidate may observe an observee's section only if ALL hold:
 //   1. not the observee                                       (SAME_PROFESSOR)
-//   2. same department as the observee                        (DIFFERENT_DEPARTMENT)
+//   2. same major as the observee                             (DIFFERENT_MAJOR)
+//      (everyone is in one department, the Erik Jonsson School, so the major is what separates disciplines)
 //   3. teaches a course of the same level (first digit) this term (DIFFERENT_LEVEL)
 //   4. none of their sections overlaps the observee's class time (SCHEDULE_CONFLICT)
 
@@ -50,21 +51,22 @@ function schedulesConflict(a, b) {
   return ma.start < mb.end && mb.start < ma.end;
 }
 
-const departmentOf = (courseCode) => (/^\s*([A-Za-z]+)/.exec(courseCode || "") || [])[1]?.toUpperCase() || null;
+/** "EE 3301" -> "EE" (course prefixes are the major codes) */
+const majorOf = (courseCode) => (/^\s*([A-Za-z]+)/.exec(courseCode || "") || [])[1]?.toUpperCase() || null;
 const levelOf = (courseCode) => {
   const m = /(\d)\d{3}/.exec(courseCode || "");
   return m ? Number(m[1]) : null;
 };
 
 /**
- * @param observee   { email, department }
- * @param candidate  { email, department }
+ * @param observee   { email, major }
+ * @param candidate  { email, major }
  * @param section    { course_code, timing }  the observee's section
  * @param candidateSections  the candidate's sections this term
  */
 function evaluateEligibility({ observee, candidate, section, candidateSections }) {
   if (candidate.email === observee.email) return { eligible: false, violation: "SAME_PROFESSOR" };
-  if (candidate.department !== observee.department) return { eligible: false, violation: "DIFFERENT_DEPARTMENT" };
+  if (candidate.major !== observee.major) return { eligible: false, violation: "DIFFERENT_MAJOR" };
   const level = levelOf(section.course_code);
   if (!candidateSections.some((s) => levelOf(s.course_code) === level)) return { eligible: false, violation: "DIFFERENT_LEVEL" };
   if (candidateSections.some((s) => schedulesConflict(section.timing, s.timing))) return { eligible: false, violation: "SCHEDULE_CONFLICT" };
@@ -103,7 +105,7 @@ module.exports = {
   clockText,
   meetingOf,
   schedulesConflict,
-  departmentOf,
+  majorOf,
   levelOf,
   evaluateEligibility,
   isMeetingDay,

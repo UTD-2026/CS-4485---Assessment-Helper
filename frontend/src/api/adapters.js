@@ -48,6 +48,7 @@ export function adaptProfessor(p) {
     username: p.netid,
     name: p.name,
     department: p.department,
+    major: p.major || '',
     hire_level: p.hire_level_label || p.hire_level,
     is_ac_member: Boolean(p.is_ac_member),
     last_evaluation: s.last_evaluated_term || null,
@@ -105,6 +106,7 @@ export function adaptSignup(o, matches, directory) {
       professor_id: m.observer_email,
       name: m.observer_name || nameFor(directory, m.observer_email),
       department: m.observer_department || directory.get(m.observer_email)?.department || '',
+      major: m.observer_major || directory.get(m.observer_email)?.major || '',
       matchStatus: m.status,
     })),
   };

@@ -162,26 +162,26 @@ function OverduePage({ k, signups, professors = [], term, filters: initialFilter
   [professors, signedIds]);
   const maxLate = rows.reduce((m, f) => Math.max(m, f.overdue_by || 0), 0);
   const byLate = tally(rows, (f) => lateBucket(f.overdue_by || 0)).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
-  const byDept = tally(rows, (f) => f.department);
+  const byMajor = tally(rows, (f) => f.major);
   const byLevel = tally(rows, (f) => f.hire_level);
 
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
+  const [major, setMajor] = useState('all');
   const [level, setLevel] = useState('all');
   const [signed, setSigned] = useState('all');
   const [status, setStatus] = useState(STATUS_FILTERS.some((s) => s[0] === initialFilters?.status) ? initialFilters.status : 'Overdue');
-  const departments = useMemo(() => optionsOf(allFaculty, 'department'), [allFaculty]);
+  const majors = useMemo(() => optionsOf(allFaculty, 'major'), [allFaculty]);
   const levels = useMemo(() => optionsOf(allFaculty, 'hire_level'), [allFaculty]);
   const inStatus = useMemo(() => allFaculty.filter(STATUS_FILTERS.find((s) => s[0] === status)[2]), [allFaculty, status]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return inStatus.filter((f) =>
-      (dept === 'all' || f.department === dept) &&
+      (major === 'all' || f.major === major) &&
       (level === 'all' || f.hire_level === level) &&
       (signed === 'all' || (signed === 'yes') === f.signedUp) &&
-      matches(q, f.name, f.department, f.email));
-  }, [inStatus, query, dept, level, signed]);
-  const filtered = query || dept !== 'all' || level !== 'all' || signed !== 'all' || status !== 'Overdue';
+      matches(q, f.name, f.major, f.email));
+  }, [inStatus, query, major, level, signed]);
+  const filtered = query || major !== 'all' || level !== 'all' || signed !== 'all' || status !== 'Overdue';
   const inStatusSigned = inStatus.filter((f) => f.signedUp).length;
   const exportCsv = () => {
     if (shown.length === 0) return;
@@ -215,9 +215,9 @@ function OverduePage({ k, signups, professors = [], term, filters: initialFilter
             <BreakRow key={label} label={label} value={n} max={overdue.count} tone="bad" />
           ))}
         </Card>
-        <Card title="By department">
-          {byDept.length === 0 ? <Empty>Nobody is overdue.</Empty> : byDept.map(([label, n]) => (
-            <BreakRow key={label} label={label} value={n} max={byDept[0][1]} tone="warn" />
+        <Card title="By major">
+          {byMajor.length === 0 ? <Empty>Nobody is overdue.</Empty> : byMajor.map(([label, n]) => (
+            <BreakRow key={label} label={label} value={n} max={byMajor[0][1]} tone="warn" />
           ))}
         </Card>
         <Card title="By hiring level">
@@ -236,13 +236,13 @@ function OverduePage({ k, signups, professors = [], term, filters: initialFilter
           </button>
         }
         filters={<>
-          <input className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search faculty" />
+          <input className="input" type="search" placeholder="Search by professor or major" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search faculty" />
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by evaluation status">
             {STATUS_FILTERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          <select className="select" value={major} onChange={(e) => setMajor(e.target.value)} aria-label="Filter by major">
+            <option value="all">All majors</option>
+            {majors.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
           <select className="select" value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Filter by hiring level">
             <option value="all">All levels</option>
@@ -253,19 +253,19 @@ function OverduePage({ k, signups, professors = [], term, filters: initialFilter
             <option value="no">Not signed up · {inStatus.length - inStatusSigned}</option>
             <option value="yes">Signed up · {inStatusSigned}</option>
           </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); setLevel('all'); setSigned('all'); setStatus('Overdue'); }} />
+          <ClearButton show={filtered} onClick={() => { setQuery(''); setMajor('all'); setLevel('all'); setSigned('all'); setStatus('Overdue'); }} />
         </>}
         footer={`Showing ${shown.length} of ${inStatus.length} · ${professors.length} professors in total.`}
       >
         <table className="data-table data-table-compact">
-          <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Last evaluated</th><th>Status</th><th>This cycle</th></tr></thead>
+          <thead><tr><th>Professor</th><th>Level</th><th>Major</th><th>Last evaluated</th><th>Status</th><th>This cycle</th></tr></thead>
           <tbody>
             {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{inStatus.length ? 'No faculty match these filters.' : status === 'Overdue' ? 'Nobody is overdue.' : 'No faculty have this status.'}</td></tr>}
             {shown.map((f) => (
               <tr key={f.professor_id}>
                 <td className="strong nowrap">{f.name}</td>
                 <td>{f.hire_level}</td>
-                <td>{f.department}</td>
+                <td>{f.major}</td>
                 <td className="mono">{f.last_evaluation || 'Never'}</td>
                 <td className="nowrap"><StatusBadgeFor f={f} /></td>
                 <td><Badge tone={f.signedUp ? 'good' : 'warn'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
@@ -314,21 +314,21 @@ function ParticipationPage({ k, signups, onNavigate }) {
   const missingCount = participation.denominator - participation.numerator;
 
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
+  const [major, setMajor] = useState('all');
   const [status, setStatus] = useState('all');
   const [signed, setSigned] = useState('no');
-  const departments = useMemo(() => optionsOf(rows, 'department'), [rows]);
+  const majors = useMemo(() => optionsOf(rows, 'major'), [rows]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows
       .filter((f) =>
-        (dept === 'all' || f.department === dept) &&
+        (major === 'all' || f.major === major) &&
         (status === 'all' || f.status === status) &&
         (signed === 'all' || (signed === 'yes') === f.signedUp) &&
-        matches(q, f.name, f.department, f.email))
+        matches(q, f.name, f.major, f.email))
       .sort((a, b) => Number(a.signedUp) - Number(b.signedUp) || (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name));
-  }, [rows, query, dept, status, signed]);
-  const filtered = query || dept !== 'all' || status !== 'all' || signed !== 'no';
+  }, [rows, query, major, status, signed]);
+  const filtered = query || major !== 'all' || status !== 'all' || signed !== 'no';
 
   return (
     <div className="stack">
@@ -345,7 +345,7 @@ function ParticipationPage({ k, signups, onNavigate }) {
       />
 
       <div className="grid grid-340 grid-stretch">
-        <RateCard title="By department" sub="Lowest rate first" groups={ratesBy(rows, (f) => f.department)} empty="Nobody is due this cycle." />
+        <RateCard title="By major" sub="Lowest rate first" groups={ratesBy(rows, (f) => f.major)} empty="Nobody is due this cycle." />
         <RateCard title="By hiring level" sub="Lowest rate first" groups={ratesBy(rows, (f) => f.hire_level)} empty="Nobody is due this cycle." />
         <RateCard title="Due vs overdue" sub="Overdue faculty should sign up first" groups={ratesBy(rows, (f) => f.status)} empty="Nobody is due this cycle." />
       </div>
@@ -359,7 +359,7 @@ function ParticipationPage({ k, signups, onNavigate }) {
           </button>
         )}
         filters={<>
-          <input className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search due faculty" />
+          <input className="input" type="search" placeholder="Search by professor or major" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search due faculty" />
           <select className="select" value={signed} onChange={(e) => setSigned(e.target.value)} aria-label="Filter by sign-up">
             <option value="no">Not signed up · {missingCount}</option>
             <option value="yes">Signed up · {participation.numerator}</option>
@@ -370,23 +370,23 @@ function ParticipationPage({ k, signups, onNavigate }) {
             <option value="Due">Due only</option>
             <option value="Overdue">Overdue only</option>
           </select>
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          <select className="select" value={major} onChange={(e) => setMajor(e.target.value)} aria-label="Filter by major">
+            <option value="all">All majors</option>
+            {majors.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); setStatus('all'); setSigned('no'); }} />
+          <ClearButton show={filtered} onClick={() => { setQuery(''); setMajor('all'); setStatus('all'); setSigned('no'); }} />
         </>}
         footer={`Showing ${shown.length} of ${rows.length}.`}
       >
         <table className="data-table data-table-compact">
-          <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Evaluation status</th><th>Last evaluated</th><th>This cycle</th></tr></thead>
+          <thead><tr><th>Professor</th><th>Level</th><th>Major</th><th>Evaluation status</th><th>Last evaluated</th><th>This cycle</th></tr></thead>
           <tbody>
             {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{rows.length ? 'No faculty match these filters.' : 'Nobody is due this cycle.'}</td></tr>}
             {shown.map((f) => (
               <tr key={f.professor_id}>
                 <td className="strong nowrap">{f.name}</td>
                 <td>{f.hire_level}</td>
-                <td>{f.department}</td>
+                <td>{f.major}</td>
                 <td>{f.status === 'Overdue' ? <Badge tone="bad">Overdue · {f.overdue_by} sem</Badge> : <Badge tone="warn">Due</Badge>}</td>
                 <td className="mono">{f.last_evaluation || 'Never'}</td>
                 <td><Badge tone={f.signedUp ? 'good' : 'neutral'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
@@ -413,7 +413,7 @@ function UtilizationPage({ k, observations, professors }) {
     observations.filter((o) => o.status !== 'Missed').forEach((o) => {
       const prof = byId.get(o.observerId);
       const row = map.get(o.observerId) || {
-        id: o.observerId, name: o.observerName || prof?.name || o.observerId, department: prof?.department || 'Unknown',
+        id: o.observerId, name: o.observerName || prof?.name || o.observerId, major: prof?.major || 'Unknown',
         total: 0, completed: 0, inProgress: 0, observees: [],
       };
       row.total += 1;
@@ -428,20 +428,20 @@ function UtilizationPage({ k, observations, professors }) {
   const avg = observers.length ? (activeObs / observers.length).toFixed(1) : '0.0';
   const idle = Math.max(0, professors.length - observers.length);
   const byLoad = LOAD_BUCKETS.map((label) => [label, observers.filter((o) => loadBucket(o.total) === label).length]);
-  const byDept = tally(observers, (o) => o.department);
+  const byMajor = tally(observers, (o) => o.major);
   const busiest = [...observers].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)).slice(0, 6);
 
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
+  const [major, setMajor] = useState('all');
   const [sort, setSort] = useState('load');
-  const departments = useMemo(() => optionsOf(observers, 'department'), [observers]);
+  const majors = useMemo(() => optionsOf(observers, 'major'), [observers]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return observers
-      .filter((o) => (dept === 'all' || o.department === dept) && matches(q, o.name, o.department, ...o.observees))
+      .filter((o) => (major === 'all' || o.major === major) && matches(q, o.name, o.major, ...o.observees))
       .sort(sort === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.total - a.total || a.name.localeCompare(b.name));
-  }, [observers, query, dept, sort]);
-  const filtered = query || dept !== 'all';
+  }, [observers, query, major, sort]);
+  const filtered = query || major !== 'all';
 
   return (
     <div className="stack">
@@ -463,9 +463,9 @@ function UtilizationPage({ k, observations, professors }) {
             <BreakRow key={label} label={label} value={n} max={observers.length} tone={label.startsWith('1') || label.startsWith('2') ? 'good' : 'warn'} />
           ))}
         </Card>
-        <Card title="Observers by department">
-          {byDept.length === 0 ? <Empty>No observers yet.</Empty> : byDept.map(([label, n]) => (
-            <BreakRow key={label} label={label} value={n} max={byDept[0][1]} tone="info" />
+        <Card title="Observers by major">
+          {byMajor.length === 0 ? <Empty>No observers yet.</Empty> : byMajor.map(([label, n]) => (
+            <BreakRow key={label} label={label} value={n} max={byMajor[0][1]} tone="info" />
           ))}
         </Card>
         <Card title="Busiest observers" sub={busiest.length ? `Top ${busiest.length}` : undefined}>
@@ -479,27 +479,27 @@ function UtilizationPage({ k, observations, professors }) {
         titleId="observers-title" title="Observers this cycle"
         sub={`${observers.length} observers · ${activeObs} active observations (reported-not-held ones are left out)`}
         filters={<>
-          <input className="input" type="search" placeholder="Search by observer, department or observee" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observers" />
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          <input className="input" type="search" placeholder="Search by observer, major or observee" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observers" />
+          <select className="select" value={major} onChange={(e) => setMajor(e.target.value)} aria-label="Filter by major">
+            <option value="all">All majors</option>
+            {majors.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
           <select className="select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
             <option value="load">Most observations first</option>
             <option value="name">Name A–Z</option>
           </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); }} />
+          <ClearButton show={filtered} onClick={() => { setQuery(''); setMajor('all'); }} />
         </>}
         footer={`Showing ${shown.length} of ${observers.length}.`}
       >
         <table className="data-table data-table-compact">
-          <thead><tr><th>Observer</th><th>Department</th><th>Observing</th><th>Completed</th><th>In progress</th><th>Observees</th></tr></thead>
+          <thead><tr><th>Observer</th><th>Major</th><th>Observing</th><th>Completed</th><th>In progress</th><th>Observees</th></tr></thead>
           <tbody>
             {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{observers.length ? 'No observers match these filters.' : 'No observers yet.'}</td></tr>}
             {shown.map((o) => (
               <tr key={o.id}>
                 <td className="strong nowrap">{o.name}</td>
-                <td>{o.department}</td>
+                <td>{o.major}</td>
                 <td><strong className="num">{o.total}</strong></td>
                 <td><span className="num text-good">{o.completed}</span></td>
                 <td><span className="num">{o.inProgress}</span></td>
@@ -523,8 +523,8 @@ const FLAGS = {
 
 function SufficiencyPage({ k, signups, professors, onNavigate }) {
   const { sufficiency } = k;
-  const deptOf = useMemo(() => new Map(professors.map((p) => [p.professor_id, p.department])), [professors]);
-  const rows = useMemo(() => signups.map((s) => ({ ...s, department: deptOf.get(s.observeeId) || 'Unknown', size: s.matchesCount || 0 })), [signups, deptOf]);
+  const majorOf = useMemo(() => new Map(professors.map((p) => [p.professor_id, p.major])), [professors]);
+  const rows = useMemo(() => signups.map((s) => ({ ...s, major: majorOf.get(s.observeeId) || 'Unknown', size: s.matchesCount || 0 })), [signups, majorOf]);
 
   // List-size distribution: 0, 1, 2, ... up to the target (target+ in the last column)
   const sizes = Array.from({ length: TARGET_LIST_SIZE + 1 }, (_, n) => ({
@@ -533,25 +533,25 @@ function SufficiencyPage({ k, signups, professors, onNavigate }) {
   const tallest = Math.max(1, ...sizes.map((s) => s.count));
   const deptAvg = useMemo(() => {
     const groups = new Map();
-    rows.forEach((r) => { const g = groups.get(r.department) || { sum: 0, n: 0 }; g.sum += Math.min(r.size, TARGET_LIST_SIZE); g.n += 1; groups.set(r.department, g); });
+    rows.forEach((r) => { const g = groups.get(r.major) || { sum: 0, n: 0 }; g.sum += Math.min(r.size, TARGET_LIST_SIZE); g.n += 1; groups.set(r.major, g); });
     return [...groups.entries()].map(([label, g]) => ({ label, avg: g.sum / g.n, n: g.n })).sort((a, b) => a.avg - b.avg || a.label.localeCompare(b.label));
   }, [rows]);
   const released = rows.filter((r) => r.listReleased).length;
 
   const [query, setQuery] = useState('');
   const [flag, setFlag] = useState('short');
-  const [dept, setDept] = useState('all');
-  const departments = useMemo(() => optionsOf(rows, 'department'), [rows]);
+  const [major, setMajor] = useState('all');
+  const majors = useMemo(() => optionsOf(rows, 'major'), [rows]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows
       .filter((r) =>
         (flag === 'all' || (flag === 'short' ? r.matchFlag !== 'OK' : r.matchFlag === flag)) &&
-        (dept === 'all' || r.department === dept) &&
-        matches(q, r.observeeName, r.courseCode, r.department))
+        (major === 'all' || r.major === major) &&
+        matches(q, r.observeeName, r.courseCode, r.major))
       .sort((a, b) => a.size - b.size || a.observeeName.localeCompare(b.observeeName));
-  }, [rows, query, flag, dept]);
-  const filtered = query || flag !== 'short' || dept !== 'all';
+  }, [rows, query, flag, major]);
+  const filtered = query || flag !== 'short' || major !== 'all';
 
   return (
     <div className="stack">
@@ -583,7 +583,7 @@ function SufficiencyPage({ k, signups, professors, onNavigate }) {
           )}
           <p className="card-foot">Observers per list (target {TARGET_LIST_SIZE})</p>
         </Card>
-        <Card title="Average list size by department" sub="Observee's department · shortest lists first">
+        <Card title="Average list size by major" sub="Observee's major · shortest lists first">
           {deptAvg.length === 0 ? <Empty>No sign-ups yet.</Empty> : deptAvg.map((d) => (
             <BreakRow key={d.label} label={d.label} value={d.avg} max={TARGET_LIST_SIZE}
               tone={toneFor(rateOf(d.avg, TARGET_LIST_SIZE))}
@@ -601,22 +601,22 @@ function SufficiencyPage({ k, signups, professors, onNavigate }) {
           </button>
         )}
         filters={<>
-          <input className="input" type="search" placeholder="Search by observee, course or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observer lists" />
+          <input className="input" type="search" placeholder="Search by observee, course or major" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observer lists" />
           <select className="select" value={flag} onChange={(e) => setFlag(e.target.value)} aria-label="Filter by list status">
             <option value="short">Short lists · {sufficiency.insufficient + sufficiency.none}</option>
             <option value="all">All lists · {rows.length}</option>
             {Object.entries(FLAGS).map(([key, f]) => <option key={key} value={key}>{f.label} · {rows.filter((r) => r.matchFlag === key).length}</option>)}
           </select>
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          <select className="select" value={major} onChange={(e) => setMajor(e.target.value)} aria-label="Filter by major">
+            <option value="all">All majors</option>
+            {majors.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setFlag('short'); setDept('all'); }} />
+          <ClearButton show={filtered} onClick={() => { setQuery(''); setFlag('short'); setMajor('all'); }} />
         </>}
         footer={`Showing ${shown.length} of ${rows.length}. Shortest lists first.`}
       >
         <table className="data-table data-table-compact">
-          <thead><tr><th>Observee</th><th>Department</th><th>Course</th><th>Class time</th><th>List size</th><th>Status</th><th>Released</th></tr></thead>
+          <thead><tr><th>Observee</th><th>Major</th><th>Course</th><th>Class time</th><th>List size</th><th>Status</th><th>Released</th></tr></thead>
           <tbody>
             {shown.length === 0 && <tr><td colSpan="7" className="empty-cell">{rows.length ? 'No sign-ups match these filters.' : 'No sign-ups yet.'}</td></tr>}
             {shown.map((r) => {
@@ -624,7 +624,7 @@ function SufficiencyPage({ k, signups, professors, onNavigate }) {
               return (
                 <tr key={r.id}>
                   <td className="strong nowrap">{r.observeeName}</td>
-                  <td>{r.department}</td>
+                  <td>{r.major}</td>
                   <td className="mono nowrap">{r.courseCode}</td>
                   <td className="nowrap">{r.timing}</td>
                   <td><span className={`num text-${f.tone}`}>{r.size}</span><span className="faint"> / {TARGET_LIST_SIZE}</span></td>

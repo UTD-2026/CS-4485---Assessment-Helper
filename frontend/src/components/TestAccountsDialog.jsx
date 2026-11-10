@@ -31,7 +31,7 @@ export default function TestAccountsDialog({ onClose, onPick }) {
     const q = query.trim().toLowerCase();
     return (accounts || []).filter((a) =>
       (role === 'all' || a.role === role) &&
-      (!q || a.netid.includes(q) || a.name.toLowerCase().includes(q) || String(a.department || '').toLowerCase().includes(q)));
+      (!q || a.netid.includes(q) || a.name.toLowerCase().includes(q) || String(a.major || '').toLowerCase().includes(q)));
   }, [accounts, query, role]);
 
   const committeeCount = (accounts || []).filter((a) => a.role === 'Committee').length;
@@ -51,7 +51,7 @@ export default function TestAccountsDialog({ onClose, onPick }) {
         </div>
 
         <div className="dialog-filters">
-          <input ref={searchRef} className="input" type="search" placeholder="Search by username, name or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search accounts" />
+          <input ref={searchRef} className="input" type="search" placeholder="Search by username, name or major" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search accounts" />
           <select className="select" value={role} onChange={(e) => setRole(e.target.value)} aria-label="Filter by role">
             <option value="all">All roles</option>
             <option value="Committee">Committee</option>
@@ -64,14 +64,14 @@ export default function TestAccountsDialog({ onClose, onPick }) {
             : !accounts ? <p className="empty-cell muted">Loading accounts…</p>
             : (
               <table className="data-table">
-                <thead><tr><th>Username</th><th>Name</th><th>Dept</th><th>Role</th></tr></thead>
+                <thead><tr><th>Username</th><th>Name</th><th>Major</th><th>Role</th></tr></thead>
                 <tbody>
                   {shown.length === 0 && <tr><td colSpan="4" className="empty-cell">No accounts match.</td></tr>}
                   {shown.map((a) => (
                     <tr key={a.netid}>
                       <td><button type="button" className="btn-link mono" onClick={() => onPick(a.netid)} title="Use this username">{a.netid}</button></td>
                       <td className="strong">{a.name}</td>
-                      <td>{a.department}</td>
+                      <td>{a.major}</td>
                       <td><Badge tone={a.role === 'Committee' ? 'warn' : 'neutral'}>{a.role}</Badge></td>
                     </tr>
                   ))}

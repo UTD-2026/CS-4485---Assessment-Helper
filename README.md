@@ -22,7 +22,7 @@ A centralized platform for managing faculty evaluations, course histories, and p
 
 **Committee / Admin Portal**
 - **Live Metrics & KPIs:** eligibility accuracy, overdue count, participation, observer utilization, list sufficiency, missing observations, survey completion
-- **Faculty Search:** name search, department/status filters, CSV export
+- **Faculty search** (in 1b · Overdue evaluations): name search, major/level/status filters, CSV export
 - **Committee Reports:** due/overdue by hiring level, unmatched faculty, outstanding observations, observer workload (each exportable to CSV)
 - **Signup Monitor:** view/regenerate observer lists, release lists, resolve manually, request end-of-process surveys
 - **Deadlines:** sign-up, observation and survey deadlines for the current term (saved to the database; participants notified)

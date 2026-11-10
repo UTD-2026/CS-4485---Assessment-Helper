@@ -131,13 +131,13 @@ export default function CommitteeReports({ term, refreshKey }) {
           rows={workload} limit={PREVIEW_ROWS} onShowAll={() => setDialog('workload')}
           columns={[
             { label: 'Professor', render: (p) => p.name },
-            { label: 'Department', render: (p) => p.department },
+            { label: 'Major', render: (p) => p.major },
             { label: 'Assigned', render: (p) => <strong className="num">{p.assigned}</strong> },
             { label: 'Completed', render: (p) => <span className="num">{p.completed}</span> },
             { label: 'Pending', render: (p) => <span className="num">{p.pending}</span> },
             { label: 'Missed', render: (p) => <span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span> },
           ]}
-          csv={workload.map((p) => [p.name, p.department, p.assigned, p.completed, p.pending, p.missed])}
+          csv={workload.map((p) => [p.name, p.major, p.assigned, p.completed, p.pending, p.missed])}
           empty="No faculty records available."
         />
       </div>
@@ -148,13 +148,13 @@ export default function CommitteeReports({ term, refreshKey }) {
         rows={report.unmatched} limit={PREVIEW_ROWS} onShowAll={() => setDialog('unmatched')}
         columns={[
           { label: 'Professor', render: (p) => p.name },
-          { label: 'Department', render: (p) => p.department },
+          { label: 'Major', render: (p) => p.major },
           { label: 'Level', render: (p) => p.hire_level_label },
           { label: 'Evaluation status', render: (p) => { const [l, t] = DUE[p.evaluation_status] || [p.evaluation_status, 'neutral']; return <Badge tone={t}>{l}</Badge>; } },
           { label: 'Course', className: 'nowrap', render: (p) => <span className="mono">{p.course_code || '—'}</span> },
           { label: 'Next action', render: (p) => p.reason },
         ]}
-        csv={report.unmatched.map((p) => [p.name, p.department, p.hire_level_label, (DUE[p.evaluation_status] || [p.evaluation_status])[0], p.course_code || '—', p.reason])}
+        csv={report.unmatched.map((p) => [p.name, p.major, p.hire_level_label, (DUE[p.evaluation_status] || [p.evaluation_status])[0], p.course_code || '—', p.reason])}
         empty="All due and overdue faculty have an observer assignment."
       />
       <ReportTable

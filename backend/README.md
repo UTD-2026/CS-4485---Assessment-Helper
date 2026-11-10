@@ -44,14 +44,14 @@ database is never wiped. The Vite dev server proxies `/api` to `http://localhost
 |---|---|---|
 | POST | /api/auth/login | `{ username, password }` (NetID or email) → `{ token, professor }` |
 | GET | /api/auth/me | The signed-in professor |
-| GET | /api/auth/test-accounts | **Extension.** Public, off when `NODE_ENV=production`. Every professor's `{ netid, name, department, role }` (`Committee`/`Professor`) for the login page's test-accounts list |
+| GET | /api/auth/test-accounts | **Extension.** Public, off when `NODE_ENV=production`. Every professor's `{ netid, name, department, major, role }` (`Committee`/`Professor`) for the login page's test-accounts list |
 
 ### 1. Professors
 | Method | Endpoint | Notes |
 |---|---|---|
 | GET | /api/professors | `?term=` (default current). Each professor includes `evaluation_status` (`due`/`overdue`/`not_due`, next due term) |
 | GET | /api/professors/:email | |
-| PATCH | /api/professors/:email | Committee: `name, department, hire_level, is_ac_member, last_observed`. Self: `name` |
+| PATCH | /api/professors/:email | Committee: `name, department, major (BE/CE/CS/EE/ME/SE), hire_level, is_ac_member, last_observed`. Self: `name` |
 | GET | /api/professors/:email/evaluation-status | `?term=`; also says whether they signed up |
 
 ### 2. Course Sections
@@ -90,7 +90,7 @@ Status lifecycle (`services/observationStateMachine.js`): `signed_up | unmatched
 | Method | Endpoint | Notes |
 |---|---|---|
 | GET | /api/observer-matches | `?term=&observer_email=&status=` (+ `observee_email`) |
-| POST | /api/observations/…/generate-observer-list | Committee. Same department, not self, teaches the same course level this term, no time overlap; up to 5, lightest observer workload first |
+| POST | /api/observations/…/generate-observer-list | Committee. Same major, not self, teaches the same course level this term, no time overlap; up to 5, lightest observer workload first |
 | POST | /api/observations/…/release-observer-list | Committee. Observee is notified and can send requests |
 | POST | /api/observations/…/observer-requests | Observee. `{ observer_emails: [...] }` from the released list |
 | PATCH | /api/observer-matches/:course_code/:section_number/:term/:observer_email/response | Requested observer. `{ response: "accept" \| "decline" }` |

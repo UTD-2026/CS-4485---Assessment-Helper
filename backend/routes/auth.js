@@ -32,12 +32,13 @@ router.post("/login", async (req, res) => {
 // Disabled when NODE_ENV=production so a real deployment never publishes the faculty list.
 router.get("/test-accounts", async (req, res) => {
   if (process.env.NODE_ENV === "production") throw notFound();
-  const rows = await Professor.find({}).select("email name department is_ac_member").lean();
+  const rows = await Professor.find({}).select("email name department major is_ac_member").lean();
   const data = rows
     .map((p) => ({
       netid: p.email.split("@")[0],
       name: p.name,
       department: p.department,
+      major: p.major,
       role: p.is_ac_member ? "Committee" : "Professor",
     }))
     .sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "Committee" ? -1 : 1));

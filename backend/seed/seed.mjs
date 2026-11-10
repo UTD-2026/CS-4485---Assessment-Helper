@@ -11,6 +11,9 @@ const dataPath = path.join(
 
 const data = JSON.parse(readFileSync(dataPath, "utf8"));
 
+const DEPARTMENT = "Erik Jonsson School of Engineering and Computer Science";
+const MAJORS = ["BE", "CE", "CS", "EE", "ME", "SE"];
+
 const collections = {
   professors: "professors",
   courseSections: "coursesections",
@@ -30,6 +33,8 @@ const dateFields = new Set([
   "observer_signed_date",
   "observee_signed_date",
   "requested_date",
+  "responded_date",
+  "list_released_date",
   "submitted_date",
 ]);
 
@@ -106,12 +111,20 @@ function validate() {
       );
     }
 
-    if (professor.department !== "CS") {
+    if (professor.department !== DEPARTMENT) {
       throw new Error(
-        `Professor must be in CS: ${professor.email}`
+        `Professor must be in the ${DEPARTMENT}: ${professor.email}`
+      );
+    }
+
+    if (!MAJORS.includes(professor.major)) {
+      throw new Error(
+        `Invalid major (${MAJORS.join(", ")}): ${professor.email}`
       );
     }
   }
+
+  const majorByEmail = new Map(data.professors.map((p) => [p.email, p.major]));
 
   for (const section of data.courseSections) {
     if (!/^\d{3}$/.test(String(section.section_number))) {
@@ -120,8 +133,15 @@ function validate() {
       );
     }
 
-    if (!/^CS (?:[1-4]\d|50)\d{2}$/.test(section.course_code)) {
-      throw new Error(`Invalid CS course code: ${section.course_code}`);
+    if (!/^(?:BE|CE|CS|EE|ME|SE) (?:[1-4]\d|50)\d{2}$/.test(section.course_code)) {
+      throw new Error(`Invalid course code: ${section.course_code}`);
+    }
+
+    // Course prefixes are the major codes: an EE professor teaches EE courses.
+    if (section.course_code.slice(0, 2) !== majorByEmail.get(section.instructor_email)) {
+      throw new Error(
+        `Course prefix does not match the instructor's major: ${sectionKey(section)}`
+      );
     }
 
     if (!/^(?:MW|TT) \d{2}:\d{2}-\d{2}:\d{2}$/.test(section.timing)) {

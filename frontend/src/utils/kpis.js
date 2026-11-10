@@ -47,9 +47,9 @@ const courseLevel = (courseCode = '') => {
  
 export const VIOLATION_TYPES = {
   SAME_PROF: { code: 'a', label: 'Same professor as the observee' },
-  OTHER_DEPT: { code: 'b', label: 'Same-level professor from another department' },
-  DIFFERENT_LEVEL: { code: 'c', label: 'Different-level professor (same or any department)' },
-  SCHEDULE_CONFLICT: { code: 'd', label: 'Same-level, same-department professor who teaches at the requested day/time' },
+  OTHER_MAJOR: { code: 'b', label: 'Same-level professor from another major' },
+  DIFFERENT_LEVEL: { code: 'c', label: 'Different-level professor (same or any major)' },
+  SCHEDULE_CONFLICT: { code: 'd', label: 'Same-level, same-major professor who teaches at the requested day/time' },
 };
  
 // Independently re-checks one observee -> observer pairing against the eligibility rules.
@@ -64,11 +64,11 @@ export const auditPairing = (observeeId, observerId, courseCode, timing, { profe
   const level = courseLevel(courseCode);
   const observerCourses = courses.filter(c => c.instructor_id === observer.professor_id);
   const sameLevel = observerCourses.some(c => courseLevel(c.course_code) === level);
-  const sameDept = observer.department === observee.department;
+  const sameMajor = observer.major === observee.major;
  
   const violations = [];
   if (!sameLevel) violations.push('DIFFERENT_LEVEL');
-  else if (!sameDept) violations.push('OTHER_DEPT');
+  else if (!sameMajor) violations.push('OTHER_MAJOR');
   else if (observerCourses.some(c => timingsOverlap(c.timing, timing))) violations.push('SCHEDULE_CONFLICT');
   return violations;
 };

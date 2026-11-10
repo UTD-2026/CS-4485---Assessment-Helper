@@ -14,7 +14,8 @@ const emailField = (required = true) => ({
 const professorSchema = new Schema({
   email: { ...emailField(), unique: true },
   name: { type: String, required: true },
-  department: { type: String, required: true },
+  department: { type: String, required: true }, // e.g. "Erik Jonsson School of Engineering and Computer Science"
+  major: { type: String, required: true, enum: ["BE", "CE", "CS", "EE", "ME", "SE"] }, // matching uses the major
   hire_level: { type: String, required: true }, // assistant | associate | full
   last_observed: { type: Date, default: null },
   password_hash: { type: String, required: true },

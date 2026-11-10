@@ -597,7 +597,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
                             <p className="text-bad">No eligible observers found in the database.</p>
                           ) : people.map(po => (
                             <div key={po.professor_id} className="row-between">
-                              <span>{po.name} <span className="faint">· {po.department}</span></span>
+                              <span>{po.name} <span className="faint">· {po.major}</span></span>
                               {po.matchStatus && <Badge tone={{ confirmed: 'good', declined: 'bad', requested: 'warn', accepted: 'info' }[po.matchStatus] || 'neutral'}>{po.matchStatus}</Badge>}
                             </div>
                           ))}
@@ -615,7 +615,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
                                 <select id={`manual-${signup.id}`} value={manualObserverId} onChange={(e) => setManualObserverId(e.target.value)}>
                                   <option value="">Select a faculty member</option>
                                   {professors.filter(p => p.professor_id !== signup.observeeId).map(p => (
-                                    <option key={p.professor_id} value={p.professor_id}>{p.name} ({p.department}) · {p.username}</option>
+                                    <option key={p.professor_id} value={p.professor_id}>{p.name} ({p.major}) · {p.username}</option>
                                   ))}
                                 </select>
                               </label>
@@ -1236,7 +1236,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
                 return (
                   <div className="list-row" key={observer.professor_id}>
                     <span className="avatar">{initials(observer.name)}</span>
-                    <span className="grow"><span className="list-title">{observer.name}</span><span className="list-sub">{observer.department}</span></span>
+                    <span className="grow"><span className="list-title">{observer.name}</span><span className="list-sub">{observer.major}</span></span>
                     {hasRequested ? <Badge tone="warn">Request sent</Badge> : <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleSendRequest(observer)}><Icon name="send" size={15} /> Send request</button>}
                   </div>
                 );

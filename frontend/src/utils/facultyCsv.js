@@ -8,10 +8,10 @@ const escapeCell = (value) => {
 
 export function createFacultyCsv(faculty) {
   const rows = [
-    ['Professor', 'Department', 'Level', 'Last Evaluation', 'Status'],
+    ['Professor', 'Major', 'Level', 'Last Evaluation', 'Status'],
     ...faculty.map(professor => [
       professor.name,
-      professor.department,
+      professor.major,
       professor.hire_level,
       professor.last_evaluation || 'None',
       professor.status === 'Overdue'

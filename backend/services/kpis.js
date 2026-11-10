@@ -102,7 +102,7 @@ function observerWorkload(ctx) {
   return ctx.professors.map((p) => {
     const assigned = ctx.observations.filter((o) => o.observer_email === p.email);
     return {
-      email: p.email, name: p.name, department: p.department,
+      email: p.email, name: p.name, department: p.department, major: p.major,
       assigned: assigned.length,
       completed: assigned.filter((o) => o.status === "completed").length,
       pending: assigned.filter((o) => !["completed", "missed", "deferred"].includes(o.status)).length,
@@ -165,7 +165,7 @@ function unmatchedFaculty(ctx, { includeAllDue = false } = {}) {
     }
     if (!reason) continue;
     rows.push({
-      email: p.email, name: p.name, department: p.department, hire_level: p.hire_level, hire_level_label: levelLabel(p.hire_level),
+      email: p.email, name: p.name, department: p.department, major: p.major, hire_level: p.hire_level, hire_level_label: levelLabel(p.hire_level),
       evaluation_status: status.status, course_code: o?.course_code || null, match_flag: flag, candidate_count: listSize,
       no_candidates: noCandidates, reason,
     });

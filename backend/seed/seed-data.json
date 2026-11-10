@@ -3,7 +3,8 @@
     {
       "email": "ejg104485@utdallas.edu",
       "name": "Estella James Gutkowski",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2025-11-06",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -12,7 +13,8 @@
     {
       "email": "lmc112404@utdallas.edu",
       "name": "Louis Marie Cummerata",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
       "hire_level": "full",
       "last_observed": "2025-09-30",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -21,7 +23,8 @@
     {
       "email": "tls120323@utdallas.edu",
       "name": "Tony Lee Sawayn",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-03-16",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -30,7 +33,8 @@
     {
       "email": "jad128242@utdallas.edu",
       "name": "Jan Anne Durgan",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
       "hire_level": "assistant",
       "last_observed": "2025-03-17",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -39,7 +43,8 @@
     {
       "email": "mrr136161@utdallas.edu",
       "name": "Max Ray Reynolds",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
       "hire_level": "full",
       "last_observed": "2024-04-02",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -48,7 +53,8 @@
     {
       "email": "cgb144080@utdallas.edu",
       "name": "Cali Grace Borer",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-10-07",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -57,7 +63,8 @@
     {
       "email": "emk151999@utdallas.edu",
       "name": "Ebony Michael Kautzer-Mohr",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-02-25",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -66,7 +73,8 @@
     {
       "email": "arh159918@utdallas.edu",
       "name": "Adrien Renee Hills",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-10-16",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -75,7 +83,8 @@
     {
       "email": "eth167837@utdallas.edu",
       "name": "Emerson Thomas Hoppe",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -84,7 +93,8 @@
     {
       "email": "sjv175756@utdallas.edu",
       "name": "Sincere Jean Von",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2023-10-09",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -93,7 +103,8 @@
     {
       "email": "aag183675@utdallas.edu",
       "name": "Alden Alexander Gutmann",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
       "hire_level": "assistant",
       "last_observed": "2025-10-21",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -102,7 +113,8 @@
     {
       "email": "hns191594@utdallas.edu",
       "name": "Hellen Nicole Swift",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-09-30",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -111,7 +123,8 @@
     {
       "email": "ddr199513@utdallas.edu",
       "name": "Delphia David Rohan",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -120,7 +133,8 @@
     {
       "email": "ter207432@utdallas.edu",
       "name": "Terrill Elizabeth Runte",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2023-09-28",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -129,7 +143,8 @@
     {
       "email": "cpm215351@utdallas.edu",
       "name": "Christiana Paul Mosciski",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
       "hire_level": "full",
       "last_observed": "2026-03-25",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -138,7 +153,8 @@
     {
       "email": "ncw223270@utdallas.edu",
       "name": "Norma Claire Weissnat",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-10-08",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -147,7 +163,8 @@
     {
       "email": "krg231189@utdallas.edu",
       "name": "Karine Robert Goyette",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2025-10-02",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -156,7 +173,8 @@
     {
       "email": "cjl239108@utdallas.edu",
       "name": "Christophe Jane Legros",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2026-10-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -165,7 +183,8 @@
     {
       "email": "sjb247027@utdallas.edu",
       "name": "Stevie Joseph Bailey",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2026-10-05",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -174,7 +193,8 @@
     {
       "email": "pla254946@utdallas.edu",
       "name": "Phillip Lynn Aufderhar",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-10-05",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -183,7 +203,8 @@
     {
       "email": "jdf262865@utdallas.edu",
       "name": "Jalen Daniel Feil",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-10-14",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -192,7 +213,8 @@
     {
       "email": "arr270784@utdallas.edu",
       "name": "Axel Rose Russel",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
       "hire_level": "assistant",
       "last_observed": "2025-11-10",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -201,7 +223,8 @@
     {
       "email": "jag278703@utdallas.edu",
       "name": "Joaquin Andrew Greenfelder",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-03-11",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -210,7 +233,8 @@
     {
       "email": "afk286622@utdallas.edu",
       "name": "Armani Faith Kuvalis",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
       "hire_level": "associate",
       "last_observed": "2026-03-23",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -219,7 +243,8 @@
     {
       "email": "ecr294541@utdallas.edu",
       "name": "Emery Charles Renner",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -228,7 +253,8 @@
     {
       "email": "big302460@utdallas.edu",
       "name": "Belle Irene Gutkowski",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -237,7 +263,8 @@
     {
       "email": "bew310379@utdallas.edu",
       "name": "Burnice Edward Will",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2026-10-09",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -246,7 +273,8 @@
     {
       "email": "blc318298@utdallas.edu",
       "name": "Brett Louise Crist",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2025-03-18",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -255,7 +283,8 @@
     {
       "email": "jac326217@utdallas.edu",
       "name": "Joel Anthony Considine",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
       "hire_level": "assistant",
       "last_observed": "2026-03-19",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -264,7 +293,8 @@
     {
       "email": "cmd334136@utdallas.edu",
       "name": "Corbin Mae Davis",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
       "hire_level": "associate",
       "last_observed": "2026-09-30",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -273,7 +303,8 @@
     {
       "email": "bft342055@utdallas.edu",
       "name": "Bennie Francis Turcotte-Kerluke",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-10-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -282,7 +313,8 @@
     {
       "email": "vhg349974@utdallas.edu",
       "name": "Verdie Hope Gorczany",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
       "hire_level": "assistant",
       "last_observed": "2026-10-07",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -291,7 +323,8 @@
     {
       "email": "jpc357893@utdallas.edu",
       "name": "Jordane Peter Crooks",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2026-10-05",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -300,7 +333,8 @@
     {
       "email": "ndn365812@utdallas.edu",
       "name": "Natasha Diane Nikolaus",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
       "hire_level": "assistant",
       "last_observed": "2024-11-04",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -309,7 +343,8 @@
     {
       "email": "tmw373731@utdallas.edu",
       "name": "Torrey Marcus Wiza",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-10-08",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -318,7 +353,8 @@
     {
       "email": "mja381650@utdallas.edu",
       "name": "Monroe Joy Adams",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
       "hire_level": "full",
       "last_observed": "2025-03-17",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -327,7 +363,8 @@
     {
       "email": "bsm389569@utdallas.edu",
       "name": "Bonnie Samuel Muller",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
       "hire_level": "associate",
       "last_observed": "2024-11-04",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -336,7 +373,8 @@
     {
       "email": "dkc397488@utdallas.edu",
       "name": "Dasia Kate Cruickshank",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
       "hire_level": "associate",
       "last_observed": "2025-03-17",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -345,7 +383,8 @@
     {
       "email": "blb405407@utdallas.edu",
       "name": "Bianka Louis Bradtke",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
       "hire_level": "assistant",
       "last_observed": "2023-10-24",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -354,7 +393,8 @@
     {
       "email": "cms413326@utdallas.edu",
       "name": "Cordie May Smitham",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-10-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -363,7 +403,8 @@
     {
       "email": "cjm421245@utdallas.edu",
       "name": "Chase James Marks",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
       "hire_level": "associate",
       "last_observed": "2026-02-23",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -372,7 +413,8 @@
     {
       "email": "vmz429164@utdallas.edu",
       "name": "Vergie Marie Zemlak",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
       "hire_level": "assistant",
       "last_observed": "2026-03-23",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -381,7 +423,8 @@
     {
       "email": "alp437083@utdallas.edu",
       "name": "America Lee Price",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
       "hire_level": "full",
       "last_observed": "2025-10-06",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -390,7 +433,8 @@
     {
       "email": "mam445002@utdallas.edu",
       "name": "Maximo Anne Mosciski",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-02-24",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -399,7 +443,8 @@
     {
       "email": "zre452921@utdallas.edu",
       "name": "Zena Ray Erdman",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
       "hire_level": "full",
       "last_observed": "2024-10-25",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -408,7 +453,8 @@
     {
       "email": "sgg460840@utdallas.edu",
       "name": "Sven Grace Goyette",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
       "hire_level": "full",
       "last_observed": "2024-11-04",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -417,7 +463,8 @@
     {
       "email": "rmh468759@utdallas.edu",
       "name": "Robbie Michael Haley",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
       "hire_level": "full",
       "last_observed": "2024-04-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -426,7 +473,8 @@
     {
       "email": "srb476678@utdallas.edu",
       "name": "Stephanie Renee Barton",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
       "hire_level": "full",
       "last_observed": "2026-03-16",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -435,7 +483,8 @@
     {
       "email": "rta484597@utdallas.edu",
       "name": "Roxane Thomas Ankunding",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2023-10-23",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -444,7 +493,8 @@
     {
       "email": "mjh492516@utdallas.edu",
       "name": "Mertie Jean Hermiston",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-10-05",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -453,7 +503,8 @@
     {
       "email": "har500435@utdallas.edu",
       "name": "Hailey Alexander Reichert",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2023-03-09",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -462,7 +513,8 @@
     {
       "email": "ens508354@utdallas.edu",
       "name": "Ed Nicole Schneider",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2023-03-20",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -471,7 +523,8 @@
     {
       "email": "adj516273@utdallas.edu",
       "name": "Armando David Jacobi",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
       "hire_level": "assistant",
       "last_observed": "2024-03-25",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -480,7 +533,8 @@
     {
       "email": "eeb524192@utdallas.edu",
       "name": "Eladio Elizabeth Bins",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -489,7 +543,8 @@
     {
       "email": "lpd532111@utdallas.edu",
       "name": "Ludie Paul Durgan",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2025-10-27",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -498,7 +553,8 @@
     {
       "email": "ecw540030@utdallas.edu",
       "name": "Ervin Claire Wisoky",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-03-12",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -507,7 +563,8 @@
     {
       "email": "trh547949@utdallas.edu",
       "name": "Tyler Robert Hammes",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-03-11",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -516,7 +573,8 @@
     {
       "email": "ajs555868@utdallas.edu",
       "name": "Antonina Jane Sauer",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2025-11-10",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -525,7 +583,8 @@
     {
       "email": "ojn563787@utdallas.edu",
       "name": "Orville Joseph Nicolas",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-10-05",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -534,7 +593,8 @@
     {
       "email": "bll571706@utdallas.edu",
       "name": "Benjamin Lynn Lubowitz",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -543,7 +603,8 @@
     {
       "email": "kds579625@utdallas.edu",
       "name": "Kelly Daniel Sauer-Stamm",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2024-10-14",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -552,7 +613,8 @@
     {
       "email": "arc587544@utdallas.edu",
       "name": "Alvah Rose Carroll",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
       "hire_level": "full",
       "last_observed": "2025-10-27",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -561,7 +623,8 @@
     {
       "email": "nal595463@utdallas.edu",
       "name": "Nick Andrew Lind",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2025-11-03",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -570,7 +633,8 @@
     {
       "email": "afp603382@utdallas.edu",
       "name": "Abdul Faith Pacocha-Boyle",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2023-11-07",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -579,7 +643,8 @@
     {
       "email": "ncw611301@utdallas.edu",
       "name": "Napoleon Charles Wolf",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2023-02-17",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -588,7 +653,8 @@
     {
       "email": "oic619220@utdallas.edu",
       "name": "Oma Irene Considine",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
       "hire_level": "full",
       "last_observed": "2025-04-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -597,7 +663,8 @@
     {
       "email": "mek627139@utdallas.edu",
       "name": "Melody Edward Kirlin",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-03-27",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -606,7 +673,8 @@
     {
       "email": "llr635058@utdallas.edu",
       "name": "Lelah Louise Reilly",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-10-16",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -615,7 +683,8 @@
     {
       "email": "ian642977@utdallas.edu",
       "name": "Irvin Anthony Nikolaus",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-03-25",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -624,7 +693,8 @@
     {
       "email": "rmk650896@utdallas.edu",
       "name": "Raymond Mae Kassulke",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -633,7 +703,8 @@
     {
       "email": "sfw658815@utdallas.edu",
       "name": "Stevie Francis White",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
       "hire_level": "assistant",
       "last_observed": "2025-10-03",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -642,7 +713,8 @@
     {
       "email": "dhg666734@utdallas.edu",
       "name": "Danika Hope Gusikowski",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-10-08",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -651,7 +723,8 @@
     {
       "email": "lpr674653@utdallas.edu",
       "name": "Laron Peter Rosenbaum",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2024-11-11",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -660,7 +733,8 @@
     {
       "email": "rdk682572@utdallas.edu",
       "name": "Rosalind Diane Kassulke",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2023-03-13",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -669,7 +743,8 @@
     {
       "email": "hmb690491@utdallas.edu",
       "name": "Harrison Marcus Barton",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-02-21",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -678,7 +753,8 @@
     {
       "email": "mjj698410@utdallas.edu",
       "name": "Muhammad Joy Jakubowski",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2026-10-02",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -687,7 +763,8 @@
     {
       "email": "fsh706329@utdallas.edu",
       "name": "Felipa Samuel Hickle",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-03-02",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -696,7 +773,8 @@
     {
       "email": "fkc714248@utdallas.edu",
       "name": "Frankie Kate Carter",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -705,7 +783,8 @@
     {
       "email": "klp722167@utdallas.edu",
       "name": "Karli Louis Pfannerstill",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-10-14",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -714,7 +793,8 @@
     {
       "email": "emc730086@utdallas.edu",
       "name": "Eliezer May Champlin",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
       "hire_level": "assistant",
       "last_observed": "2023-03-27",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -723,7 +803,8 @@
     {
       "email": "sjr738005@utdallas.edu",
       "name": "Stephany James Rodriguez",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-09-29",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -732,7 +813,8 @@
     {
       "email": "hmb745924@utdallas.edu",
       "name": "Hilario Marie Block-Kirlin",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-11-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -741,7 +823,8 @@
     {
       "email": "jlh753843@utdallas.edu",
       "name": "Jewell Lee Huel",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-10-02",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -750,7 +833,8 @@
     {
       "email": "pal761762@utdallas.edu",
       "name": "Petra Anne Labadie",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-11-05",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -759,7 +843,8 @@
     {
       "email": "prm769681@utdallas.edu",
       "name": "Pearline Ray Mante",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2024-02-26",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -768,7 +853,8 @@
     {
       "email": "tgd777600@utdallas.edu",
       "name": "Treva Grace Dach",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -777,7 +863,8 @@
     {
       "email": "cms785519@utdallas.edu",
       "name": "Cali Michael Schoen",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2023-03-20",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -786,7 +873,8 @@
     {
       "email": "arp793438@utdallas.edu",
       "name": "Alysson Renee Purdy",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-10-11",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -795,7 +883,8 @@
     {
       "email": "ete801357@utdallas.edu",
       "name": "Emery Thomas Emard",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2025-02-24",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -804,7 +893,8 @@
     {
       "email": "djr809276@utdallas.edu",
       "name": "Deja Jean Rowe-Lehner",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
       "hire_level": "assistant",
       "last_observed": null,
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -813,7 +903,8 @@
     {
       "email": "mat817195@utdallas.edu",
       "name": "Margaretta Alexander Tromp",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-10-30",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -822,7 +913,8 @@
     {
       "email": "lnk825114@utdallas.edu",
       "name": "Lucienne Nicole Kirlin",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
       "hire_level": "full",
       "last_observed": "2026-10-07",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -831,7 +923,8 @@
     {
       "email": "cdf833033@utdallas.edu",
       "name": "Cleveland David Feeney",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-11-04",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -840,7 +933,8 @@
     {
       "email": "ged840952@utdallas.edu",
       "name": "Granville Elizabeth Dicki",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2026-10-08",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -849,7 +943,8 @@
     {
       "email": "hpm848871@utdallas.edu",
       "name": "Hertha Paul Monahan",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "full",
       "last_observed": "2024-03-25",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -858,7 +953,8 @@
     {
       "email": "acp856790@utdallas.edu",
       "name": "Alexandro Claire Pollich-Batz",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
       "hire_level": "full",
       "last_observed": "2024-10-15",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -867,7 +963,8 @@
     {
       "email": "lrl864709@utdallas.edu",
       "name": "Loretta Robert Leffler",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-03-27",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -876,7 +973,8 @@
     {
       "email": "tjr872628@utdallas.edu",
       "name": "Trycia Jane Rosenbaum",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "assistant",
       "last_observed": "2026-03-06",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -885,7 +983,8 @@
     {
       "email": "ljk880547@utdallas.edu",
       "name": "Laisha Joseph Kris",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-11-08",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
@@ -894,11 +993,582 @@
     {
       "email": "elb888466@utdallas.edu",
       "name": "Erica Lynn Blick",
-      "department": "CS",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
       "hire_level": "associate",
       "last_observed": "2024-11-01",
       "password_hash": "scrypt$78f7a2bf41dc8da86c32c332dfd43bfb$14a7773f0ef617a3f2ebf3a1633f0814772301782f44d010c0c619d60e1d79cb",
       "is_ac_member": false
+    },
+    {
+      "email": "blc347154@utdallas.edu",
+      "name": "Beatrix Lynn Castellano",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "full",
+      "last_observed": "2024-11-05",
+      "password_hash": "scrypt$5610c16e4843ef4cea7386c19b7ee2cd$0e849a17b7052035520b2fa9043d52f8f65f0286bb588cc91f36d607ace519b9",
+      "is_ac_member": false
+    },
+    {
+      "email": "vad441713@utdallas.edu",
+      "name": "Victor Ann Donnelly",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "full",
+      "last_observed": "2024-10-08",
+      "password_hash": "scrypt$2e56aa137dadefe51f9faa2403599d67$4641e2e6d5b8bc4454ac1dbe54ec242a0a278a9ce2d57d03cd03adf12d51032b",
+      "is_ac_member": false
+    },
+    {
+      "email": "phg644526@utdallas.edu",
+      "name": "Priya Hope Galloway",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "full",
+      "last_observed": "2024-10-08",
+      "password_hash": "scrypt$98fe0febcae824c4f07bf2706f039880$fcb9e5d9f5a9ef46ce8056642b1181279e2a286ba508aaa3d9f0c5d91c5bfaa1",
+      "is_ac_member": false
+    },
+    {
+      "email": "kda805844@utdallas.edu",
+      "name": "Kendrick Dale Abernathy",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "assistant",
+      "last_observed": null,
+      "password_hash": "scrypt$21134633ad0ec396a868e5ec70ed2baa$7c7dc7e286a73ab956a4076b4c676c14c8d551d4962d67a1dc1f9023fe7fdf03",
+      "is_ac_member": false
+    },
+    {
+      "email": "tao896208@utdallas.edu",
+      "name": "Talia Allen Oyelaran",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$118570af439fb011c08deedae508b8f3$5e7d7bad00d720f9db58fa2ea15d9bb28bfef425296df886d588e7663cc2d5f5",
+      "is_ac_member": false
+    },
+    {
+      "email": "fnv797895@utdallas.edu",
+      "name": "Felix Neil Vasquez",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$da320f90f0db3bc4814f3b94015cb900$ca778582b891e921219f23d4a37ba3ef8f7e3df16b390703e506d06adcae02fe",
+      "is_ac_member": false
+    },
+    {
+      "email": "fcw493918@utdallas.edu",
+      "name": "Fiona Cole Whitfield",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "full",
+      "last_observed": "2024-10-08",
+      "password_hash": "scrypt$071d021c439e0d39ba19de2818c61e20$e5810476bcf8d06dc80daf0687974f2d12a28d73adce62f90173510c2acf0744",
+      "is_ac_member": false
+    },
+    {
+      "email": "oal908476@utdallas.edu",
+      "name": "Oskar Ann Laurent",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$75ee526cf32ae7136710b6f6198fb083$a1e2946c674a0e0cd3564c3937fb6441e1f6592201831d15075b113ccad24267",
+      "is_ac_member": false
+    },
+    {
+      "email": "yrw692723@utdallas.edu",
+      "name": "Yara Ruth Winslow",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "associate",
+      "last_observed": null,
+      "password_hash": "scrypt$9334f13f7300195ec7b3b6221decfe8e$9850459d9d4e8f96ef9f2add41afec731278b78df520588ff1eedcc0c4d07333",
+      "is_ac_member": false
+    },
+    {
+      "email": "ssd266677@utdallas.edu",
+      "name": "Silas Scott Dubois",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "full",
+      "last_observed": "2023-03-21",
+      "password_hash": "scrypt$e2941d876fde444ff7a126e26766a953$25f119e5b95ca43d9134867ed6b4740ac47d2aaf07916e39fa2c06a999ee7370",
+      "is_ac_member": false
+    },
+    {
+      "email": "gsp717582@utdallas.edu",
+      "name": "Gideon Scott Prescott",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$2ccf6db9eb96e7e0afae0360d59fc59b$7d0a3a5d964d00116f0e408f0faa62ba955173bd3ebe5de84df16a8b081f1b21",
+      "is_ac_member": false
+    },
+    {
+      "email": "rnt703833@utdallas.edu",
+      "name": "Rhea Neil Takahashi",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-15",
+      "password_hash": "scrypt$0868939869ced88e595b6b6ddb83198d$c6c9436bf128b14a07ac4bb86ded0d822347aac51e990ca81a79b93daf0bf3a3",
+      "is_ac_member": false
+    },
+    {
+      "email": "esm532551@utdallas.edu",
+      "name": "Esme Scott Mendoza",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$4e6acefa539f18d1426a5a648a7a8fea$b9ab59cd6f6d33e621d6952823cb4716b09fad4d2b50884c7a20e3cfa12cf24f",
+      "is_ac_member": false
+    },
+    {
+      "email": "aas362664@utdallas.edu",
+      "name": "Adaeze Ann Sorensen",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "assistant",
+      "last_observed": "2024-03-26",
+      "password_hash": "scrypt$785400ddd61a7fe53856c155e9266ccb$267c393f426db18c7f001aa6166691987054fe5be8fb00a34ca6de376deabf40",
+      "is_ac_member": false
+    },
+    {
+      "email": "wlt639057@utdallas.edu",
+      "name": "Wesley Lee Thackeray",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "assistant",
+      "last_observed": "2025-03-18",
+      "password_hash": "scrypt$e0ada5f868ecdfaa3488dd3e809a2b17$47db166592fad9338aab0d2892c110a2bdce0fa51d983be0f11442c60b3e79a8",
+      "is_ac_member": false
+    },
+    {
+      "email": "xpr469820@utdallas.edu",
+      "name": "Ximena Paul Rasmussen",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-15",
+      "password_hash": "scrypt$6e6c9f222d2a924ae563ecf16d84b982$85f402cbb05c2f4fb3eeac130f2390c56934fa07d218d6a1cf01b1806219f903",
+      "is_ac_member": false
+    },
+    {
+      "email": "ilb983420@utdallas.edu",
+      "name": "Isaiah Lynn Blackwood",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "full",
+      "last_observed": "2024-11-05",
+      "password_hash": "scrypt$cd714953586d277b87b6565d9684ff13$937ff47f17de493a5feb88a715af173b07d25fcdc04ac76aa25eb6707dddd999",
+      "is_ac_member": false
+    },
+    {
+      "email": "mak652634@utdallas.edu",
+      "name": "Marcus Allen Kimura",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$db3765bf2a2c042e63fe4de7a44336cf$94acacb98caf242f943a6e1632d4fbbe92b78aae45cf3467579507ac768c2639",
+      "is_ac_member": false
+    },
+    {
+      "email": "jlk120246@utdallas.edu",
+      "name": "Juliana Lynn Kowalczyk",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "associate",
+      "last_observed": "2023-10-17",
+      "password_hash": "scrypt$cc8dc3a6b45ba123b01725550daa942a$7241e0924546365c723c32697941b8a0c9500d7e48be4612e33b981ebd701393",
+      "is_ac_member": false
+    },
+    {
+      "email": "qcf436137@utdallas.edu",
+      "name": "Quentin Cole Fairbanks",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "full",
+      "last_observed": "2023-10-17",
+      "password_hash": "scrypt$09d5f36cff7f0ff9e2d3e14fb83733b8$a41b1ebbfd2e9b2100d2e50b849eecbee0bf40f4fa7f6f2dd5918bc31072bc65",
+      "is_ac_member": false
+    },
+    {
+      "email": "hrh634113@utdallas.edu",
+      "name": "Harriet Ruth Hargrove",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$b0f610eeec7986a83e50863858c6f55c$c19bee4d96eff234dd7ba771199aa8cc826dc4b3e444a81c71e06209ef0857b7",
+      "is_ac_member": false
+    },
+    {
+      "email": "dhf255799@utdallas.edu",
+      "name": "Dmitri Hope Ferreira",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$9167a3fa547d8812576debb9cd29e724$73163ed39d834b003200d1d1913703506aa17bf8de7916bbdc3aa8e15b6157fe",
+      "is_ac_member": false
+    },
+    {
+      "email": "zag790568@utdallas.edu",
+      "name": "Zane Ann Gallagher",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-15",
+      "password_hash": "scrypt$4d94959edeb1ed8939e46bb69e45ef9b$64391ddf9fb77d92cb1c494a11e279bcdb3d4048a62433d2e8334548e4411a3c",
+      "is_ac_member": false
+    },
+    {
+      "email": "knb548998@utdallas.edu",
+      "name": "Kiara Neil Bergstrom",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "associate",
+      "last_observed": "2024-03-26",
+      "password_hash": "scrypt$98df3cf7ff53e3110e4408e59bc11d9d$0b0d48e4a8e6cd8ba6f285ceee92cec89a9d51090227f3199359146f77362947",
+      "is_ac_member": false
+    },
+    {
+      "email": "ahe410577@utdallas.edu",
+      "name": "Anika Hope Ellsworth",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$fea00887c49378e4f32bc2dac8428590$8a0a410af92818668ac4508339ebe00996f31dc0aac6d212f2bba9379a39437d",
+      "is_ac_member": false
+    },
+    {
+      "email": "pmi525921@utdallas.edu",
+      "name": "Pierce Mae Iverson",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$b94b489f1938bc0eff2867988befe5dc$5825a0a6c5c70e63f8b67f6c607efa374b0410161e1351f91d6c8f7217803270",
+      "is_ac_member": false
+    },
+    {
+      "email": "msb249132@utdallas.edu",
+      "name": "Mirela Scott Brennan",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "full",
+      "last_observed": "2024-11-05",
+      "password_hash": "scrypt$dbc6e238352d5b1c61e9e837423fb955$b21ebd1fcaae3c31f12f507e47f07342b493cc034eeac37bd6df13ea2df1f171",
+      "is_ac_member": false
+    },
+    {
+      "email": "vwl183277@utdallas.edu",
+      "name": "Vivienne Wade Lockhart",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$d5fd71dfc9d39a275febed49952b51af$537402870ce55e38abe3e7deb0f90c11a43ef7759df862966207fee8f913c989",
+      "is_ac_member": false
+    },
+    {
+      "email": "srd898272@utdallas.edu",
+      "name": "Soren Ray Delacroix",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "associate",
+      "last_observed": null,
+      "password_hash": "scrypt$9f3c8a1671859468e35b4f75ba24b5a6$e73d48a6a53e2c0ec56b10f587a10bb4efcbd3e796bc517d050045cabfd96d8c",
+      "is_ac_member": false
+    },
+    {
+      "email": "cke663052@utdallas.edu",
+      "name": "Celeste Kay Eriksen",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "full",
+      "last_observed": "2023-10-17",
+      "password_hash": "scrypt$b5460c21835962302fd1d7697221bb5e$1133060309cde04738467a769039c7a8f5485f3c5f83ea2f578a75294effd81b",
+      "is_ac_member": false
+    },
+    {
+      "email": "hau464640@utdallas.edu",
+      "name": "Hugo Allen Underwood",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "full",
+      "last_observed": "2024-11-05",
+      "password_hash": "scrypt$55e6193613620bb90e0951db72db59b9$4c2317650ef98c0bf95e13d0c540cfc76fc9e50a5da7103c71fc6b886751f224",
+      "is_ac_member": false
+    },
+    {
+      "email": "dra530939@utdallas.edu",
+      "name": "Delia Reid Ashworth",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "associate",
+      "last_observed": "2024-10-15",
+      "password_hash": "scrypt$88b70fd6f8ced99e1d3599dc30fe266d$7cc799b8d5e0886375ffd1e44bd0659e809087ab7b6c85cf301771651b6e6316",
+      "is_ac_member": false
+    },
+    {
+      "email": "rdc931866@utdallas.edu",
+      "name": "Rosalie Dean Carmichael",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "assistant",
+      "last_observed": "2025-04-02",
+      "password_hash": "scrypt$df61657323c83e00af5379781c138b36$e791d45fd367e607e96237a782d783574ee97fd245b29eabc406a619884a2a60",
+      "is_ac_member": false
+    },
+    {
+      "email": "wpa456287@utdallas.edu",
+      "name": "Wren Paul Achebe",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "assistant",
+      "last_observed": "2023-03-21",
+      "password_hash": "scrypt$24d02058a706877211307a294f4e555d$99c656b56bc129df645cbb44a354768e3a88959ca038b928d9e68a8563c9087e",
+      "is_ac_member": false
+    },
+    {
+      "email": "nrq529696@utdallas.edu",
+      "name": "Noelle Reid Quintero",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$5f3d8bd4f6a4d7067f3a7b8d27193b8e$f262e4410f15d6adbd07d6d63733ef7f99ae307163be825a33474ea9aba1e69a",
+      "is_ac_member": false
+    },
+    {
+      "email": "awh398334@utdallas.edu",
+      "name": "Amara Wade Holloway",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "associate",
+      "last_observed": "2024-10-15",
+      "password_hash": "scrypt$36ee54ab4ca052dde9aaf7cf79ed2a1b$127b0745d0d7d98ea3a82995f0187fe29f5e6a2cd705fa41e8fe3df58b2432e9",
+      "is_ac_member": false
+    },
+    {
+      "email": "brs210748@utdallas.edu",
+      "name": "Bennett Rose Sinclair",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "full",
+      "last_observed": "2024-10-08",
+      "password_hash": "scrypt$5d591877de01c1cff07b77296000c374$365c09e596c9f5b053f3651b8371c444881900636b5f5dd3175ce0f2bbc24906",
+      "is_ac_member": false
+    },
+    {
+      "email": "ggi858644@utdallas.edu",
+      "name": "Greta Grace Ivanova",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "assistant",
+      "last_observed": "2025-10-14",
+      "password_hash": "scrypt$56f0388abb63877ea2a53388753b4cc1$e5098af00c745bd5704d98cdaf874fb55e1c2f0192136f3f97c40f0e5b4b5681",
+      "is_ac_member": false
+    },
+    {
+      "email": "ugm260098@utdallas.edu",
+      "name": "Ulysses Grace Moreau",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "associate",
+      "last_observed": "2024-03-26",
+      "password_hash": "scrypt$0d4b9f59f0852ea7b0235bdfe1afc0c5$b1a7c0afbc08e74643213c8368e19944323ec1f36f44e6bc5717d44951c44f7b",
+      "is_ac_member": false
+    },
+    {
+      "email": "trl893479@utdallas.edu",
+      "name": "Tamsin Rose Lindqvist",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "full",
+      "last_observed": "2023-03-21",
+      "password_hash": "scrypt$c53c290283efd597e4ef1a11dc2ce62d$920a83772955bf2080ce6f5b9d8ab07a666bd362a75d6844d23249ff1b7a1561",
+      "is_ac_member": false
+    },
+    {
+      "email": "ygv759437@utdallas.edu",
+      "name": "Yusuf Grace Valdivia",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$875b7dd6eb25cd5bce51e2e99ab3d572$102340d74ad042d91be55cded7daa12f484ef3eec0cb01eb304acf95d012f511",
+      "is_ac_member": false
+    },
+    {
+      "email": "nwr710048@utdallas.edu",
+      "name": "Nolan Wade Ramaswamy",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "full",
+      "last_observed": "2024-10-08",
+      "password_hash": "scrypt$bf9c0759c030a1eaf9e837ba4c00eb02$b3ebbc375c73e0f0d21bf677f75167b7ea9a70d350ccca2acbbafccb03214057",
+      "is_ac_member": false
+    },
+    {
+      "email": "cmn376140@utdallas.edu",
+      "name": "Caroline Mae Novak",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-29",
+      "password_hash": "scrypt$16559b87410e9d2becbbc1971ad168c0$2fc75294de96d0ea0e4350acd7c471fd64b738fe43c68f023f03e7a80f5a0b01",
+      "is_ac_member": false
+    },
+    {
+      "email": "ile815186@utdallas.edu",
+      "name": "Ingrid Lynn Escobar",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "assistant",
+      "last_observed": "2023-03-21",
+      "password_hash": "scrypt$afbc6ad63d8489f67bcbd9fdd6fde5d1$85bae09f40b35d14a8f7ddc03c5ea2cfa280d520ecfa84de4d784c488886bbf6",
+      "is_ac_member": false
+    },
+    {
+      "email": "edn804539@utdallas.edu",
+      "name": "Elliot Dale Nguyen",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "assistant",
+      "last_observed": "2025-04-02",
+      "password_hash": "scrypt$5c0d7203ebe785c8061395f02eb9b990$a518fa53dd6b9185acc4e5e47bfc21aa8de1b77626267d37611173a4f37a1541",
+      "is_ac_member": false
+    },
+    {
+      "email": "cco843845@utdallas.edu",
+      "name": "Cyrus Cole Okonkwo",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "associate",
+      "last_observed": "2024-10-15",
+      "password_hash": "scrypt$bcd50de0f067a5338ae204c7c4d29619$24ee4fd4573ae286122f04693a0a6f315b11a3ceba32c8cb9b7b0103fbda6200",
+      "is_ac_member": false
+    },
+    {
+      "email": "jjc298791@utdallas.edu",
+      "name": "Jasper James Chandrasekar",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "full",
+      "last_observed": "2024-11-05",
+      "password_hash": "scrypt$093c354d24d251f9be1c4740fb543189$1deee604cc39bc5a44b55036965de76057e142161f3760a0bcd2a9df54d800a5",
+      "is_ac_member": false
+    },
+    {
+      "email": "ldz842882@utdallas.edu",
+      "name": "Lucinda Dean Zielinski",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "assistant",
+      "last_observed": "2025-04-02",
+      "password_hash": "scrypt$35649b0a35954526a40419669917d02b$085afe1896521564dd40ebb9fb10f9e076878dc783bc0172bc7a6f010fac47a8",
+      "is_ac_member": false
+    },
+    {
+      "email": "hrp603835@utdallas.edu",
+      "name": "Helena Rose Pemberton",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "associate",
+      "last_observed": null,
+      "password_hash": "scrypt$2a36e8974f01baaf49099db3b194c5a9$2bcb5d0ca9fae85ad01d0105bc49d01c28887432a7dedd9b8009c5199b89776d",
+      "is_ac_member": false
+    },
+    {
+      "email": "dwi819536@utdallas.edu",
+      "name": "Desmond Wade Ibarra",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "full",
+      "last_observed": "2024-03-26",
+      "password_hash": "scrypt$7419e3991e4ea7a5fe7df1ad02d8e93c$afb1fce6be18b5503db6edf0e802135c0267a79a740fb73a26a3c6ebdaec3dad",
+      "is_ac_member": false
+    },
+    {
+      "email": "brj650419@utdallas.edu",
+      "name": "Bryce Ray Jorgensen",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "BE",
+      "hire_level": "full",
+      "last_observed": "2025-10-21",
+      "password_hash": "scrypt$73348a4fee2367d05904a63cf7a004da$dfb90d938e9a5cc7c7fe029e7230e33e50941e6707c9f9dc355105b7426b529b",
+      "is_ac_member": true
+    },
+    {
+      "email": "fcf858717@utdallas.edu",
+      "name": "Farrah Cole Fitzgerald",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CE",
+      "hire_level": "associate",
+      "last_observed": "2026-04-07",
+      "password_hash": "scrypt$418d5dd594375f549a33ff7fbc8feef6$a42ccd5fc3257e29228b3c97a468fbd6c05d4daa64680178419b6bf43753567a",
+      "is_ac_member": true
+    },
+    {
+      "email": "zrh913672@utdallas.edu",
+      "name": "Zelda Reid Haddad",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "full",
+      "last_observed": "2026-04-07",
+      "password_hash": "scrypt$b282cf7b0490d2fde2994b8c00d4c324$58bc434ef3efe59f46ad0d146d8ad31774a64588cbfb9d09abda86378f2f40d8",
+      "is_ac_member": true
+    },
+    {
+      "email": "lpk904007@utdallas.edu",
+      "name": "Leon Paul Kaczmarek",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "ME",
+      "hire_level": "associate",
+      "last_observed": "2026-04-07",
+      "password_hash": "scrypt$5436f701ee8e73d8a89b414d20448196$f3d77427bb948582d047b687a04cca62008661bf07531f601bfeb5143f121dcc",
+      "is_ac_member": true
+    },
+    {
+      "email": "odn720087@utdallas.edu",
+      "name": "Odette Dean Nakamura",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "SE",
+      "hire_level": "full",
+      "last_observed": "2026-04-07",
+      "password_hash": "scrypt$dd3ec0d79adbbf672770aad2b457ba52$96a459a4279a4f83f370181549295a9b5309516d56eb12904e7db573e4934c3f",
+      "is_ac_member": true
+    },
+    {
+      "email": "ecy906459@utdallas.edu",
+      "name": "Eleanor Cole Yamamoto",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "CS",
+      "hire_level": "associate",
+      "last_observed": "2026-03-24",
+      "password_hash": "scrypt$afbba5b8e2860ee15b7777dbe3aa6ef5$70883decd94877062e6de16114b722d7bcd3a1765848146bc726983511f02b78",
+      "is_ac_member": true
+    },
+    {
+      "email": "gpm195637@utdallas.edu",
+      "name": "Graham Paul Montgomery",
+      "department": "Erik Jonsson School of Engineering and Computer Science",
+      "major": "EE",
+      "hire_level": "associate",
+      "last_observed": "2025-10-21",
+      "password_hash": "scrypt$7539473be1ffa42c7136e29021ee67b8$dea513b2e606f2b69bdb22ffcfc3148481a31a0996c128397b9428fe3cc02887",
+      "is_ac_member": true
     }
   ],
   "courseSections": [
@@ -910,7 +1580,7 @@
       "instructor_email": "ejg104485@utdallas.edu"
     },
     {
-      "course_code": "CS 2846",
+      "course_code": "EE 2846",
       "section_number": "501",
       "term": "Fall 2025",
       "timing": "MW 10:00-11:15",
@@ -924,14 +1594,14 @@
       "instructor_email": "tls120323@utdallas.edu"
     },
     {
-      "course_code": "CS 4204",
+      "course_code": "ME 4204",
       "section_number": "002",
       "term": "Spring 2025",
       "timing": "MW 13:00-14:15",
       "instructor_email": "jad128242@utdallas.edu"
     },
     {
-      "course_code": "CS 4933",
+      "course_code": "SE 4933",
       "section_number": "002",
       "term": "Spring 2024",
       "timing": "MW 14:30-15:45",
@@ -966,7 +1636,7 @@
       "instructor_email": "sjv175756@utdallas.edu"
     },
     {
-      "course_code": "CS 4378",
+      "course_code": "BE 4378",
       "section_number": "001",
       "term": "Fall 2025",
       "timing": "TT 14:30-15:45",
@@ -987,7 +1657,7 @@
       "instructor_email": "ter207432@utdallas.edu"
     },
     {
-      "course_code": "CS 2365",
+      "course_code": "ME 2365",
       "section_number": "501",
       "term": "Spring 2026",
       "timing": "MW 11:30-12:45",
@@ -1036,7 +1706,7 @@
       "instructor_email": "jdf262865@utdallas.edu"
     },
     {
-      "course_code": "CS 3168",
+      "course_code": "BE 3168",
       "section_number": "001",
       "term": "Fall 2025",
       "timing": "TT 14:30-15:45",
@@ -1050,7 +1720,7 @@
       "instructor_email": "jag278703@utdallas.edu"
     },
     {
-      "course_code": "CS 4526",
+      "course_code": "EE 4526",
       "section_number": "001",
       "term": "Spring 2026",
       "timing": "MW 10:00-11:15",
@@ -1071,7 +1741,7 @@
       "instructor_email": "blc318298@utdallas.edu"
     },
     {
-      "course_code": "CS 2513",
+      "course_code": "CE 2513",
       "section_number": "001",
       "term": "Spring 2026",
       "timing": "MW 14:30-15:45",
@@ -1085,7 +1755,7 @@
       "instructor_email": "bft342055@utdallas.edu"
     },
     {
-      "course_code": "CS 3971",
+      "course_code": "SE 3971",
       "section_number": "002",
       "term": "Fall 2023",
       "timing": "TT 10:00-11:15",
@@ -1099,7 +1769,7 @@
       "instructor_email": "jpc357893@utdallas.edu"
     },
     {
-      "course_code": "CS 1229",
+      "course_code": "BE 1229",
       "section_number": "001",
       "term": "Fall 2024",
       "timing": "TT 13:00-14:15",
@@ -1113,28 +1783,28 @@
       "instructor_email": "tmw373731@utdallas.edu"
     },
     {
-      "course_code": "CS 2687",
+      "course_code": "ME 2687",
       "section_number": "002",
       "term": "Spring 2025",
       "timing": "MW 08:30-09:45",
       "instructor_email": "mja381650@utdallas.edu"
     },
     {
-      "course_code": "CS 3316",
+      "course_code": "CE 3316",
       "section_number": "001",
       "term": "Fall 2024",
       "timing": "MW 10:00-11:15",
       "instructor_email": "bsm389569@utdallas.edu"
     },
     {
-      "course_code": "CS 4045",
+      "course_code": "BE 4045",
       "section_number": "001",
       "term": "Spring 2025",
       "timing": "MW 11:30-12:45",
       "instructor_email": "dkc397488@utdallas.edu"
     },
     {
-      "course_code": "CS 4774",
+      "course_code": "BE 4774",
       "section_number": "501",
       "term": "Fall 2023",
       "timing": "MW 13:00-14:15",
@@ -1148,21 +1818,21 @@
       "instructor_email": "cms413326@utdallas.edu"
     },
     {
-      "course_code": "CS 2032",
+      "course_code": "EE 2032",
       "section_number": "001",
       "term": "Spring 2026",
       "timing": "TT 08:30-09:45",
       "instructor_email": "cjm421245@utdallas.edu"
     },
     {
-      "course_code": "CS 2761",
+      "course_code": "CE 2761",
       "section_number": "001",
       "term": "Spring 2026",
       "timing": "TT 10:00-11:15",
       "instructor_email": "vmz429164@utdallas.edu"
     },
     {
-      "course_code": "CS 3490",
+      "course_code": "ME 3490",
       "section_number": "001",
       "term": "Fall 2025",
       "timing": "TT 11:30-12:45",
@@ -1176,28 +1846,28 @@
       "instructor_email": "mam445002@utdallas.edu"
     },
     {
-      "course_code": "CS 4848",
+      "course_code": "EE 4848",
       "section_number": "002",
       "term": "Fall 2024",
       "timing": "TT 14:30-15:45",
       "instructor_email": "zre452921@utdallas.edu"
     },
     {
-      "course_code": "CS 1477",
+      "course_code": "SE 1477",
       "section_number": "001",
       "term": "Fall 2024",
       "timing": "MW 08:30-09:45",
       "instructor_email": "sgg460840@utdallas.edu"
     },
     {
-      "course_code": "CS 2106",
+      "course_code": "EE 2106",
       "section_number": "501",
       "term": "Spring 2024",
       "timing": "MW 10:00-11:15",
       "instructor_email": "rmh468759@utdallas.edu"
     },
     {
-      "course_code": "CS 2835",
+      "course_code": "BE 2835",
       "section_number": "001",
       "term": "Spring 2026",
       "timing": "MW 11:30-12:45",
@@ -1232,7 +1902,7 @@
       "instructor_email": "ens508354@utdallas.edu"
     },
     {
-      "course_code": "CS 2280",
+      "course_code": "CE 2280",
       "section_number": "001",
       "term": "Spring 2024",
       "timing": "TT 11:30-12:45",
@@ -1274,7 +1944,7 @@
       "instructor_email": "kds579625@utdallas.edu"
     },
     {
-      "course_code": "CS 2354",
+      "course_code": "SE 2354",
       "section_number": "002",
       "term": "Fall 2025",
       "timing": "MW 13:00-14:15",
@@ -1302,7 +1972,7 @@
       "instructor_email": "ncw611301@utdallas.edu"
     },
     {
-      "course_code": "CS 1070",
+      "course_code": "CE 1070",
       "section_number": "003",
       "term": "Spring 2025",
       "timing": "TT 11:30-12:45",
@@ -1330,7 +2000,7 @@
       "instructor_email": "ian642977@utdallas.edu"
     },
     {
-      "course_code": "CS 3886",
+      "course_code": "ME 3886",
       "section_number": "501",
       "term": "Fall 2025",
       "timing": "MW 10:00-11:15",
@@ -1386,7 +2056,7 @@
       "instructor_email": "klp722167@utdallas.edu"
     },
     {
-      "course_code": "CS 1218",
+      "course_code": "EE 1218",
       "section_number": "501",
       "term": "Spring 2023",
       "timing": "TT 14:30-15:45",
@@ -1470,7 +2140,7 @@
       "instructor_email": "hpm848871@utdallas.edu"
     },
     {
-      "course_code": "CS 1466",
+      "course_code": "SE 1466",
       "section_number": "001",
       "term": "Fall 2024",
       "timing": "MW 10:00-11:15",
@@ -1512,7 +2182,7 @@
       "instructor_email": "ejg104485@utdallas.edu"
     },
     {
-      "course_code": "CS 1540",
+      "course_code": "EE 1540",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -1533,14 +2203,14 @@
       "instructor_email": "tls120323@utdallas.edu"
     },
     {
-      "course_code": "CS 3627",
+      "course_code": "ME 3627",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 08:30-09:45",
       "instructor_email": "jad128242@utdallas.edu"
     },
     {
-      "course_code": "CS 4356",
+      "course_code": "SE 4356",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "MW 10:00-11:15",
@@ -1624,7 +2294,7 @@
       "instructor_email": "sjv175756@utdallas.edu"
     },
     {
-      "course_code": "CS 4504",
+      "course_code": "BE 4504",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
@@ -1659,14 +2329,14 @@
       "instructor_email": "ter207432@utdallas.edu"
     },
     {
-      "course_code": "CS 3949",
+      "course_code": "ME 3949",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 13:00-14:15",
       "instructor_email": "cpm215351@utdallas.edu"
     },
     {
-      "course_code": "CS 4678",
+      "course_code": "ME 4678",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 14:30-15:45",
@@ -1764,14 +2434,14 @@
       "instructor_email": "jdf262865@utdallas.edu"
     },
     {
-      "course_code": "CS 2184",
+      "course_code": "BE 2184",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
       "instructor_email": "arr270784@utdallas.edu"
     },
     {
-      "course_code": "CS 2813",
+      "course_code": "BE 2813",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 14:30-15:45",
@@ -1792,7 +2462,7 @@
       "instructor_email": "jag278703@utdallas.edu"
     },
     {
-      "course_code": "CS 4900",
+      "course_code": "EE 4900",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -1848,35 +2518,35 @@
       "instructor_email": "blc318298@utdallas.edu"
     },
     {
-      "course_code": "CS 2332",
+      "course_code": "CE 2332",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "TT 08:30-09:45",
       "instructor_email": "jac326217@utdallas.edu"
     },
     {
-      "course_code": "CS 3061",
+      "course_code": "CE 3061",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "TT 10:00-11:15",
       "instructor_email": "jac326217@utdallas.edu"
     },
     {
-      "course_code": "CS 3790",
+      "course_code": "CE 3790",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
       "instructor_email": "jac326217@utdallas.edu"
     },
     {
-      "course_code": "CS 4419",
+      "course_code": "CE 4419",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "TT 13:00-14:15",
       "instructor_email": "cmd334136@utdallas.edu"
     },
     {
-      "course_code": "CS 1048",
+      "course_code": "CE 1048",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "TT 14:30-15:45",
@@ -1890,21 +2560,21 @@
       "instructor_email": "bft342055@utdallas.edu"
     },
     {
-      "course_code": "CS 2406",
+      "course_code": "SE 2406",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 10:00-11:15",
       "instructor_email": "vhg349974@utdallas.edu"
     },
     {
-      "course_code": "CS 3135",
+      "course_code": "SE 3135",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 11:30-12:45",
       "instructor_email": "vhg349974@utdallas.edu"
     },
     {
-      "course_code": "CS 3864",
+      "course_code": "SE 3864",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
@@ -1925,14 +2595,14 @@
       "instructor_email": "jpc357893@utdallas.edu"
     },
     {
-      "course_code": "CS 1851",
+      "course_code": "BE 1851",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 10:00-11:15",
       "instructor_email": "ndn365812@utdallas.edu"
     },
     {
-      "course_code": "CS 2580",
+      "course_code": "BE 2580",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -1960,42 +2630,42 @@
       "instructor_email": "tmw373731@utdallas.edu"
     },
     {
-      "course_code": "CS 1296",
+      "course_code": "ME 1296",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "MW 10:00-11:15",
       "instructor_email": "mja381650@utdallas.edu"
     },
     {
-      "course_code": "CS 1925",
+      "course_code": "CE 1925",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "MW 11:30-12:45",
       "instructor_email": "bsm389569@utdallas.edu"
     },
     {
-      "course_code": "CS 2654",
+      "course_code": "BE 2654",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
       "instructor_email": "dkc397488@utdallas.edu"
     },
     {
-      "course_code": "CS 3383",
+      "course_code": "BE 3383",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 14:30-15:45",
       "instructor_email": "blb405407@utdallas.edu"
     },
     {
-      "course_code": "CS 4012",
+      "course_code": "BE 4012",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "TT 08:30-09:45",
       "instructor_email": "blb405407@utdallas.edu"
     },
     {
-      "course_code": "CS 4741",
+      "course_code": "BE 4741",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "TT 10:00-11:15",
@@ -2016,42 +2686,42 @@
       "instructor_email": "cms413326@utdallas.edu"
     },
     {
-      "course_code": "CS 2728",
+      "course_code": "EE 2728",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "TT 14:30-15:45",
       "instructor_email": "cjm421245@utdallas.edu"
     },
     {
-      "course_code": "CS 3457",
+      "course_code": "EE 3457",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 08:30-09:45",
       "instructor_email": "cjm421245@utdallas.edu"
     },
     {
-      "course_code": "CS 4186",
+      "course_code": "CE 4186",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "MW 10:00-11:15",
       "instructor_email": "vmz429164@utdallas.edu"
     },
     {
-      "course_code": "CS 4815",
+      "course_code": "ME 4815",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "MW 11:30-12:45",
       "instructor_email": "alp437083@utdallas.edu"
     },
     {
-      "course_code": "CS 1444",
+      "course_code": "ME 1444",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
       "instructor_email": "alp437083@utdallas.edu"
     },
     {
-      "course_code": "CS 2173",
+      "course_code": "ME 2173",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "MW 14:30-15:45",
@@ -2072,35 +2742,35 @@
       "instructor_email": "mam445002@utdallas.edu"
     },
     {
-      "course_code": "CS 4260",
+      "course_code": "EE 4260",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
       "instructor_email": "zre452921@utdallas.edu"
     },
     {
-      "course_code": "CS 4989",
+      "course_code": "SE 4989",
       "section_number": "501",
       "term": "Fall 2026",
       "timing": "TT 13:00-14:15",
       "instructor_email": "sgg460840@utdallas.edu"
     },
     {
-      "course_code": "CS 1518",
+      "course_code": "EE 1518",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "TT 14:30-15:45",
       "instructor_email": "rmh468759@utdallas.edu"
     },
     {
-      "course_code": "CS 2247",
+      "course_code": "BE 2247",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 08:30-09:45",
       "instructor_email": "srb476678@utdallas.edu"
     },
     {
-      "course_code": "CS 2976",
+      "course_code": "BE 2976",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "MW 10:00-11:15",
@@ -2156,7 +2826,7 @@
       "instructor_email": "ens508354@utdallas.edu"
     },
     {
-      "course_code": "CS 4408",
+      "course_code": "CE 4408",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 14:30-15:45",
@@ -2282,7 +2952,7 @@
       "instructor_email": "kds579625@utdallas.edu"
     },
     {
-      "course_code": "CS 4730",
+      "course_code": "SE 4730",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -2324,7 +2994,7 @@
       "instructor_email": "ncw611301@utdallas.edu"
     },
     {
-      "course_code": "CS 4804",
+      "course_code": "CE 4804",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
@@ -2380,7 +3050,7 @@
       "instructor_email": "rmk650896@utdallas.edu"
     },
     {
-      "course_code": "CS 2236",
+      "course_code": "ME 2236",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "MW 10:00-11:15",
@@ -2492,7 +3162,7 @@
       "instructor_email": "klp722167@utdallas.edu"
     },
     {
-      "course_code": "CS 1100",
+      "course_code": "EE 1100",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -2632,7 +3302,7 @@
       "instructor_email": "ete801357@utdallas.edu"
     },
     {
-      "course_code": "CS 2880",
+      "course_code": "SE 2880",
       "section_number": "001",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -2646,7 +3316,7 @@
       "instructor_email": "mat817195@utdallas.edu"
     },
     {
-      "course_code": "CS 4238",
+      "course_code": "ME 4238",
       "section_number": "003",
       "term": "Fall 2026",
       "timing": "TT 14:30-15:45",
@@ -2702,7 +3372,7 @@
       "instructor_email": "hpm848871@utdallas.edu"
     },
     {
-      "course_code": "CS 1670",
+      "course_code": "SE 1670",
       "section_number": "002",
       "term": "Fall 2026",
       "timing": "TT 11:30-12:45",
@@ -2749,6 +3419,895 @@
       "term": "Fall 2026",
       "timing": "MW 13:00-14:15",
       "instructor_email": "elb888466@utdallas.edu"
+    },
+    {
+      "course_code": "BE 1787",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "blc347154@utdallas.edu"
+    },
+    {
+      "course_code": "BE 2101",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "blc347154@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3570",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "blc347154@utdallas.edu"
+    },
+    {
+      "course_code": "BE 2902",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "vad441713@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3069",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "vad441713@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4495",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "vad441713@utdallas.edu"
+    },
+    {
+      "course_code": "BE 1537",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "phg644526@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3068",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "phg644526@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4020",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "phg644526@utdallas.edu"
+    },
+    {
+      "course_code": "BE 1228",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "kda805844@utdallas.edu"
+    },
+    {
+      "course_code": "BE 2297",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "kda805844@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4032",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "kda805844@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4521",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "tao896208@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3226",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "tao896208@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3314",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "fnv797895@utdallas.edu"
+    },
+    {
+      "course_code": "BE 1162",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "fnv797895@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4970",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "fcw493918@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3534",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "fcw493918@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4320",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "oal908476@utdallas.edu"
+    },
+    {
+      "course_code": "BE 2391",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "oal908476@utdallas.edu"
+    },
+    {
+      "course_code": "BE 1116",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "yrw692723@utdallas.edu"
+    },
+    {
+      "course_code": "BE 3900",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "yrw692723@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4607",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "ssd266677@utdallas.edu"
+    },
+    {
+      "course_code": "BE 2466",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "ssd266677@utdallas.edu"
+    },
+    {
+      "course_code": "CE 1541",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "gsp717582@utdallas.edu"
+    },
+    {
+      "course_code": "CE 2941",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "gsp717582@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3431",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "gsp717582@utdallas.edu"
+    },
+    {
+      "course_code": "CE 2049",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "rnt703833@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3049",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "rnt703833@utdallas.edu"
+    },
+    {
+      "course_code": "CE 4534",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "rnt703833@utdallas.edu"
+    },
+    {
+      "course_code": "CE 1440",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "esm532551@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3331",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "esm532551@utdallas.edu"
+    },
+    {
+      "course_code": "CE 4280",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "esm532551@utdallas.edu"
+    },
+    {
+      "course_code": "CE 1548",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "aas362664@utdallas.edu"
+    },
+    {
+      "course_code": "CE 2179",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "aas362664@utdallas.edu"
+    },
+    {
+      "course_code": "CE 4003",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "aas362664@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3615",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "wlt639057@utdallas.edu"
+    },
+    {
+      "course_code": "CE 1551",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "wlt639057@utdallas.edu"
+    },
+    {
+      "course_code": "CE 4531",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "xpr469820@utdallas.edu"
+    },
+    {
+      "course_code": "CE 2572",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "xpr469820@utdallas.edu"
+    },
+    {
+      "course_code": "CE 2232",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "ilb983420@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3041",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "ilb983420@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3451",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "mak652634@utdallas.edu"
+    },
+    {
+      "course_code": "CE 2678",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "mak652634@utdallas.edu"
+    },
+    {
+      "course_code": "CE 1194",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "jlk120246@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3280",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "jlk120246@utdallas.edu"
+    },
+    {
+      "course_code": "CE 1970",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "qcf436137@utdallas.edu"
+    },
+    {
+      "course_code": "CE 4131",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "qcf436137@utdallas.edu"
+    },
+    {
+      "course_code": "EE 1668",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "hrh634113@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2461",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "hrh634113@utdallas.edu"
+    },
+    {
+      "course_code": "EE 3034",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "hrh634113@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2787",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "dhf255799@utdallas.edu"
+    },
+    {
+      "course_code": "EE 3076",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "dhf255799@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4500",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "dhf255799@utdallas.edu"
+    },
+    {
+      "course_code": "EE 1304",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "zag790568@utdallas.edu"
+    },
+    {
+      "course_code": "EE 3240",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "zag790568@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4703",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "zag790568@utdallas.edu"
+    },
+    {
+      "course_code": "EE 1037",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "knb548998@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2731",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "knb548998@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4028",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "knb548998@utdallas.edu"
+    },
+    {
+      "course_code": "EE 1618",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "ahe410577@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2295",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "ahe410577@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2136",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "pmi525921@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4390",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "pmi525921@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4401",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "msb249132@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2115",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "msb249132@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4640",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "vwl183277@utdallas.edu"
+    },
+    {
+      "course_code": "EE 3204",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "vwl183277@utdallas.edu"
+    },
+    {
+      "course_code": "EE 3258",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "srd898272@utdallas.edu"
+    },
+    {
+      "course_code": "EE 1492",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "srd898272@utdallas.edu"
+    },
+    {
+      "course_code": "EE 1051",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "cke663052@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4406",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "cke663052@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1202",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "hau464640@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2146",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "hau464640@utdallas.edu"
+    },
+    {
+      "course_code": "ME 3809",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "hau464640@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2190",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "dra530939@utdallas.edu"
+    },
+    {
+      "course_code": "ME 3027",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "dra530939@utdallas.edu"
+    },
+    {
+      "course_code": "ME 4812",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "dra530939@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1949",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "rdc931866@utdallas.edu"
+    },
+    {
+      "course_code": "ME 3984",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "rdc931866@utdallas.edu"
+    },
+    {
+      "course_code": "ME 4228",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "rdc931866@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1449",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "wpa456287@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2332",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "wpa456287@utdallas.edu"
+    },
+    {
+      "course_code": "ME 4679",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "wpa456287@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1234",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "nrq529696@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2943",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "nrq529696@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2810",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "awh398334@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1488",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "awh398334@utdallas.edu"
+    },
+    {
+      "course_code": "ME 4098",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "brs210748@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2458",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "brs210748@utdallas.edu"
+    },
+    {
+      "course_code": "ME 4509",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "ggi858644@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1828",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "ggi858644@utdallas.edu"
+    },
+    {
+      "course_code": "ME 1752",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "ugm260098@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2226",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "ugm260098@utdallas.edu"
+    },
+    {
+      "course_code": "ME 3948",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "trl893479@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2126",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "trl893479@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1505",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "ygv759437@utdallas.edu"
+    },
+    {
+      "course_code": "SE 2201",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "ygv759437@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3299",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "ygv759437@utdallas.edu"
+    },
+    {
+      "course_code": "SE 2628",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "nwr710048@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3221",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "nwr710048@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4190",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "nwr710048@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1637",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "cmn376140@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3979",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 11:30-12:45",
+      "instructor_email": "cmn376140@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4957",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "cmn376140@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1319",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "ile815186@utdallas.edu"
+    },
+    {
+      "course_code": "SE 2244",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 08:30-09:45",
+      "instructor_email": "ile815186@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4778",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "ile815186@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3189",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 11:30-12:45",
+      "instructor_email": "edn804539@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1014",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "edn804539@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3019",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "cco843845@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1936",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "cco843845@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3910",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "jjc298791@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4304",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "jjc298791@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4884",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 10:00-11:15",
+      "instructor_email": "ldz842882@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3810",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 14:30-15:45",
+      "instructor_email": "ldz842882@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4469",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "hrp603835@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1659",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "hrp603835@utdallas.edu"
+    },
+    {
+      "course_code": "SE 3124",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "TT 08:30-09:45",
+      "instructor_email": "dwi819536@utdallas.edu"
+    },
+    {
+      "course_code": "SE 1178",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "TT 13:00-14:15",
+      "instructor_email": "dwi819536@utdallas.edu"
+    },
+    {
+      "course_code": "BE 4153",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "brj650419@utdallas.edu"
+    },
+    {
+      "course_code": "CE 3547",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 14:30-15:45",
+      "instructor_email": "fcf858717@utdallas.edu"
+    },
+    {
+      "course_code": "EE 2678",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "zrh913672@utdallas.edu"
+    },
+    {
+      "course_code": "ME 2229",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "lpk904007@utdallas.edu"
+    },
+    {
+      "course_code": "SE 4823",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "odn720087@utdallas.edu"
+    },
+    {
+      "course_code": "CS 1169",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "timing": "MW 13:00-14:15",
+      "instructor_email": "ecy906459@utdallas.edu"
+    },
+    {
+      "course_code": "EE 4765",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "timing": "MW 10:00-11:15",
+      "instructor_email": "gpm195637@utdallas.edu"
     }
   ],
   "evaluationCycles": [
@@ -2834,7 +4393,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 4378",
+      "course_code": "BE 4378",
       "section_number": "001",
       "term": "Fall 2025"
     },
@@ -2852,7 +4411,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 2
       },
-      "course_code": "CS 2365",
+      "course_code": "ME 2365",
       "section_number": "501",
       "term": "Spring 2026"
     },
@@ -2870,7 +4429,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 2
       },
-      "course_code": "CS 2687",
+      "course_code": "ME 2687",
       "section_number": "002",
       "term": "Spring 2025"
     },
@@ -2888,7 +4447,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 2106",
+      "course_code": "EE 2106",
       "section_number": "501",
       "term": "Spring 2024"
     },
@@ -2942,7 +4501,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 1229",
+      "course_code": "BE 1229",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -3068,7 +4627,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 3
       },
-      "course_code": "CS 3490",
+      "course_code": "ME 3490",
       "section_number": "001",
       "term": "Fall 2025"
     },
@@ -3122,7 +4681,7 @@
         "useOfMaterials": 4,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 1466",
+      "course_code": "SE 1466",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -3194,7 +4753,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 4526",
+      "course_code": "EE 4526",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -3266,7 +4825,7 @@
         "useOfMaterials": 4,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 3168",
+      "course_code": "BE 3168",
       "section_number": "001",
       "term": "Fall 2025"
     },
@@ -3284,7 +4843,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 3
       },
-      "course_code": "CS 3971",
+      "course_code": "SE 3971",
       "section_number": "002",
       "term": "Fall 2023"
     },
@@ -3338,7 +4897,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 1070",
+      "course_code": "CE 1070",
       "section_number": "003",
       "term": "Spring 2025"
     },
@@ -3392,7 +4951,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 4045",
+      "course_code": "BE 4045",
       "section_number": "001",
       "term": "Spring 2025"
     },
@@ -3410,7 +4969,7 @@
         "useOfMaterials": 4,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 4774",
+      "course_code": "BE 4774",
       "section_number": "501",
       "term": "Fall 2023"
     },
@@ -3446,7 +5005,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 2761",
+      "course_code": "CE 2761",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -3464,7 +5023,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 2513",
+      "course_code": "CE 2513",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -3500,7 +5059,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 2835",
+      "course_code": "BE 2835",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -3662,7 +5221,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 2280",
+      "course_code": "CE 2280",
       "section_number": "001",
       "term": "Spring 2024"
     },
@@ -3680,7 +5239,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 2354",
+      "course_code": "SE 2354",
       "section_number": "002",
       "term": "Fall 2025"
     },
@@ -3698,7 +5257,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 2032",
+      "course_code": "EE 2032",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -3734,7 +5293,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 3
       },
-      "course_code": "CS 3886",
+      "course_code": "ME 3886",
       "section_number": "501",
       "term": "Fall 2025"
     },
@@ -3788,7 +5347,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 2846",
+      "course_code": "EE 2846",
       "section_number": "501",
       "term": "Fall 2025"
     },
@@ -4058,7 +5617,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 1218",
+      "course_code": "EE 1218",
       "section_number": "501",
       "term": "Spring 2023"
     },
@@ -4184,7 +5743,7 @@
         "useOfMaterials": 4,
         "classroomEnvironment": 3
       },
-      "course_code": "CS 4848",
+      "course_code": "EE 4848",
       "section_number": "002",
       "term": "Fall 2024"
     },
@@ -4202,7 +5761,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 4
       },
-      "course_code": "CS 4204",
+      "course_code": "ME 4204",
       "section_number": "002",
       "term": "Spring 2025"
     },
@@ -4220,7 +5779,7 @@
         "useOfMaterials": 4,
         "classroomEnvironment": 5
       },
-      "course_code": "CS 3316",
+      "course_code": "CE 3316",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -4238,7 +5797,7 @@
         "useOfMaterials": 3,
         "classroomEnvironment": 3
       },
-      "course_code": "CS 1477",
+      "course_code": "SE 1477",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -4256,7 +5815,7 @@
         "useOfMaterials": 5,
         "classroomEnvironment": 3
       },
-      "course_code": "CS 4933",
+      "course_code": "SE 4933",
       "section_number": "002",
       "term": "Spring 2024"
     },
@@ -4908,7 +6467,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "emc730086@utdallas.edu",
+      "observer_email": "arh159918@utdallas.edu",
       "signup_date": "2026-09-02",
       "observation_date": "2026-10-26",
       "status": "scheduled",
@@ -4932,7 +6491,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "vhg349974@utdallas.edu",
+      "observer_email": "big302460@utdallas.edu",
       "signup_date": "2026-09-08",
       "observation_date": "2026-11-09",
       "status": "scheduled",
@@ -5232,6 +6791,286 @@
       "course_code": "CS 1603",
       "section_number": "001",
       "term": "Fall 2026"
+    },
+    {
+      "observer_email": "vad441713@utdallas.edu",
+      "signup_date": "2026-09-04",
+      "observation_date": "2026-10-14",
+      "status": "completed",
+      "observer_signed_date": "2026-10-15",
+      "observee_signed_date": "2026-10-14",
+      "ratings": {
+        "organization": 3,
+        "clarityOfInstruction": 3,
+        "studentEngagement": 3,
+        "useOfMaterials": 4,
+        "classroomEnvironment": 4
+      },
+      "course_code": "BE 2101",
+      "section_number": "501",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "blc347154@utdallas.edu",
+      "signup_date": "2026-09-08",
+      "observation_date": "2026-11-11",
+      "status": "scheduled",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "BE 2902",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "rnt703833@utdallas.edu",
+      "signup_date": "2026-09-04",
+      "observation_date": "2026-10-14",
+      "status": "completed",
+      "observer_signed_date": "2026-10-15",
+      "observee_signed_date": "2026-10-14",
+      "ratings": {
+        "organization": 5,
+        "clarityOfInstruction": 3,
+        "studentEngagement": 4,
+        "useOfMaterials": 5,
+        "classroomEnvironment": 5
+      },
+      "course_code": "CE 2941",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "gsp717582@utdallas.edu",
+      "signup_date": "2026-09-08",
+      "observation_date": "2026-11-11",
+      "status": "scheduled",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "CE 2049",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "dhf255799@utdallas.edu",
+      "signup_date": "2026-09-04",
+      "observation_date": "2026-10-14",
+      "status": "completed",
+      "observer_signed_date": "2026-10-15",
+      "observee_signed_date": "2026-10-14",
+      "ratings": {
+        "organization": 4,
+        "clarityOfInstruction": 4,
+        "studentEngagement": 4,
+        "useOfMaterials": 4,
+        "classroomEnvironment": 5
+      },
+      "course_code": "EE 2461",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "hrh634113@utdallas.edu",
+      "signup_date": "2026-09-08",
+      "observation_date": "2026-11-11",
+      "status": "scheduled",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "EE 2787",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "dra530939@utdallas.edu",
+      "signup_date": "2026-09-04",
+      "observation_date": "2026-10-14",
+      "status": "completed",
+      "observer_signed_date": "2026-10-15",
+      "observee_signed_date": "2026-10-14",
+      "ratings": {
+        "organization": 3,
+        "clarityOfInstruction": 4,
+        "studentEngagement": 3,
+        "useOfMaterials": 5,
+        "classroomEnvironment": 5
+      },
+      "course_code": "ME 2146",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "hau464640@utdallas.edu",
+      "signup_date": "2026-09-08",
+      "observation_date": "2026-11-11",
+      "status": "scheduled",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "ME 2190",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "nwr710048@utdallas.edu",
+      "signup_date": "2026-09-04",
+      "observation_date": "2026-10-14",
+      "status": "completed",
+      "observer_signed_date": "2026-10-15",
+      "observee_signed_date": "2026-10-14",
+      "ratings": {
+        "organization": 4,
+        "clarityOfInstruction": 3,
+        "studentEngagement": 4,
+        "useOfMaterials": 3,
+        "classroomEnvironment": 5
+      },
+      "course_code": "SE 2201",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "ygv759437@utdallas.edu",
+      "signup_date": "2026-09-08",
+      "observation_date": "2026-11-11",
+      "status": "scheduled",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "SE 2628",
+      "section_number": "501",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-11",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "BE 1537",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-15",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "BE 1228",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-11",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "CE 3331",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-15",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "CE 1548",
+      "section_number": "001",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-11",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "EE 1304",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-15",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "EE 1037",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-11",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "ME 1949",
+      "section_number": "501",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-15",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "ME 4679",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-11",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "SE 3979",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
+    },
+    {
+      "observer_email": null,
+      "signup_date": "2026-09-15",
+      "observation_date": null,
+      "status": "signed_up",
+      "observer_signed_date": null,
+      "observee_signed_date": null,
+      "ratings": null,
+      "course_code": "SE 2244",
+      "section_number": "002",
+      "term": "Fall 2026",
+      "list_released_date": "2026-09-21"
     }
   ],
   "observerMatches": [
@@ -5247,7 +7086,7 @@
       "observer_email": "vmz429164@utdallas.edu",
       "requested_date": "2025-09-09",
       "status": "confirmed",
-      "course_code": "CS 4378",
+      "course_code": "BE 4378",
       "section_number": "001",
       "term": "Fall 2025"
     },
@@ -5255,7 +7094,7 @@
       "observer_email": "klp722167@utdallas.edu",
       "requested_date": "2026-01-26",
       "status": "confirmed",
-      "course_code": "CS 2365",
+      "course_code": "ME 2365",
       "section_number": "501",
       "term": "Spring 2026"
     },
@@ -5263,7 +7102,7 @@
       "observer_email": "pla254946@utdallas.edu",
       "requested_date": "2025-02-06",
       "status": "confirmed",
-      "course_code": "CS 2687",
+      "course_code": "ME 2687",
       "section_number": "002",
       "term": "Spring 2025"
     },
@@ -5271,7 +7110,7 @@
       "observer_email": "arh159918@utdallas.edu",
       "requested_date": "2024-01-19",
       "status": "confirmed",
-      "course_code": "CS 2106",
+      "course_code": "EE 2106",
       "section_number": "501",
       "term": "Spring 2024"
     },
@@ -5295,7 +7134,7 @@
       "observer_email": "tmw373731@utdallas.edu",
       "requested_date": "2024-09-09",
       "status": "confirmed",
-      "course_code": "CS 1229",
+      "course_code": "BE 1229",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -5351,7 +7190,7 @@
       "observer_email": "jpc357893@utdallas.edu",
       "requested_date": "2025-09-01",
       "status": "confirmed",
-      "course_code": "CS 3490",
+      "course_code": "ME 3490",
       "section_number": "001",
       "term": "Fall 2025"
     },
@@ -5375,7 +7214,7 @@
       "observer_email": "afp603382@utdallas.edu",
       "requested_date": "2024-08-29",
       "status": "confirmed",
-      "course_code": "CS 1466",
+      "course_code": "SE 1466",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -5407,7 +7246,7 @@
       "observer_email": "rmk650896@utdallas.edu",
       "requested_date": "2026-02-02",
       "status": "confirmed",
-      "course_code": "CS 4526",
+      "course_code": "EE 4526",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -5439,7 +7278,7 @@
       "observer_email": "ian642977@utdallas.edu",
       "requested_date": "2025-09-08",
       "status": "confirmed",
-      "course_code": "CS 3168",
+      "course_code": "BE 3168",
       "section_number": "001",
       "term": "Fall 2025"
     },
@@ -5447,7 +7286,7 @@
       "observer_email": "mek627139@utdallas.edu",
       "requested_date": "2023-09-01",
       "status": "confirmed",
-      "course_code": "CS 3971",
+      "course_code": "SE 3971",
       "section_number": "002",
       "term": "Fall 2023"
     },
@@ -5471,7 +7310,7 @@
       "observer_email": "bll571706@utdallas.edu",
       "requested_date": "2025-01-27",
       "status": "confirmed",
-      "course_code": "CS 1070",
+      "course_code": "CE 1070",
       "section_number": "003",
       "term": "Spring 2025"
     },
@@ -5495,7 +7334,7 @@
       "observer_email": "ljk880547@utdallas.edu",
       "requested_date": "2025-01-24",
       "status": "confirmed",
-      "course_code": "CS 4045",
+      "course_code": "BE 4045",
       "section_number": "001",
       "term": "Spring 2025"
     },
@@ -5503,7 +7342,7 @@
       "observer_email": "sjr738005@utdallas.edu",
       "requested_date": "2023-09-11",
       "status": "confirmed",
-      "course_code": "CS 4774",
+      "course_code": "BE 4774",
       "section_number": "501",
       "term": "Fall 2023"
     },
@@ -5519,7 +7358,7 @@
       "observer_email": "prm769681@utdallas.edu",
       "requested_date": "2026-01-29",
       "status": "confirmed",
-      "course_code": "CS 2761",
+      "course_code": "CE 2761",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -5527,7 +7366,7 @@
       "observer_email": "trh547949@utdallas.edu",
       "requested_date": "2026-01-21",
       "status": "confirmed",
-      "course_code": "CS 2513",
+      "course_code": "CE 2513",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -5543,7 +7382,7 @@
       "observer_email": "ecr294541@utdallas.edu",
       "requested_date": "2026-02-04",
       "status": "confirmed",
-      "course_code": "CS 2835",
+      "course_code": "BE 2835",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -5615,7 +7454,7 @@
       "observer_email": "afk286622@utdallas.edu",
       "requested_date": "2024-02-06",
       "status": "confirmed",
-      "course_code": "CS 2280",
+      "course_code": "CE 2280",
       "section_number": "001",
       "term": "Spring 2024"
     },
@@ -5623,7 +7462,7 @@
       "observer_email": "blb405407@utdallas.edu",
       "requested_date": "2025-09-04",
       "status": "confirmed",
-      "course_code": "CS 2354",
+      "course_code": "SE 2354",
       "section_number": "002",
       "term": "Fall 2025"
     },
@@ -5631,7 +7470,7 @@
       "observer_email": "arc587544@utdallas.edu",
       "requested_date": "2026-02-03",
       "status": "confirmed",
-      "course_code": "CS 2032",
+      "course_code": "EE 2032",
       "section_number": "001",
       "term": "Spring 2026"
     },
@@ -5647,7 +7486,7 @@
       "observer_email": "cms413326@utdallas.edu",
       "requested_date": "2025-09-05",
       "status": "confirmed",
-      "course_code": "CS 3886",
+      "course_code": "ME 3886",
       "section_number": "501",
       "term": "Fall 2025"
     },
@@ -5671,7 +7510,7 @@
       "observer_email": "big302460@utdallas.edu",
       "requested_date": "2025-09-08",
       "status": "confirmed",
-      "course_code": "CS 2846",
+      "course_code": "EE 2846",
       "section_number": "501",
       "term": "Fall 2025"
     },
@@ -5791,7 +7630,7 @@
       "observer_email": "rmh468759@utdallas.edu",
       "requested_date": "2023-01-18",
       "status": "confirmed",
-      "course_code": "CS 1218",
+      "course_code": "EE 1218",
       "section_number": "501",
       "term": "Spring 2023"
     },
@@ -5847,7 +7686,7 @@
       "observer_email": "pla254946@utdallas.edu",
       "requested_date": "2024-09-09",
       "status": "confirmed",
-      "course_code": "CS 4848",
+      "course_code": "EE 4848",
       "section_number": "002",
       "term": "Fall 2024"
     },
@@ -5855,7 +7694,7 @@
       "observer_email": "cgb144080@utdallas.edu",
       "requested_date": "2025-01-23",
       "status": "confirmed",
-      "course_code": "CS 4204",
+      "course_code": "ME 4204",
       "section_number": "002",
       "term": "Spring 2025"
     },
@@ -5863,7 +7702,7 @@
       "observer_email": "adj516273@utdallas.edu",
       "requested_date": "2024-09-04",
       "status": "confirmed",
-      "course_code": "CS 3316",
+      "course_code": "CE 3316",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -5871,7 +7710,7 @@
       "observer_email": "jag278703@utdallas.edu",
       "requested_date": "2024-09-09",
       "status": "confirmed",
-      "course_code": "CS 1477",
+      "course_code": "SE 1477",
       "section_number": "001",
       "term": "Fall 2024"
     },
@@ -5879,7 +7718,7 @@
       "observer_email": "emc730086@utdallas.edu",
       "requested_date": "2024-02-01",
       "status": "confirmed",
-      "course_code": "CS 4933",
+      "course_code": "SE 4933",
       "section_number": "002",
       "term": "Spring 2024"
     },
@@ -5996,7 +7835,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "acp856790@utdallas.edu",
+      "observer_email": "ecw540030@utdallas.edu",
       "requested_date": null,
       "status": "suggested",
       "course_code": "CS 3779",
@@ -6092,7 +7931,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "blb405407@utdallas.edu",
+      "observer_email": "ecr294541@utdallas.edu",
       "requested_date": "2026-09-23",
       "status": "declined",
       "course_code": "CS 2495",
@@ -6260,7 +8099,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "jad128242@utdallas.edu",
+      "observer_email": "emk151999@utdallas.edu",
       "requested_date": "2026-09-07",
       "status": "declined",
       "course_code": "CS 3927",
@@ -6852,7 +8691,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "cmd334136@utdallas.edu",
+      "observer_email": "ens508354@utdallas.edu",
       "requested_date": null,
       "status": "suggested",
       "course_code": "CS 3287",
@@ -7036,7 +8875,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "blb405407@utdallas.edu",
+      "observer_email": "hmb690491@utdallas.edu",
       "requested_date": "2026-09-23",
       "status": "declined",
       "course_code": "CS 3435",
@@ -7180,7 +9019,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "emc730086@utdallas.edu",
+      "observer_email": "arh159918@utdallas.edu",
       "requested_date": "2026-09-25",
       "status": "confirmed",
       "course_code": "CS 4967",
@@ -7220,7 +9059,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "vhg349974@utdallas.edu",
+      "observer_email": "big302460@utdallas.edu",
       "requested_date": "2026-09-18",
       "status": "confirmed",
       "course_code": "CS 3683",
@@ -7516,7 +9355,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "mja381650@utdallas.edu",
+      "observer_email": "fkc714248@utdallas.edu",
       "requested_date": null,
       "status": "suggested",
       "course_code": "CS 3146",
@@ -7540,7 +9379,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "mja381650@utdallas.edu",
+      "observer_email": "cdf833033@utdallas.edu",
       "requested_date": "2026-09-09",
       "status": "declined",
       "course_code": "CS 1133",
@@ -7548,7 +9387,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "emc730086@utdallas.edu",
+      "observer_email": "eeb524192@utdallas.edu",
       "requested_date": "2026-09-09",
       "status": "declined",
       "course_code": "CS 1133",
@@ -7588,7 +9427,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "vhg349974@utdallas.edu",
+      "observer_email": "blc318298@utdallas.edu",
       "requested_date": "2026-09-03",
       "status": "requested",
       "course_code": "CS 1207",
@@ -7628,7 +9467,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "cmd334136@utdallas.edu",
+      "observer_email": "cgb144080@utdallas.edu",
       "requested_date": "2026-09-25",
       "status": "declined",
       "course_code": "CS 1381",
@@ -7772,7 +9611,7 @@
       "term": "Fall 2026"
     },
     {
-      "observer_email": "acp856790@utdallas.edu",
+      "observer_email": "ian642977@utdallas.edu",
       "requested_date": "2026-09-23",
       "status": "declined",
       "course_code": "CS 3616",
@@ -7833,6 +9672,198 @@
       "status": "declined",
       "course_code": "CS 1603",
       "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "vad441713@utdallas.edu",
+      "requested_date": "2026-09-22",
+      "status": "confirmed",
+      "course_code": "BE 2101",
+      "section_number": "501",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "blc347154@utdallas.edu",
+      "requested_date": "2026-09-23",
+      "status": "confirmed",
+      "course_code": "BE 2902",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "rnt703833@utdallas.edu",
+      "requested_date": "2026-09-22",
+      "status": "confirmed",
+      "course_code": "CE 2941",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "gsp717582@utdallas.edu",
+      "requested_date": "2026-09-23",
+      "status": "confirmed",
+      "course_code": "CE 2049",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "dhf255799@utdallas.edu",
+      "requested_date": "2026-09-22",
+      "status": "confirmed",
+      "course_code": "EE 2461",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "hrh634113@utdallas.edu",
+      "requested_date": "2026-09-23",
+      "status": "confirmed",
+      "course_code": "EE 2787",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "dra530939@utdallas.edu",
+      "requested_date": "2026-09-22",
+      "status": "confirmed",
+      "course_code": "ME 2146",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "hau464640@utdallas.edu",
+      "requested_date": "2026-09-23",
+      "status": "confirmed",
+      "course_code": "ME 2190",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "nwr710048@utdallas.edu",
+      "requested_date": "2026-09-22",
+      "status": "confirmed",
+      "course_code": "SE 2201",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "ygv759437@utdallas.edu",
+      "requested_date": "2026-09-23",
+      "status": "confirmed",
+      "course_code": "SE 2628",
+      "section_number": "501",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "blc347154@utdallas.edu",
+      "requested_date": "2026-09-24",
+      "status": "requested",
+      "course_code": "BE 1537",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "blc347154@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "BE 1228",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "phg644526@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "BE 1228",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "rnt703833@utdallas.edu",
+      "requested_date": "2026-09-24",
+      "status": "requested",
+      "course_code": "CE 3331",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "gsp717582@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "CE 1548",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "esm532551@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "CE 1548",
+      "section_number": "001",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "hrh634113@utdallas.edu",
+      "requested_date": "2026-09-24",
+      "status": "requested",
+      "course_code": "EE 1304",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "knb548998@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "EE 1304",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "zag790568@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "EE 1037",
+      "section_number": "501",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "wpa456287@utdallas.edu",
+      "requested_date": "2026-09-24",
+      "status": "requested",
+      "course_code": "ME 1949",
+      "section_number": "501",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "dra530939@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "ME 4679",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "rdc931866@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "ME 4679",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "ygv759437@utdallas.edu",
+      "requested_date": "2026-09-24",
+      "status": "requested",
+      "course_code": "SE 3979",
+      "section_number": "002",
+      "term": "Fall 2026"
+    },
+    {
+      "observer_email": "nwr710048@utdallas.edu",
+      "requested_date": "2026-09-21",
+      "status": "suggested",
+      "course_code": "SE 2244",
+      "section_number": "002",
       "term": "Fall 2026"
     }
   ],

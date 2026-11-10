@@ -11,7 +11,7 @@ const URI = process.env.MONGODB_URI_TEST;
 const skip = !URI || !/localhost|127\.0\.0\.1/.test(URI) ? "set MONGODB_URI_TEST to a local database to run" : false;
 
 const DATE_FIELDS = new Set(["last_observed", "signup_deadline", "observation_deadline", "feedback_deadline", "signup_date",
-  "observation_date", "observer_signed_date", "observee_signed_date", "requested_date", "submitted_date"]);
+  "observation_date", "observer_signed_date", "observee_signed_date", "requested_date", "responded_date", "list_released_date", "submitted_date"]);
 const cast = (doc) => Object.fromEntries(Object.entries(doc).map(([k, v]) =>
   [k, DATE_FIELDS.has(k) && typeof v === "string" ? new Date(`${v}T00:00:00.000Z`) : v]));
 
@@ -202,11 +202,11 @@ test("due-status rule (committee spec)", () => {
 
 test("eligibility rules", () => {
   const { evaluateEligibility, schedulesConflict } = require("../services/eligibility");
-  const observee = { email: "a@x", department: "CS" };
+  const observee = { email: "a@x", major: "CS" };
   const section = { course_code: "CS 1337", timing: "MW 08:30-09:45" };
-  const ok = { email: "b@x", department: "CS" };
+  const ok = { email: "b@x", major: "CS" };
   assert.equal(evaluateEligibility({ observee, candidate: observee, section, candidateSections: [] }).violation, "SAME_PROFESSOR");
-  assert.equal(evaluateEligibility({ observee, candidate: { ...ok, department: "MATH" }, section, candidateSections: [] }).violation, "DIFFERENT_DEPARTMENT");
+  assert.equal(evaluateEligibility({ observee, candidate: { ...ok, major: "EE" }, section, candidateSections: [] }).violation, "DIFFERENT_MAJOR");
   assert.equal(evaluateEligibility({ observee, candidate: ok, section, candidateSections: [{ course_code: "CS 3345", timing: "TR 10:00-11:15" }] }).violation, "DIFFERENT_LEVEL");
   assert.equal(evaluateEligibility({ observee, candidate: ok, section, candidateSections: [{ course_code: "CS 1200", timing: "W 09:00-10:15" }] }).violation, "SCHEDULE_CONFLICT");
   assert.equal(evaluateEligibility({ observee, candidate: ok, section, candidateSections: [{ course_code: "CS 1200", timing: "TT 08:30-09:45" }] }).eligible, true);
