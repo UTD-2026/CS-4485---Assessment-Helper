@@ -499,6 +499,8 @@ a:hover { color: var(--accent-hover); }
 .card-flush > .card-head { margin: 0; padding: 16px 18px; border-bottom: 1px solid var(--border); }
 .card-title { font-size: 16px; font-weight: 700; }
 .card-title .muted { font-weight: 500; }
+/* Larger heading for a section inside a page (e.g. "Criterion List" on the Template editor) */
+.section-heading { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 0.01em; color: var(--text); }
 .card-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .card-foot { margin-top: 12px; color: var(--faint); font-size: 13px; }
 .card-flush > .card-foot { margin: 0; padding: 12px 18px; }
@@ -869,6 +871,8 @@ a:hover { color: var(--accent-hover); }
 /* Column key above the sign-up cards (same grid as each row). */
 .signup-head { padding-top: 4px; padding-bottom: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
 .signup-head-more { text-align: center; }
+/* Digital evaluations: same card rows as the Signup monitor, with its own columns. */
+.signup-row.eval-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 1fr) 110px; }
 /* Observer name with the observation status underneath, both centered. */
 .signup-observer { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .signup-observer-name { color: var(--text); font-weight: 600; }
@@ -1083,6 +1087,39 @@ a:hover { color: var(--accent-hover); }
 .filter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px 24px; padding: 18px 20px; }
 .filter-group { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .filter-group-wide { grid-column: span 2; }
+/* Least / Most checkboxes: one shared grid for every row, so all the Most boxes line up in a straight column.
+   Columns hug the longest label so the two sides sit close together. */
+.filter-pairs { display: grid; grid-template-columns: max-content max-content; gap: 6px 40px; }
+.filter-pair { display: contents; }
+/* Observer workload: fixed Professor column sets where Workload starts; the sort group takes the rest of the row. */
+.filter-groups-workload { grid-template-columns: 183px 181px 1fr; }
+.filter-groups-workload .filter-group-wide { grid-column: auto; padding-left: 70px; }
+/* Outstanding observations: Observee, Level, Observer, Course on the first row; Schedule + Status (two columns wide) on the second. */
+/* The first column (Observee above, Schedule below) grows to fit Schedule's labels on one line; the other three share the rest. */
+.filter-groups-outstanding { grid-template-columns: max-content repeat(3, minmax(0, 1fr)); }
+.filter-group-nowrap .filter-check-label { white-space: nowrap; }
+/* Signup monitor: four tracks so the rows can split at different points.
+   Row 1: Observee | Course (tracks 2-3) | Days.   Row 2: Status (tracks 1-2) | Observer (tracks 3-4). */
+.filter-groups-evals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.filter-groups-signups { grid-template-columns: minmax(0, 31fr) minmax(0, 12fr) minmax(0, 22fr) minmax(0, 35fr); }
+.filter-groups-signups > :nth-child(1) { grid-column: 1; }
+.filter-groups-signups > :nth-child(2) { grid-column: 2 / span 2; }
+.filter-groups-signups > :nth-child(3) { grid-column: 4; }
+.filter-groups-signups > :nth-child(4) { grid-column: 1 / span 2; }
+.filter-groups-signups > :nth-child(5) { grid-column: 3 / span 2; }
+
+/* Signup monitor page: summary cards (2 on top, 3 below) and the filter toolbar */
+.signup-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.signup-cards > * { grid-column: span 3; }
+.signup-cards > :nth-child(n + 3) { grid-column: span 2; }
+.signup-card-good { background: var(--good-surface); border-color: var(--good-line); }
+.signup-card-warn { background: var(--warn-surface); border-color: var(--warn-line); }
+.signup-card-bad { background: var(--bad-surface); border-color: var(--bad-line); }
+.page-filters { display: flex; flex-wrap: wrap; gap: 10px; }
+/* Extra room between Schedule's counts and the Status group. */
+.filter-groups-outstanding .filter-group-wide { padding-left: 32px; }
+/* Six options as two columns of three, filled top to bottom. */
+.filter-grid-2x3 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 6px 24px; }
 .filter-group legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 800; color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
 .filter-check {
   display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-sm);
@@ -1099,7 +1136,15 @@ a:hover { color: var(--accent-hover); }
 .filter-check-label { flex: 1; line-height: 1.35; }
 .filter-check-count { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .filter-dialog-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); font-size: 13px; }
-@media (max-width: 640px) { .filter-group-wide { grid-column: auto; } }
+@media (max-width: 640px) {
+  .filter-group-wide { grid-column: auto; }
+  .filter-groups-workload, .filter-groups-outstanding, .filter-groups-signups { grid-template-columns: 1fr; }
+  .filter-groups-signups > * { grid-column: 1 / -1 !important; }
+  .signup-cards > *, .signup-cards > :nth-child(n + 3) { grid-column: 1 / -1; }
+  .filter-grid-2x3 { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+  .filter-groups-workload .filter-group-wide, .filter-groups-outstanding .filter-group-wide { padding-left: 0; }
+  .filter-pairs { column-gap: 12px; }
+}
 
 /* ---------- Class day picker ---------- */
 
@@ -1132,7 +1177,8 @@ a:hover { color: var(--accent-hover); }
 /* ---------- Small screens ---------- */
 
 @media (max-width: 900px) {
-  .signup-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .signup-row, .signup-row.eval-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .filter-groups-evals { grid-template-columns: 1fr; }
   .signup-row > :last-child { justify-self: start; }
   .signup-head { display: none; }
   .signup-observer { align-items: flex-start; text-align: left; }

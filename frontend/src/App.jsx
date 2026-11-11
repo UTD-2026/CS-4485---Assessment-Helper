@@ -7,6 +7,7 @@ import MetricDetail from './components/MetricDetails.jsx';
 import { METRIC_PAGES } from './utils/metricPages.js';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import CommitteeReports from './components/CommitteeReports.jsx';
+import { SignupFilters, applySignupFilters, EMPTY_SIGNUP_FILTERS, EvaluationFilters, applyEvaluationFilters, EMPTY_EVAL_FILTERS } from './components/KpiListDialogs.jsx';
 import TestAccountsDialog from './components/TestAccountsDialog.jsx';
 import Toaster from './components/Toaster.jsx';
 import LoginBackground from './components/LoginBackground.jsx';
@@ -107,7 +108,7 @@ function getRatingLegend(ratingScale = '') {
 const OBS_TONE = { Completed: 'good', Scheduled: 'info', 'Pending Scheduling': 'warn', 'Awaiting Confirmation': 'warn', Missed: 'bad', 'Deferred / Rolled Over': 'warn' };
 const REQ_TONE = { Pending: 'warn', Accepted: 'info', Confirmed: 'good', Declined: 'bad', Cancelled: 'neutral' };
 const FLAG = {
-  OK: ['OK', 'good'],
+  OK: ['Satisfactory', 'good'],
   'INSUFFICIENT OBSERVERS': ['Insufficient', 'warn'],
   'NO ELIGIBLE OBSERVER': ['No eligible observer', 'bad'],
 };
@@ -123,14 +124,15 @@ function DueBadge({ prof }) {
 }
 
 // Read-only view of a submitted evaluation form (committee "Digital evaluations" and professor "My evaluations")
-function EvaluationDetail({ evaluation, evaluationTemplate, onBack, backLabel = 'Back' }) {
+// wide: fill the page width (committee's Digital evaluations) instead of the 880px reading column.
+function EvaluationDetail({ evaluation, evaluationTemplate, onBack, backLabel = 'Back', wide = false }) {
   // Prefer the criteria snapshot saved at submission time, so later template edits don't change old forms
   const items = evaluation.items || (evaluationTemplate || []).filter((t) => evaluation.answers?.[t.id]);
   const numeric = items.map((i) => Number(evaluation.answers?.[i.id]?.rating)).filter((n) => n >= 1 && n <= 5);
   const average = numeric.length ? (numeric.reduce((a, b) => a + b, 0) / numeric.length).toFixed(1) : null;
 
   return (
-    <section className="card card-lg max-880">
+    <section className={`card card-lg${wide ? '' : ' max-880'}`}>
       <button type="button" className="btn btn-ghost btn-sm section-gap" onClick={onBack}><Icon name="chevronLeft" size={16} /> {backLabel}</button>
       <div className="row-between section-gap">
         <div>
@@ -365,7 +367,10 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
   // Signup monitor: one expanded sign-up at a time, with its manual-assignment choice
   const [expandedSignup, setExpandedSignup] = useState(null);
-  const [signupFilter, setSignupFilter] = useState('needs');
+  const [signupQuery, setSignupQuery] = useState('');
+  const [signupFilters, setSignupFilters] = useState(EMPTY_SIGNUP_FILTERS);
+  const [evalQuery, setEvalQuery] = useState('');
+  const [evalFilters, setEvalFilters] = useState(EMPTY_EVAL_FILTERS);
   const [manualObserverId, setManualObserverId] = useState('');
 
   // Check if observation deadline passed
@@ -464,14 +469,18 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
     return { signup, obs, flagged, needsAction: !obs && (flagged || !signup.listReleased) };
   }).sort((a, b) => Number(b.needsAction) - Number(a.needsAction));
   const needsActionCount = signupRows.filter(r => r.needsAction).length;
-  const SIGNUP_FILTERS = [
-    ['all', 'All', () => true],
-    ['completed', 'Completed', (r) => r.obs?.status === 'Completed'],
-    ['progress', 'In progress', (r) => !r.needsAction && !(r.obs && (r.obs.status === 'Completed'))],
-    ['needs', 'Needs action', (r) => r.needsAction],
-  ];
-  const shownSignups = signupRows.filter(SIGNUP_FILTERS.find(f => f[0] === signupFilter)[2]);
+  const shownSignups = applySignupFilters(signupRows, signupQuery, signupFilters);
+  const shownEvaluations = applyEvaluationFilters(globalEvaluations || [], evalQuery, evalFilters);
   const flagCount = (flag) => (globalSignups || []).filter(s => s.matchFlag === flag).length;
+  const releasedCount = (globalSignups || []).filter(s => s.listReleased).length;
+  // Signup monitor summary cards: totals on the first row, one card per list status on the second.
+  const signupCards = [
+    { label: 'Sign-ups', value: (globalSignups || []).length, sub: 'Due faculty who chose a course to be observed in' },
+    { label: 'Lists released', value: `${releasedCount}/${(globalSignups || []).length}`, sub: 'Observer lists sent to the observee' },
+    { label: 'Full lists', value: flagCount('OK'), tone: 'good', sub: '5 eligible observers found' },
+    { label: 'Insufficient lists', value: flagCount('INSUFFICIENT OBSERVERS'), tone: 'warn', sub: '1 to 4 eligible observers found' },
+    { label: 'No eligible observer', value: flagCount('NO ELIGIBLE OBSERVER'), tone: 'bad', sub: 'Needs a manual assignment' },
+  ];
 
   const nav = [
     { id: 'metrics', label: 'Metrics', icon: 'metrics', children: METRIC_NAV },
@@ -541,29 +550,28 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
       {activeTab === 'signups' && (
         <>
-          <div className="chips section-gap">
-            <span className="chip"><strong>{globalSignups.length}</strong> sign-ups</span>
-            <span className="chip chip-good"><strong>{flagCount('OK')}</strong> full lists</span>
-            <span className="chip chip-warn"><strong>{flagCount('INSUFFICIENT OBSERVERS')}</strong> insufficient</span>
-            <span className="chip chip-bad"><strong>{flagCount('NO ELIGIBLE OBSERVER')}</strong> no eligible observer</span>
-            <span className="chip"><strong>{globalSignups.filter(s => s.listReleased).length}</strong> lists released</span>
-          </div>
-          <div className="segmented section-gap" role="tablist" aria-label="Filter sign-ups">
-            {SIGNUP_FILTERS.map(([id, label, test]) => (
-              <button key={id} type="button" role="tab" aria-selected={signupFilter === id} className={signupFilter === id ? 'active' : ''} onClick={() => { setSignupFilter(id); setExpandedSignup(null); }}>
-                {label} <span className="mono">{signupRows.filter(test).length}</span>
-              </button>
+          <section className="signup-cards section-gap" aria-label="Sign-up summary">
+            {signupCards.map((c) => (
+              <div key={c.label} className={`card metric-stat${c.tone ? ` signup-card-${c.tone}` : ''}`}>
+                <span className="metric-stat-label">{c.label}</span>
+                <span className={`metric-stat-value${c.tone ? ` text-${c.tone}` : ''}`}>{c.value}</span>
+                <span className="metric-stat-sub">{c.sub}</span>
+              </div>
             ))}
+          </section>
+          <div className="section-gap">
+            <SignupFilters rows={signupRows} query={signupQuery} setQuery={(q) => { setSignupQuery(q); setExpandedSignup(null); }}
+              filters={signupFilters} setFilters={(f) => { setSignupFilters(f); setExpandedSignup(null); }} />
           </div>
           {shownSignups.length === 0 ? (
-            <EmptyState icon="signups" title={signupRows.length ? 'Nothing here' : 'No sign-ups yet'}>{signupRows.length ? 'No sign-ups match this filter.' : 'Sign-ups appear here as due faculty choose a course.'}</EmptyState>
+            <EmptyState icon="signups" title={signupRows.length ? 'Nothing here' : 'No sign-ups yet'}>{signupRows.length ? 'No sign-ups match these filters.' : 'Sign-ups appear here as due faculty choose a course.'}</EmptyState>
           ) : (
             <div className="stack-sm">
               <div className="signup-row signup-head" aria-hidden="true">
                 <span>Observee</span>
-                <span>Class and day &amp; time</span>
-                <span>Status</span>
-                <span className="signup-observer">Observer</span>
+                <span>Schedule</span>
+                <span>Observer list status</span>
+                <span className="signup-observer">Confirmed observer</span>
                 <span className="signup-head-more">See more</span>
               </div>
               {shownSignups.map(({ signup, obs, flagged }) => {
@@ -708,7 +716,8 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
               <button type="button" className="btn btn-accent" onClick={handleAddCriteria}><Icon name="plus" size={16} /> Add</button>
             </div>
           </div>
-          <div>
+          <div className="row-between">
+            <h2 className="section-heading">Criterion List</h2>
             <button type="button" className="btn btn-primary btn-lg" onClick={() => saveTemplate(editedTemplate, `Template saved and published for ${templateTerm}.`)}>Save and publish for {templateTerm}</button>
           </div>
 
@@ -750,19 +759,36 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
 
       {activeTab === 'evaluations' && (
         viewingEvaluation ? (
-          <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} backLabel="All evaluations" />
+          <EvaluationDetail evaluation={viewingEvaluation} evaluationTemplate={evaluationTemplate} onBack={() => setViewingEvaluation(null)} backLabel="All evaluations" wide />
         ) : !globalEvaluations || globalEvaluations.length === 0 ? (
           <EmptyState icon="form" title="No evaluations submitted yet">Forms appear here as observers submit them.</EmptyState>
         ) : (
-          <div className="grid grid-300">
-            {globalEvaluations.map(ev => (
-              <Card as="article" key={ev.id} className="stack-sm">
-                <div className="row-between"><span className="mono text-good">{ev.courseCode}</span><span className="faint">{formatDate(ev.dateSubmitted)}</span></div>
-                <div className="card-title">{ev.observeeName}</div>
-                <div className="muted">Observed by {ev.observerName}</div>
-                <div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setViewingEvaluation(ev)}>Open form</button></div>
-              </Card>
-            ))}
+          <div className="stack-sm section-gap">
+            <EvaluationFilters query={evalQuery} setQuery={setEvalQuery} filters={evalFilters} setFilters={setEvalFilters} />
+            {shownEvaluations.length === 0 ? (
+              <EmptyState icon="form" title="Nothing here">No evaluations match these filters.</EmptyState>
+            ) : (
+              <>
+                <div className="signup-row eval-row signup-head" aria-hidden="true">
+                  <span>Observee</span>
+                  <span>Observee's course</span>
+                  <span>Observer</span>
+                  <span>Date</span>
+                  <span className="signup-head-more">Review form</span>
+                </div>
+                {shownEvaluations.map(ev => (
+                  <div key={ev.id} className="signup-card">
+                    <div className="signup-row eval-row">
+                      <span className="list-title">{ev.observeeName}</span>
+                      <span className="mono">{ev.courseCode}</span>
+                      <span>{ev.observerName}</span>
+                      <span className="muted">{formatDate(ev.dateSubmitted)}</span>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setViewingEvaluation(ev)}>Open form</button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )
       )}

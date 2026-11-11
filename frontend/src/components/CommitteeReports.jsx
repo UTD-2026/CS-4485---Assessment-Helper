@@ -109,7 +109,7 @@ export default function CommitteeReports({ term, refreshKey }) {
         follow-up after a missed session. Split by the observee's hiring level. Each one is listed with its next step in
         Outstanding observations below.
       </StatRow>
-      <p className="faint">Reports update as faculty sign up, select observers and confirm observations. Workload counts every assignment this cycle, including completed and missed ones.</p>
+      <p className="faint">Reports update as faculty sign up, select observers and confirm observations. Workload counts every assignment this cycle, including completed, missed and deferred ones.</p>
 
       <div className="stack">
         <ReportTable
@@ -136,8 +136,9 @@ export default function CommitteeReports({ term, refreshKey }) {
             { label: 'Completed', render: (p) => <span className="num">{p.completed}</span> },
             { label: 'Pending', render: (p) => <span className="num">{p.pending}</span> },
             { label: 'Missed', render: (p) => <span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span> },
+            { label: 'Deferred', render: (p) => <span className="num">{p.deferred ?? 0}</span> },
           ]}
-          csv={workload.map((p) => [p.name, p.department, p.assigned, p.completed, p.pending, p.missed])}
+          csv={workload.map((p) => [p.name, p.department, p.assigned, p.completed, p.pending, p.missed, p.deferred ?? 0])}
           empty="No faculty records available."
         />
       </div>

@@ -4,6 +4,7 @@ import { Badge } from './ui.jsx';
 import { VIOLATION_TYPES } from '../utils/kpis.js';
 import { DUE, STATUS, nextActor, nextDetail, nextShort, scheduleOf } from '../utils/nextSteps.js';
 import { matches, countBy, optionsOf, MISSING_KINDS, kindOf } from '../utils/lists.js';
+import { formatTiming } from '../api/adapters.js';
 
 /*
  * Filterable lists for the committee pages. Each has a search box plus dropdown filters, and a live "Showing X of Y" count.
@@ -128,63 +129,175 @@ export function PairingsList({ pairings }) {
   );
 }
 
+/* ---------- Shared "Advanced filtering" pop-up ---------- */
+
+// One tickable option in the filter pop-up: a box that turns green with a check mark when on. Click again to untick.
+function FilterCheck({ checked, onToggle, label, count, hint }) {
+  return (
+    <button type="button" role="checkbox" aria-checked={checked} className={`filter-check${checked ? ' checked' : ''}`} onClick={onToggle} title={hint}>
+      <span className="filter-check-box" aria-hidden="true">{checked && <Icon name="check" size={12} />}</span>
+      <span className="filter-check-label">{label}</span>
+      {count !== undefined && <span className="filter-check-count">{count}</span>}
+    </button>
+  );
+}
+
+// Tick/untick a value in one of the draft's list fields.
+const toggleIn = (setDraft, key, value) =>
+  setDraft((d) => ({ ...d, [key]: d[key].includes(value) ? d[key].filter((v) => v !== value) : [...d[key], value] }));
+// Sorts keep the order they were picked in: the first one picked is the main sort, later ones break ties.
+// Each sort group allows one direction; picking the other direction replaces it.
+const toggleSortIn = (setDraft, pairs, key) =>
+  setDraft((d) => ({ ...d, sorts: d.sorts.includes(key) ? d.sorts.filter((s) => s !== key) : [...d.sorts.filter((s) => s !== pairs[key]), key] }));
+const sortBy = (rows, sorts, fns) =>
+  (!sorts.length ? rows : [...rows].sort((a, b) => { for (const s of sorts) { const r = fns[s](a, b); if (r) return r; } return 0; }));
+const countFilters = (f) => Object.values(f).reduce((n, v) => n + v.length, 0);
+
+// Shell for the pop-up. Changes only take effect on Apply (or Reset); only X / Esc / outside click closes it.
+// The plain text search stays outside, in the list's own search box.
+function FilterDialog({ titleId, sub, draft, applied, onReset, onApply, onClose, groupsClassName = '', children }) {
+  const closeRef = useAutoFocus();
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const changed = JSON.stringify(draft) !== JSON.stringify(applied);
+
+  return (
+    <div className="dialog-overlay dialog-overlay-top" onClick={onClose}>
+      <div className="dialog filter-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-head">
+          <div>
+            <h2 id={titleId} className="card-title">Advanced filtering</h2>
+            <p className="card-sub">{sub}</p>
+          </div>
+          <button ref={closeRef} type="button" className="icon-button" onClick={onClose} aria-label="Close filters"><Icon name="x" /></button>
+        </div>
+        <div className="filter-dialog-actions">
+          <button type="button" className="btn filter-reset" onClick={onReset}>Reset filters</button>
+        </div>
+        <div className={`filter-groups ${groupsClassName}`.trim()}>{children}</div>
+        <div className="filter-dialog-foot">
+          <span className="faint">{changed ? 'You have changes that are not applied yet.' : 'Filters are up to date.'}</span>
+          <button type="button" className="btn btn-primary" onClick={() => onApply(draft)}>Apply filters</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Toolbar used by both pop-up lists: "More filters" button, search box, Clear.
+function FilterToolbar({ openRef, searchRef, active, query, setQuery, placeholder, searchLabel, onOpen, onClear }) {
+  return (
+    <>
+      <button ref={openRef} type="button" className="btn btn-ghost more-filters" onClick={onOpen} aria-haspopup="dialog">
+        <Icon name="filters" size={18} />
+        More filters
+        {active > 0 && <span className="search-launch-count">{active}</span>}
+      </button>
+      <label className="search-field">
+        <Icon name="search" size={16} />
+        <input ref={searchRef} type="search" placeholder={placeholder} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={searchLabel} />
+      </label>
+      {(active > 0 || query) && <button type="button" className="btn btn-ghost" onClick={onClear}>Clear</button>}
+    </>
+  );
+}
+
 /* ---------- Committee reports: full observer workload ---------- */
 
-const LOAD_FILTERS = {
-  assigned: { label: 'Has assignments', test: (p) => p.assigned > 0 },
-  none: { label: 'No assignments (unused capacity)', test: (p) => p.assigned === 0 },
-  pending: { label: 'Has pending', test: (p) => p.pending > 0 },
-  missed: { label: 'Has missed', test: (p) => p.missed > 0 },
+const WORKLOAD = [
+  ['assigned', 'Assigned', 'At least 1 observation assigned this cycle'],
+  ['completed', 'Completed', 'At least 1 observation held and signed off'],
+  ['pending', 'Pending', 'At least 1 observation still waiting to happen'],
+  ['missed', 'Missed', 'At least 1 observation that did not take place'],
+  ['deferred', 'Deferred', 'At least 1 observation postponed'],
+];
+const countOf = (p, k) => p[k] ?? 0;
+const WORKLOAD_SORTS = {
+  nameAsc: (a, b) => a.name.localeCompare(b.name),
+  nameDesc: (a, b) => b.name.localeCompare(a.name),
+  ...Object.fromEntries(WORKLOAD.flatMap(([k]) => [
+    [`${k}Least`, (a, b) => countOf(a, k) - countOf(b, k)],
+    [`${k}Most`, (a, b) => countOf(b, k) - countOf(a, k)],
+  ])),
 };
-const LOAD_SORTS = {
-  assigned: { label: 'Most assigned first', fn: (a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name) },
-  name: { label: 'Name A–Z', fn: (a, b) => a.name.localeCompare(b.name) },
-  pending: { label: 'Most pending first', fn: (a, b) => b.pending - a.pending || a.name.localeCompare(b.name) },
-  missed: { label: 'Most missed first', fn: (a, b) => b.missed - a.missed || a.name.localeCompare(b.name) },
+const WORKLOAD_PAIRS = {
+  nameAsc: 'nameDesc', nameDesc: 'nameAsc',
+  ...Object.fromEntries(WORKLOAD.flatMap(([k]) => [[`${k}Least`, `${k}Most`], [`${k}Most`, `${k}Least`]])),
 };
+const EMPTY_WORKLOAD_FILTERS = { sorts: [], has: [] };
+
+function WorkloadFilterDialog({ applied, hasCounts, onApply, onClose }) {
+  const [draft, setDraft] = useState(applied);
+  const toggleSort = (key) => toggleSortIn(setDraft, WORKLOAD_PAIRS, key);
+  const reset = () => { setDraft(EMPTY_WORKLOAD_FILTERS); onApply(EMPTY_WORKLOAD_FILTERS); };
+
+  return (
+    <FilterDialog titleId="workload-filter-title" sub="Sort and narrow the observer workload list. Tick any options, then select Apply filters."
+      draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-workload">
+      <fieldset className="filter-group">
+        <legend>Professor</legend>
+        <FilterCheck label="Ascending (A–Z)" checked={draft.sorts.includes('nameAsc')} onToggle={() => toggleSort('nameAsc')} />
+        <FilterCheck label="Descending (Z–A)" checked={draft.sorts.includes('nameDesc')} onToggle={() => toggleSort('nameDesc')} />
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Workload</legend>
+        {WORKLOAD.map(([k, label, hint]) => (
+          <FilterCheck key={k} label={label} hint={hint} count={hasCounts[k]} checked={draft.has.includes(k)} onToggle={() => toggleIn(setDraft, 'has', k)} />
+        ))}
+      </fieldset>
+      <fieldset className="filter-group filter-group-wide">
+        <legend>Sort by least / most</legend>
+        <div className="filter-pairs">
+          {WORKLOAD.map(([k, label]) => (
+            <div key={k} className="filter-pair">
+              <FilterCheck label={`Least ${label.toLowerCase()}`} checked={draft.sorts.includes(`${k}Least`)} onToggle={() => toggleSort(`${k}Least`)} />
+              <FilterCheck label={`Most ${label.toLowerCase()}`} checked={draft.sorts.includes(`${k}Most`)} onToggle={() => toggleSort(`${k}Most`)} />
+            </div>
+          ))}
+        </div>
+      </fieldset>
+    </FilterDialog>
+  );
+}
 
 export function WorkloadDialog({ workload, onClose }) {
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
-  const [load, setLoad] = useState('all');
-  const [sort, setSort] = useState('assigned');
+  const [filters, setFilters] = useState(EMPTY_WORKLOAD_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
   const searchRef = useAutoFocus();
+  const openRef = useRef(null);
 
-  const departments = useMemo(() => [...new Set(workload.map((p) => p.department).filter(Boolean))].sort(), [workload]);
-  const loadCounts = useMemo(() => Object.fromEntries(Object.entries(LOAD_FILTERS).map(([k, f]) => [k, workload.filter(f.test).length])), [workload]);
+  const hasCounts = useMemo(() => Object.fromEntries(WORKLOAD.map(([k]) => [k, workload.filter((p) => countOf(p, k) > 0).length])), [workload]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return workload
-      .filter((p) => (dept === 'all' || p.department === dept) && (load === 'all' || LOAD_FILTERS[load].test(p)) && matches(q, p.name, p.department))
-      .sort(LOAD_SORTS[sort].fn);
-  }, [workload, query, dept, load, sort]);
-  const filtered = query || dept !== 'all' || load !== 'all';
+    // Ticked workload options widen the list: a professor shows if they have any of them.
+    const rows = workload.filter((p) =>
+      (!filters.has.length || filters.has.some((k) => countOf(p, k) > 0)) &&
+      matches(q, p.name, p.department));
+    return sortBy(rows, filters.sorts, WORKLOAD_SORTS);
+  }, [workload, query, filters]);
+  const active = countFilters(filters);
+  const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, [openRef]);
 
   return (
     <ListDialog
-      titleId="workload-title" title="Observer workload" onClose={onClose}
-      sub={`${workload.length} faculty · ${loadCounts.assigned} observing this cycle · ${loadCounts.none} with no assignments`}
+      titleId="workload-title" title="Observer workload" onClose={onClose} paused={filterOpen}
+      sub={`${workload.length} faculty · ${hasCounts.assigned} observing this cycle · ${workload.length - hasCounts.assigned} with no assignments`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observers" />
-        <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-          <option value="all">All departments</option>
-          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select className="select" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Filter by workload">
-          <option value="all">Any workload</option>
-          {Object.entries(LOAD_FILTERS).map(([key, f]) => <option key={key} value={key}>{f.label} · {loadCounts[key]}</option>)}
-        </select>
-        <select className="select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
-          {Object.entries(LOAD_SORTS).map(([key, s]) => <option key={key} value={key}>{s.label}</option>)}
-        </select>
-        {filtered && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(''); setDept('all'); setLoad('all'); }}>Clear</button>}
+        <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
+          placeholder="Search by professor or department" searchLabel="Search observers"
+          onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_WORKLOAD_FILTERS); }} />
+        {filterOpen && <WorkloadFilterDialog applied={filters} hasCounts={hasCounts} onApply={setFilters} onClose={closeFilters} />}
       </>}
-      footer={`Showing ${shown.length} of ${workload.length}. Assigned counts every assignment this cycle: completed, pending and missed.`}
+      footer={`Showing ${shown.length} of ${workload.length}. Assigned counts every assignment this cycle: completed, pending, missed and deferred.`}
     >
-      <table className="data-table">
-        <thead><tr><th>Professor</th><th>Department</th><th>Assigned</th><th>Completed</th><th>Pending</th><th>Missed</th></tr></thead>
+      <table className="data-table data-table-compact">
+        <thead><tr><th>Professor</th><th>Department</th><th>Assigned</th><th>Completed</th><th>Pending</th><th>Missed</th><th>Deferred</th></tr></thead>
         <tbody>
-          {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">No faculty match these filters.</td></tr>}
+          {shown.length === 0 && <tr><td colSpan="7" className="empty-cell">No faculty match these filters.</td></tr>}
           {shown.map((p, i) => (
             <tr key={`${p.email || p.name}-${i}`}>
               <td className="strong nowrap">{p.name}</td>
@@ -193,6 +306,7 @@ export function WorkloadDialog({ workload, onClose }) {
               <td><span className="num">{p.completed}</span></td>
               <td><span className="num">{p.pending}</span></td>
               <td><span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span></td>
+              <td><span className="num">{countOf(p, 'deferred')}</span></td>
             </tr>
           ))}
         </tbody>
@@ -203,17 +317,6 @@ export function WorkloadDialog({ workload, onClose }) {
 
 /* ---------- Committee reports: unmatched faculty ---------- */
 
-// One tickable option in the filter pop-up: a box that turns green with a check mark when on. Click again to untick.
-function FilterCheck({ checked, onToggle, label, count }) {
-  return (
-    <button type="button" role="checkbox" aria-checked={checked} className={`filter-check${checked ? ' checked' : ''}`} onClick={onToggle}>
-      <span className="filter-check-box" aria-hidden="true">{checked && <Icon name="check" size={12} />}</span>
-      <span className="filter-check-label">{label}</span>
-      {count !== undefined && <span className="filter-check-count">{count}</span>}
-    </button>
-  );
-}
-
 // Course number from a code like "CS 3039" (no course sorts last either way).
 const courseNum = (code) => { const m = /(\d+)/.exec(code || ''); return m ? Number(m[1]) : null; };
 const SORTS = {
@@ -222,71 +325,41 @@ const SORTS = {
   courseAsc: (a, b) => { const x = courseNum(a.course_code), y = courseNum(b.course_code); return x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y; },
   courseDesc: (a, b) => { const x = courseNum(a.course_code), y = courseNum(b.course_code); return x === y ? 0 : x === null ? 1 : y === null ? -1 : y - x; },
 };
-// Each sort group allows one direction; picking the other direction replaces it.
 const SORT_PAIRS = { nameAsc: 'nameDesc', nameDesc: 'nameAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc' };
 const EMPTY_FILTERS = { sorts: [], levels: [], due: [], reasons: [] };
-const filterCount = (f) => f.sorts.length + f.levels.length + f.due.length + f.reasons.length;
 
-// "Advanced filtering" pop-up. Changes only take effect on Apply (or Reset); only X / Esc / outside click closes it.
-// The plain text search stays outside, in the list's own search box.
 function UnmatchedFilterDialog({ applied, levels, reasons, levelCounts, dueCounts, reasonCounts, onApply, onClose }) {
   const [draft, setDraft] = useState(applied);
-  const closeRef = useAutoFocus();
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const toggle = (key, value) => setDraft((d) => ({ ...d, [key]: d[key].includes(value) ? d[key].filter((v) => v !== value) : [...d[key], value] }));
-  // Sorts keep the order they were picked in: the first one picked is the main sort, later ones break ties.
-  const toggleSort = (key) => setDraft((d) => ({ ...d, sorts: d.sorts.includes(key) ? d.sorts.filter((s) => s !== key) : [...d.sorts.filter((s) => s !== SORT_PAIRS[key]), key] }));
+  const toggle = (key, value) => toggleIn(setDraft, key, value);
+  const toggleSort = (key) => toggleSortIn(setDraft, SORT_PAIRS, key);
   const reset = () => { setDraft(EMPTY_FILTERS); onApply(EMPTY_FILTERS); };
-  const changed = JSON.stringify(draft) !== JSON.stringify(applied);
 
   return (
-    <div className="dialog-overlay dialog-overlay-top" onClick={onClose}>
-      <div className="dialog filter-dialog" role="dialog" aria-modal="true" aria-labelledby="unmatched-filter-title" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-head">
-          <div>
-            <h2 id="unmatched-filter-title" className="card-title">Advanced filtering</h2>
-            <p className="card-sub">Sort and narrow the unmatched faculty list. Tick any options, then select Apply filters.</p>
-          </div>
-          <button ref={closeRef} type="button" className="icon-button" onClick={onClose} aria-label="Close filters"><Icon name="x" /></button>
-        </div>
-        <div className="filter-dialog-actions">
-          <button type="button" className="btn filter-reset" onClick={reset}>Reset filters</button>
-        </div>
-        <div className="filter-groups">
-          <fieldset className="filter-group">
-            <legend>Professor</legend>
-            <FilterCheck label="Ascending (A–Z)" checked={draft.sorts.includes('nameAsc')} onToggle={() => toggleSort('nameAsc')} />
-            <FilterCheck label="Descending (Z–A)" checked={draft.sorts.includes('nameDesc')} onToggle={() => toggleSort('nameDesc')} />
-          </fieldset>
-          <fieldset className="filter-group">
-            <legend>Level</legend>
-            {levels.map((l) => <FilterCheck key={l} label={l} count={levelCounts[l]} checked={draft.levels.includes(l)} onToggle={() => toggle('levels', l)} />)}
-          </fieldset>
-          <fieldset className="filter-group">
-            <legend>Evaluation status</legend>
-            {['due', 'overdue'].map((k) => <FilterCheck key={k} label={DUE[k][0]} count={dueCounts[k] || 0} checked={draft.due.includes(k)} onToggle={() => toggle('due', k)} />)}
-          </fieldset>
-          <fieldset className="filter-group">
-            <legend>Course</legend>
-            <FilterCheck label="Ascending (1000 → 5000)" checked={draft.sorts.includes('courseAsc')} onToggle={() => toggleSort('courseAsc')} />
-            <FilterCheck label="Descending (5000 → 1000)" checked={draft.sorts.includes('courseDesc')} onToggle={() => toggleSort('courseDesc')} />
-          </fieldset>
-          <fieldset className="filter-group filter-group-wide">
-            <legend>Next action</legend>
-            {reasons.map((r) => <FilterCheck key={r} label={r} count={reasonCounts[r]} checked={draft.reasons.includes(r)} onToggle={() => toggle('reasons', r)} />)}
-          </fieldset>
-        </div>
-        <div className="filter-dialog-foot">
-          <span className="faint">{changed ? 'You have changes that are not applied yet.' : 'Filters are up to date.'}</span>
-          <button type="button" className="btn btn-primary" onClick={() => onApply(draft)}>Apply filters</button>
-        </div>
-      </div>
-    </div>
+    <FilterDialog titleId="unmatched-filter-title" sub="Sort and narrow the unmatched faculty list. Tick any options, then select Apply filters."
+      draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose}>
+      <fieldset className="filter-group">
+        <legend>Professor</legend>
+        <FilterCheck label="Ascending (A–Z)" checked={draft.sorts.includes('nameAsc')} onToggle={() => toggleSort('nameAsc')} />
+        <FilterCheck label="Descending (Z–A)" checked={draft.sorts.includes('nameDesc')} onToggle={() => toggleSort('nameDesc')} />
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Level</legend>
+        {levels.map((l) => <FilterCheck key={l} label={l} count={levelCounts[l]} checked={draft.levels.includes(l)} onToggle={() => toggle('levels', l)} />)}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Evaluation status</legend>
+        {['due', 'overdue'].map((k) => <FilterCheck key={k} label={DUE[k][0]} count={dueCounts[k] || 0} checked={draft.due.includes(k)} onToggle={() => toggle('due', k)} />)}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Course</legend>
+        <FilterCheck label="Ascending (1000 → 5000)" checked={draft.sorts.includes('courseAsc')} onToggle={() => toggleSort('courseAsc')} />
+        <FilterCheck label="Descending (5000 → 1000)" checked={draft.sorts.includes('courseDesc')} onToggle={() => toggleSort('courseDesc')} />
+      </fieldset>
+      <fieldset className="filter-group filter-group-wide">
+        <legend>Next action</legend>
+        {reasons.map((r) => <FilterCheck key={r} label={r} count={reasonCounts[r]} checked={draft.reasons.includes(r)} onToggle={() => toggle('reasons', r)} />)}
+      </fieldset>
+    </FilterDialog>
   );
 }
 
@@ -310,10 +383,9 @@ export function UnmatchedDialog({ faculty, onClose }) {
       (!due.length || due.includes(p.evaluation_status)) &&
       (!rs.length || rs.includes(p.reason)) &&
       matches(q, p.name, p.department, p.course_code));
-    if (!sorts.length) return rows;
-    return [...rows].sort((a, b) => { for (const s of sorts) { const r = SORTS[s](a, b); if (r) return r; } return 0; });
+    return sortBy(rows, sorts, SORTS);
   }, [faculty, query, filters]);
-  const active = filterCount(filters);
+  const active = countFilters(filters);
   const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, [openRef]);
 
   return (
@@ -321,16 +393,9 @@ export function UnmatchedDialog({ faculty, onClose }) {
       titleId="unmatched-title" title="Unmatched faculty" onClose={onClose} paused={filterOpen}
       sub={`${faculty.length} due or overdue faculty without an observer · ${dueCounts.overdue || 0} overdue · ${dueCounts.due || 0} due`}
       filters={<>
-        <button ref={openRef} type="button" className="btn btn-ghost more-filters" onClick={() => setFilterOpen(true)} aria-haspopup="dialog">
-          <Icon name="filters" size={18} />
-          More filters
-          {active > 0 && <span className="search-launch-count">{active}</span>}
-        </button>
-        <label className="search-field">
-          <Icon name="search" size={16} />
-          <input ref={searchRef} type="search" placeholder="Search by professor, department or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search unmatched faculty" />
-        </label>
-        {(active > 0 || query) && <button type="button" className="btn btn-ghost" onClick={() => { setQuery(''); setFilters(EMPTY_FILTERS); }}>Clear</button>}
+        <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
+          placeholder="Search by professor, department or course" searchLabel="Search unmatched faculty"
+          onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_FILTERS); }} />
         {filterOpen && (
           <UnmatchedFilterDialog applied={filters} levels={levels} reasons={reasons} levelCounts={levelCounts} dueCounts={dueCounts} reasonCounts={reasonCounts}
             onApply={setFilters} onClose={closeFilters} />
@@ -410,49 +475,116 @@ export function NextActionDialog({ observation: o, onClose }) {
   );
 }
 
+// Class days ("MW" / "TR") from a timing like "MW 10:00 - 11:15" or "TR 10:00 AM - 11:15 AM".
+const classDays = (timing) => { const d = formatTiming(timing).split(' ')[0].toUpperCase(); return d === 'TT' ? 'TR' : d || null; };
+const daysOf = (o) => classDays(o.timing);
+const OUTSTANDING_LEVELS = ['Assistant', 'Associate', 'Full'];
+const OUTSTANDING_DAYS = [['MW', 'MW (Monday–Wednesday)'], ['TR', 'TR (Tuesday–Thursday)']];
+// Filter labels, in the order shown. "Pending confirmation" is the awaiting_confirmation status.
+const OUTSTANDING_STATUSES = [
+  ['scheduled', 'Scheduled'], ['awaiting_confirmation', 'Pending confirmation'], ['matched', 'Pending scheduling'],
+  ['unmatched', 'No eligible observer'], ['missed', 'Missed'], ['signed_up', 'Signed up'],
+];
+// Rows with no observer yet sort last in either direction.
+const byObserver = (dir) => (a, b) => {
+  const x = a.observer_name, y = b.observer_name;
+  return x === y ? 0 : !x ? 1 : !y ? -1 : dir * x.localeCompare(y);
+};
+const OUTSTANDING_SORTS = {
+  observeeAsc: (a, b) => a.observee_name.localeCompare(b.observee_name),
+  observeeDesc: (a, b) => b.observee_name.localeCompare(a.observee_name),
+  observerAsc: byObserver(1),
+  observerDesc: byObserver(-1),
+  courseAsc: SORTS.courseAsc,
+  courseDesc: SORTS.courseDesc,
+};
+const OUTSTANDING_PAIRS = {
+  observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', observerAsc: 'observerDesc', observerDesc: 'observerAsc',
+  courseAsc: 'courseDesc', courseDesc: 'courseAsc',
+};
+const EMPTY_OUTSTANDING_FILTERS = { sorts: [], levels: [], days: [], statuses: [] };
+
+function OutstandingFilterDialog({ applied, levelCounts, dayCounts, statusCounts, onApply, onClose }) {
+  const [draft, setDraft] = useState(applied);
+  const toggle = (key, value) => toggleIn(setDraft, key, value);
+  const toggleSort = (key) => toggleSortIn(setDraft, OUTSTANDING_PAIRS, key);
+  const reset = () => { setDraft(EMPTY_OUTSTANDING_FILTERS); onApply(EMPTY_OUTSTANDING_FILTERS); };
+  const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
+
+  return (
+    <FilterDialog titleId="outstanding-filter-title" sub="Sort and narrow the outstanding observations list. Tick any options, then select Apply filters."
+      draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-outstanding">
+      <fieldset className="filter-group">
+        <legend>Observee</legend>
+        {sortCheck('observeeAsc', 'Ascending (A–Z)')}
+        {sortCheck('observeeDesc', 'Descending (Z–A)')}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Level</legend>
+        {OUTSTANDING_LEVELS.map((l) => <FilterCheck key={l} label={l} count={levelCounts[l] || 0} checked={draft.levels.includes(l)} onToggle={() => toggle('levels', l)} />)}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Observer</legend>
+        {sortCheck('observerAsc', 'Ascending (A–Z)')}
+        {sortCheck('observerDesc', 'Descending (Z–A)')}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Course</legend>
+        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
+        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
+      </fieldset>
+      <fieldset className="filter-group filter-group-nowrap">
+        <legend>Schedule</legend>
+        {OUTSTANDING_DAYS.map(([k, label]) => <FilterCheck key={k} label={label} count={dayCounts[k] || 0} checked={draft.days.includes(k)} onToggle={() => toggle('days', k)} />)}
+      </fieldset>
+      <fieldset className="filter-group filter-group-wide">
+        <legend>Status</legend>
+        <div className="filter-grid-2x3">
+          {OUTSTANDING_STATUSES.map(([k, label]) => <FilterCheck key={k} label={label} count={statusCounts[k] || 0} checked={draft.statuses.includes(k)} onToggle={() => toggle('statuses', k)} />)}
+        </div>
+      </fieldset>
+    </FilterDialog>
+  );
+}
+
 export function OutstandingDialog({ observations, onClose }) {
   const [query, setQuery] = useState('');
-  const [level, setLevel] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [actor, setActor] = useState('all');
+  const [filters, setFilters] = useState(EMPTY_OUTSTANDING_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const closeDetail = useCallback(() => setDetail(null), []);
   const searchRef = useAutoFocus();
+  const openRef = useRef(null);
 
-  const rows = useMemo(() => observations.map((o) => ({ ...o, actor: nextActor(o) })), [observations]);
-  const levels = useMemo(() => optionsOf(rows, 'hire_level_label'), [rows]);
-  const actors = useMemo(() => optionsOf(rows, 'actor'), [rows]);
+  const rows = useMemo(() => observations.map((o) => ({ ...o, days: daysOf(o) })), [observations]);
+  const levelCounts = useMemo(() => countBy(rows, 'hire_level_label'), [rows]);
+  const dayCounts = useMemo(() => countBy(rows, 'days'), [rows]);
   const statusCounts = useMemo(() => countBy(rows, 'status'), [rows]);
-  const actorCounts = useMemo(() => countBy(rows, 'actor'), [rows]);
   const shown = useMemo(() => {
+    const { sorts, levels, days, statuses } = filters;
     const q = query.trim().toLowerCase();
-    return rows.filter((o) =>
-      (level === 'all' || o.hire_level_label === level) &&
-      (status === 'all' || o.status === status) &&
-      (actor === 'all' || o.actor === actor) &&
+    const kept = rows.filter((o) =>
+      (!levels.length || levels.includes(o.hire_level_label)) &&
+      (!days.length || days.includes(o.days)) &&
+      (!statuses.length || statuses.includes(o.status)) &&
       matches(q, o.observee_name, o.observer_name, o.course_code));
-  }, [rows, query, level, status, actor]);
-  const filtered = query || level !== 'all' || status !== 'all' || actor !== 'all';
+    return sortBy(kept, sorts, OUTSTANDING_SORTS);
+  }, [rows, query, filters]);
+  const active = countFilters(filters);
+  const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, [openRef]);
 
   return (
     <ListDialog
-      titleId="outstanding-title" title="Outstanding observations" onClose={onClose} paused={Boolean(detail)}
+      titleId="outstanding-title" title="Outstanding observations" onClose={onClose} paused={Boolean(detail) || filterOpen}
       sub={`${observations.length} observations not complete yet · ${statusCounts.missed || 0} missed`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by observee, observer or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search outstanding observations" />
-        <select className="select" value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Filter by hiring level">
-          <option value="all">All levels</option>
-          {levels.map((l) => <option key={l} value={l}>{l}</option>)}
-        </select>
-        <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
-          <option value="all">Any status</option>
-          {Object.entries(STATUS).filter(([k]) => statusCounts[k]).map(([k, [l]]) => <option key={k} value={k}>{l} · {statusCounts[k]}</option>)}
-        </select>
-        <select className="select" value={actor} onChange={(e) => setActor(e.target.value)} aria-label="Filter by who acts next">
-          <option value="all">Waiting on anyone</option>
-          {actors.map((a) => <option key={a} value={a}>{a} · {actorCounts[a]}</option>)}
-        </select>
-        {filtered && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(''); setLevel('all'); setStatus('all'); setActor('all'); }}>Clear</button>}
+        <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
+          placeholder="Search by observee, observer or course" searchLabel="Search outstanding observations"
+          onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_OUTSTANDING_FILTERS); }} />
+        {filterOpen && (
+          <OutstandingFilterDialog applied={filters} levelCounts={levelCounts} dayCounts={dayCounts} statusCounts={statusCounts}
+            onApply={setFilters} onClose={closeFilters} />
+        )}
       </>}
       footer={`Showing ${shown.length} of ${observations.length}. Click a next action to see the full explanation.`}
     >
@@ -528,5 +660,179 @@ export function MissingList({ missing }) {
         </tbody>
       </table>
     </ListPanel>
+  );
+}
+
+/* ---------- Signup monitor: toolbar + "Advanced filtering" pop-up ---------- */
+
+// Rows are the Signup monitor's { signup, obs } pairs. Status is the observer list's match flag.
+const SIGNUP_STATUSES = [
+  ['OK', 'Satisfactory (5 eligible observers)'],
+  ['INSUFFICIENT OBSERVERS', 'Insufficient (1–4 eligible observers)'],
+  ['NO ELIGIBLE OBSERVER', 'No eligible observer (0 eligible observers)'],
+];
+const signupObserver = (r) => r.obs?.observerName || '';
+const bySignupText = (get, dir) => (a, b) => {
+  const x = get(a), y = get(b);
+  return x === y ? 0 : !x ? 1 : !y ? -1 : dir * x.localeCompare(y);
+};
+const bySignupCourse = (dir) => (a, b) => {
+  const x = courseNum(a.signup.courseCode), y = courseNum(b.signup.courseCode);
+  return x === y ? 0 : x === null ? 1 : y === null ? -1 : dir * (x - y);
+};
+const SIGNUP_SORTS = {
+  observeeAsc: bySignupText((r) => r.signup.observeeName, 1),
+  observeeDesc: bySignupText((r) => r.signup.observeeName, -1),
+  courseAsc: bySignupCourse(1),
+  courseDesc: bySignupCourse(-1),
+  observerAsc: bySignupText(signupObserver, 1), // sign-ups with no confirmed observer sort last either way
+  observerDesc: bySignupText(signupObserver, -1),
+};
+const SIGNUP_PAIRS = {
+  observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc',
+  observerAsc: 'observerDesc', observerDesc: 'observerAsc',
+};
+export const EMPTY_SIGNUP_FILTERS = { sorts: [], days: [], statuses: [] };
+
+// Search + ticked filters + sorts, applied to the Signup monitor rows.
+export function applySignupFilters(rows, query, filters) {
+  const q = query.trim().toLowerCase();
+  const kept = rows.filter((r) =>
+    (!filters.days.length || filters.days.includes(classDays(r.signup.timing))) &&
+    (!filters.statuses.length || filters.statuses.includes(r.signup.matchFlag)) &&
+    matches(q, r.signup.observeeName, r.signup.courseCode, signupObserver(r)));
+  return sortBy(kept, filters.sorts, SIGNUP_SORTS);
+}
+
+function SignupFilterDialog({ applied, dayCounts, statusCounts, onApply, onClose }) {
+  const [draft, setDraft] = useState(applied);
+  const toggle = (key, value) => toggleIn(setDraft, key, value);
+  const toggleSort = (key) => toggleSortIn(setDraft, SIGNUP_PAIRS, key);
+  const reset = () => { setDraft(EMPTY_SIGNUP_FILTERS); onApply(EMPTY_SIGNUP_FILTERS); };
+  const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
+
+  return (
+    <FilterDialog titleId="signup-filter-title" sub="Sort and narrow the sign-up list. Tick any options, then select Apply filters."
+      draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-signups">
+      <fieldset className="filter-group">
+        <legend>Observee</legend>
+        {sortCheck('observeeAsc', 'Ascending (A–Z)')}
+        {sortCheck('observeeDesc', 'Descending (Z–A)')}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Course</legend>
+        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
+        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
+      </fieldset>
+      <fieldset className="filter-group filter-group-nowrap">
+        <legend>Days</legend>
+        {OUTSTANDING_DAYS.map(([k, label]) => <FilterCheck key={k} label={label} count={dayCounts[k] || 0} checked={draft.days.includes(k)} onToggle={() => toggle('days', k)} />)}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Status</legend>
+        {SIGNUP_STATUSES.map(([k, label]) => <FilterCheck key={k} label={label} count={statusCounts[k] || 0} checked={draft.statuses.includes(k)} onToggle={() => toggle('statuses', k)} />)}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Observer</legend>
+        {sortCheck('observerAsc', 'Ascending (A–Z)')}
+        {sortCheck('observerDesc', 'Descending (Z–A)')}
+      </fieldset>
+    </FilterDialog>
+  );
+}
+
+// "More filters" button + search box for the Signup monitor page. The page owns query/filters so it can filter its own rows.
+export function SignupFilters({ rows, query, setQuery, filters, setFilters }) {
+  const [filterOpen, setFilterOpen] = useState(false);
+  const openRef = useRef(null);
+  const dayCounts = useMemo(() => countBy(rows.map((r) => ({ d: classDays(r.signup.timing) })), 'd'), [rows]);
+  const statusCounts = useMemo(() => countBy(rows.map((r) => r.signup), 'matchFlag'), [rows]);
+  const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, []);
+
+  return (
+    <div className="page-filters">
+      <FilterToolbar openRef={openRef} active={countFilters(filters)} query={query} setQuery={setQuery}
+        placeholder="Search by observee, observer or course" searchLabel="Search sign-ups"
+        onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_SIGNUP_FILTERS); }} />
+      {filterOpen && <SignupFilterDialog applied={filters} dayCounts={dayCounts} statusCounts={statusCounts} onApply={setFilters} onClose={closeFilters} />}
+    </div>
+  );
+}
+
+/* ---------- Digital evaluations: toolbar + "Advanced filtering" pop-up ---------- */
+
+// Rows are submitted evaluation forms: { observeeName, observerName, courseCode, dateSubmitted }.
+const byEvalCourse = (dir) => (a, b) => {
+  const x = courseNum(a.courseCode), y = courseNum(b.courseCode);
+  return x === y ? 0 : x === null ? 1 : y === null ? -1 : dir * (x - y);
+};
+// ISO dates compare correctly as text; forms with no date sort last either way.
+const EVAL_SORTS = {
+  observeeAsc: bySignupText((e) => e.observeeName, 1),
+  observeeDesc: bySignupText((e) => e.observeeName, -1),
+  courseAsc: byEvalCourse(1),
+  courseDesc: byEvalCourse(-1),
+  observerAsc: bySignupText((e) => e.observerName, 1),
+  observerDesc: bySignupText((e) => e.observerName, -1),
+  dateOldest: bySignupText((e) => e.dateSubmitted || '', 1),
+  dateNewest: bySignupText((e) => e.dateSubmitted || '', -1),
+};
+const EVAL_PAIRS = {
+  observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc',
+  observerAsc: 'observerDesc', observerDesc: 'observerAsc', dateOldest: 'dateNewest', dateNewest: 'dateOldest',
+};
+export const EMPTY_EVAL_FILTERS = { sorts: [] };
+
+export function applyEvaluationFilters(rows, query, filters) {
+  const q = query.trim().toLowerCase();
+  return sortBy(rows.filter((e) => matches(q, e.observeeName, e.observerName, e.courseCode)), filters.sorts, EVAL_SORTS);
+}
+
+function EvaluationFilterDialog({ applied, onApply, onClose }) {
+  const [draft, setDraft] = useState(applied);
+  const toggleSort = (key) => toggleSortIn(setDraft, EVAL_PAIRS, key);
+  const reset = () => { setDraft(EMPTY_EVAL_FILTERS); onApply(EMPTY_EVAL_FILTERS); };
+  const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
+
+  return (
+    <FilterDialog titleId="eval-filter-title" sub="Sort the submitted evaluation forms. Tick any options, then select Apply filters."
+      draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-evals">
+      <fieldset className="filter-group">
+        <legend>Observee</legend>
+        {sortCheck('observeeAsc', 'Ascending (A–Z)')}
+        {sortCheck('observeeDesc', 'Descending (Z–A)')}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Course</legend>
+        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
+        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Observer</legend>
+        {sortCheck('observerAsc', 'Ascending (A–Z)')}
+        {sortCheck('observerDesc', 'Descending (Z–A)')}
+      </fieldset>
+      <fieldset className="filter-group">
+        <legend>Date</legend>
+        {sortCheck('dateOldest', 'Oldest first')}
+        {sortCheck('dateNewest', 'Newest first')}
+      </fieldset>
+    </FilterDialog>
+  );
+}
+
+// "More filters" button + search box for the Digital evaluations page.
+export function EvaluationFilters({ query, setQuery, filters, setFilters }) {
+  const [filterOpen, setFilterOpen] = useState(false);
+  const openRef = useRef(null);
+  const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, []);
+
+  return (
+    <div className="page-filters">
+      <FilterToolbar openRef={openRef} active={countFilters(filters)} query={query} setQuery={setQuery}
+        placeholder="Search by observee, observer or course" searchLabel="Search evaluations"
+        onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_EVAL_FILTERS); }} />
+      {filterOpen && <EvaluationFilterDialog applied={filters} onApply={setFilters} onClose={closeFilters} />}
+    </div>
   );
 }

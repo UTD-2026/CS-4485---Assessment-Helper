@@ -107,6 +107,7 @@ function observerWorkload(ctx) {
       completed: assigned.filter((o) => o.status === "completed").length,
       pending: assigned.filter((o) => !["completed", "missed", "deferred"].includes(o.status)).length,
       missed: assigned.filter((o) => o.status === "missed").length,
+      deferred: assigned.filter((o) => o.status === "deferred").length,
     };
   }).sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
 }
