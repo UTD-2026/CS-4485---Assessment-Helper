@@ -8,6 +8,8 @@ const PATHS = {
   signups: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
   calendar: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
   sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  // Horizontal sliders (the "More filters" button)
+  filters: 'M3 6h11M18 6h3M14 6a2 2 0 1 0 4 0a2 2 0 1 0-4 0M3 12h3M10 12h11M6 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0M3 18h9M16 18h5M12 18a2 2 0 1 0 4 0a2 2 0 1 0-4 0',
   form: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 15l2 2 4-4',
   message: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
   home: 'M3 12l9-9 9 9M5 10v10h14V10',

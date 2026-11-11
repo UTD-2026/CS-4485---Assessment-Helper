@@ -1062,6 +1062,45 @@ a:hover { color: var(--accent-hover); }
 .dialog-wide .dialog-filters .select { flex: 0 1 240px; }
 .code-chip-bad { background: var(--bad-bg); color: var(--bad-fg); font-weight: 700; }
 
+/* Search box that opens the filter pop-up (Unmatched faculty), and the pop-up itself */
+.search-field {
+  flex: 1 1 260px; display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: var(--r); background: var(--sunken); color: var(--placeholder);
+  font-size: 14.5px; text-align: left;
+}
+.search-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+.search-field input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; min-height: 40px; }
+.search-field input::placeholder { color: var(--placeholder); }
+.more-filters { min-height: 42px; gap: 8px; white-space: nowrap; }
+.search-launch-count { padding: 2px 8px; border-radius: 999px; background: var(--good-bg); color: var(--good-fg); font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+.dialog-overlay-top { z-index: 950; }
+.filter-dialog { width: min(1040px, 100%); overflow: auto; }
+.filter-dialog-actions { display: flex; justify-content: flex-end; padding: 14px 20px 0; }
+.filter-dialog-actions + .filter-groups { padding-top: 4px; }
+.filter-reset { background: transparent; font-weight: 700; color: var(--bad-fg); border-color: var(--bad-line); }
+.filter-reset:hover:not(:disabled) { background: var(--bad-bg); }
+.filter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px 24px; padding: 18px 20px; }
+.filter-group { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.filter-group-wide { grid-column: span 2; }
+.filter-group legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 800; color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+.filter-check {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-2); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+}
+.filter-check:hover { background: var(--raised); }
+.filter-check:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+.filter-check-box {
+  flex: none; width: 18px; height: 18px; margin-top: 1px; display: grid; place-items: center;
+  border: 1.5px solid var(--border-strong); border-radius: 5px; background: var(--surface); color: var(--on-good);
+}
+.filter-check.checked { background: var(--good-surface); color: var(--good-fg); font-weight: 600; }
+.filter-check.checked .filter-check-box { background: var(--good-fill); border-color: var(--good-fill); }
+.filter-check-label { flex: 1; line-height: 1.35; }
+.filter-check-count { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.filter-dialog-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); font-size: 13px; }
+@media (max-width: 640px) { .filter-group-wide { grid-column: auto; } }
+
 /* ---------- Class day picker ---------- */
 
 .class-day-picker { position: relative; display: inline-block; }

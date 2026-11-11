@@ -203,47 +203,138 @@ export function WorkloadDialog({ workload, onClose }) {
 
 /* ---------- Committee reports: unmatched faculty ---------- */
 
+// One tickable option in the filter pop-up: a box that turns green with a check mark when on. Click again to untick.
+function FilterCheck({ checked, onToggle, label, count }) {
+  return (
+    <button type="button" role="checkbox" aria-checked={checked} className={`filter-check${checked ? ' checked' : ''}`} onClick={onToggle}>
+      <span className="filter-check-box" aria-hidden="true">{checked && <Icon name="check" size={12} />}</span>
+      <span className="filter-check-label">{label}</span>
+      {count !== undefined && <span className="filter-check-count">{count}</span>}
+    </button>
+  );
+}
+
+// Course number from a code like "CS 3039" (no course sorts last either way).
+const courseNum = (code) => { const m = /(\d+)/.exec(code || ''); return m ? Number(m[1]) : null; };
+const SORTS = {
+  nameAsc: (a, b) => a.name.localeCompare(b.name),
+  nameDesc: (a, b) => b.name.localeCompare(a.name),
+  courseAsc: (a, b) => { const x = courseNum(a.course_code), y = courseNum(b.course_code); return x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y; },
+  courseDesc: (a, b) => { const x = courseNum(a.course_code), y = courseNum(b.course_code); return x === y ? 0 : x === null ? 1 : y === null ? -1 : y - x; },
+};
+// Each sort group allows one direction; picking the other direction replaces it.
+const SORT_PAIRS = { nameAsc: 'nameDesc', nameDesc: 'nameAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc' };
+const EMPTY_FILTERS = { sorts: [], levels: [], due: [], reasons: [] };
+const filterCount = (f) => f.sorts.length + f.levels.length + f.due.length + f.reasons.length;
+
+// "Advanced filtering" pop-up. Changes only take effect on Apply (or Reset); only X / Esc / outside click closes it.
+// The plain text search stays outside, in the list's own search box.
+function UnmatchedFilterDialog({ applied, levels, reasons, levelCounts, dueCounts, reasonCounts, onApply, onClose }) {
+  const [draft, setDraft] = useState(applied);
+  const closeRef = useAutoFocus();
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const toggle = (key, value) => setDraft((d) => ({ ...d, [key]: d[key].includes(value) ? d[key].filter((v) => v !== value) : [...d[key], value] }));
+  // Sorts keep the order they were picked in: the first one picked is the main sort, later ones break ties.
+  const toggleSort = (key) => setDraft((d) => ({ ...d, sorts: d.sorts.includes(key) ? d.sorts.filter((s) => s !== key) : [...d.sorts.filter((s) => s !== SORT_PAIRS[key]), key] }));
+  const reset = () => { setDraft(EMPTY_FILTERS); onApply(EMPTY_FILTERS); };
+  const changed = JSON.stringify(draft) !== JSON.stringify(applied);
+
+  return (
+    <div className="dialog-overlay dialog-overlay-top" onClick={onClose}>
+      <div className="dialog filter-dialog" role="dialog" aria-modal="true" aria-labelledby="unmatched-filter-title" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-head">
+          <div>
+            <h2 id="unmatched-filter-title" className="card-title">Advanced filtering</h2>
+            <p className="card-sub">Sort and narrow the unmatched faculty list. Tick any options, then select Apply filters.</p>
+          </div>
+          <button ref={closeRef} type="button" className="icon-button" onClick={onClose} aria-label="Close filters"><Icon name="x" /></button>
+        </div>
+        <div className="filter-dialog-actions">
+          <button type="button" className="btn filter-reset" onClick={reset}>Reset filters</button>
+        </div>
+        <div className="filter-groups">
+          <fieldset className="filter-group">
+            <legend>Professor</legend>
+            <FilterCheck label="Ascending (A–Z)" checked={draft.sorts.includes('nameAsc')} onToggle={() => toggleSort('nameAsc')} />
+            <FilterCheck label="Descending (Z–A)" checked={draft.sorts.includes('nameDesc')} onToggle={() => toggleSort('nameDesc')} />
+          </fieldset>
+          <fieldset className="filter-group">
+            <legend>Level</legend>
+            {levels.map((l) => <FilterCheck key={l} label={l} count={levelCounts[l]} checked={draft.levels.includes(l)} onToggle={() => toggle('levels', l)} />)}
+          </fieldset>
+          <fieldset className="filter-group">
+            <legend>Evaluation status</legend>
+            {['due', 'overdue'].map((k) => <FilterCheck key={k} label={DUE[k][0]} count={dueCounts[k] || 0} checked={draft.due.includes(k)} onToggle={() => toggle('due', k)} />)}
+          </fieldset>
+          <fieldset className="filter-group">
+            <legend>Course</legend>
+            <FilterCheck label="Ascending (1000 → 5000)" checked={draft.sorts.includes('courseAsc')} onToggle={() => toggleSort('courseAsc')} />
+            <FilterCheck label="Descending (5000 → 1000)" checked={draft.sorts.includes('courseDesc')} onToggle={() => toggleSort('courseDesc')} />
+          </fieldset>
+          <fieldset className="filter-group filter-group-wide">
+            <legend>Next action</legend>
+            {reasons.map((r) => <FilterCheck key={r} label={r} count={reasonCounts[r]} checked={draft.reasons.includes(r)} onToggle={() => toggle('reasons', r)} />)}
+          </fieldset>
+        </div>
+        <div className="filter-dialog-foot">
+          <span className="faint">{changed ? 'You have changes that are not applied yet.' : 'Filters are up to date.'}</span>
+          <button type="button" className="btn btn-primary" onClick={() => onApply(draft)}>Apply filters</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function UnmatchedDialog({ faculty, onClose }) {
   const [query, setQuery] = useState('');
-  const [level, setLevel] = useState('all');
-  const [due, setDue] = useState('all');
-  const [reason, setReason] = useState('all');
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
   const searchRef = useAutoFocus();
+  const openRef = useRef(null);
 
   const levels = useMemo(() => optionsOf(faculty, 'hire_level_label'), [faculty]);
   const reasons = useMemo(() => optionsOf(faculty, 'reason'), [faculty]);
+  const levelCounts = useMemo(() => countBy(faculty, 'hire_level_label'), [faculty]);
   const reasonCounts = useMemo(() => countBy(faculty, 'reason'), [faculty]);
   const dueCounts = useMemo(() => countBy(faculty, 'evaluation_status'), [faculty]);
   const shown = useMemo(() => {
+    const { sorts, levels: lv, due, reasons: rs } = filters;
     const q = query.trim().toLowerCase();
-    return faculty.filter((p) =>
-      (level === 'all' || p.hire_level_label === level) &&
-      (due === 'all' || p.evaluation_status === due) &&
-      (reason === 'all' || p.reason === reason) &&
+    const rows = faculty.filter((p) =>
+      (!lv.length || lv.includes(p.hire_level_label)) &&
+      (!due.length || due.includes(p.evaluation_status)) &&
+      (!rs.length || rs.includes(p.reason)) &&
       matches(q, p.name, p.department, p.course_code));
-  }, [faculty, query, level, due, reason]);
-  const filtered = query || level !== 'all' || due !== 'all' || reason !== 'all';
+    if (!sorts.length) return rows;
+    return [...rows].sort((a, b) => { for (const s of sorts) { const r = SORTS[s](a, b); if (r) return r; } return 0; });
+  }, [faculty, query, filters]);
+  const active = filterCount(filters);
+  const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, [openRef]);
 
   return (
     <ListDialog
-      titleId="unmatched-title" title="Unmatched faculty" onClose={onClose}
+      titleId="unmatched-title" title="Unmatched faculty" onClose={onClose} paused={filterOpen}
       sub={`${faculty.length} due or overdue faculty without an observer · ${dueCounts.overdue || 0} overdue · ${dueCounts.due || 0} due`}
       filters={<>
-        <input ref={searchRef} className="input" type="search" placeholder="Search by professor, department or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search unmatched faculty" />
-        <select className="select" value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Filter by hiring level">
-          <option value="all">All levels</option>
-          {levels.map((l) => <option key={l} value={l}>{l}</option>)}
-        </select>
-        <select className="select" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Filter by evaluation status">
-          <option value="all">Due + overdue</option>
-          {['overdue', 'due'].map((k) => <option key={k} value={k}>{DUE[k][0]} only · {dueCounts[k] || 0}</option>)}
-        </select>
-        <select className="select" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Filter by next action">
-          <option value="all">Any next action</option>
-          {reasons.map((r) => <option key={r} value={r}>{r} · {reasonCounts[r]}</option>)}
-        </select>
-        {filtered && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQuery(''); setLevel('all'); setDue('all'); setReason('all'); }}>Clear</button>}
+        <button ref={openRef} type="button" className="btn btn-ghost more-filters" onClick={() => setFilterOpen(true)} aria-haspopup="dialog">
+          <Icon name="filters" size={18} />
+          More filters
+          {active > 0 && <span className="search-launch-count">{active}</span>}
+        </button>
+        <label className="search-field">
+          <Icon name="search" size={16} />
+          <input ref={searchRef} type="search" placeholder="Search by professor, department or course" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search unmatched faculty" />
+        </label>
+        {(active > 0 || query) && <button type="button" className="btn btn-ghost" onClick={() => { setQuery(''); setFilters(EMPTY_FILTERS); }}>Clear</button>}
+        {filterOpen && (
+          <UnmatchedFilterDialog applied={filters} levels={levels} reasons={reasons} levelCounts={levelCounts} dueCounts={dueCounts} reasonCounts={reasonCounts}
+            onApply={setFilters} onClose={closeFilters} />
+        )}
       </>}
       footer={`Showing ${shown.length} of ${faculty.length}.`}
     >
