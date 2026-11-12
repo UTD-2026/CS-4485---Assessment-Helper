@@ -1,113 +1,108 @@
+// Every call to the backend goes through here. Vite proxies /api to http://localhost:5000 in development
+// (frontend/vite.config.js, from the mikael_backend_db branch). Endpoints follow the team's "API Endpoints" doc.
+
+const TOKEN_KEY = 'assessment-helper-token';
+let token = null;
+try { token = sessionStorage.getItem(TOKEN_KEY); } catch { /* storage unavailable: stay in memory */ }
+
+export const setToken = (value) => {
+  token = value;
+  try {
+    if (value) sessionStorage.setItem(TOKEN_KEY, value);
+    else sessionStorage.removeItem(TOKEN_KEY);
+  } catch { /* ignore */ }
+};
+export const hasToken = () => Boolean(token);
+
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(status, message) {
     super(message);
-    this.name = 'ApiError';
     this.status = status;
   }
 }
 
-export async function apiRequest(path, { method = 'GET', body, signal } = {}) {
-  const response = await fetch(path, {
-    method,
-    credentials: 'same-origin',
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  });
-
-  if (response.status === 204) return null;
-
-  const responseText = await response.text();
-  let result;
+async function request(method, path, body) {
+  let res;
   try {
-    result = JSON.parse(responseText);
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: {
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
   } catch {
-    const contentType = response.headers.get('content-type') || 'unknown content type';
-    const excerpt = responseText.replace(/\s+/g, ' ').trim().slice(0, 160);
-    throw new ApiError(
-      `The API returned non-JSON data (HTTP ${response.status}, ${contentType})${excerpt ? `: ${excerpt}` : '.'}`,
-      response.status
-    );
+    throw new ApiError(0, 'Cannot reach the Assessment Helper API. Is the backend running (npm run backend:dev)?');
   }
-
-  if (!response.ok) {
-    throw new ApiError(result.error || `Request failed (${response.status}).`, response.status);
+  if (res.status === 204) return null;
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 401 && path !== '/auth/login') setToken(null);
+    throw new ApiError(res.status, json.error || `Request failed (${res.status}).`);
   }
-
-  return result.data;
+  return json;
 }
 
-export function queryString(values = {}) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined && value !== null && value !== '') params.set(key, value);
-  }
-  const encoded = params.toString();
-  return encoded ? `?${encoded}` : '';
-}
+const q = (params = {}) => {
+  const s = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString();
+  return s ? `?${s}` : '';
+};
+const enc = encodeURIComponent;
+/** "CS 2117|001|Fall 2026" -> "/CS%202117/001/Fall%202026" */
+export const keyPath = (id) => '/' + String(id).split('|').map(enc).join('/');
 
-const segment = (value) => encodeURIComponent(value);
+export const api = {
+  // Auth
+  login: (username, password) => request('POST', '/auth/login', { username, password }),
+  me: () => request('GET', '/auth/me'),
+  testAccounts: () => request('GET', '/auth/test-accounts'),
 
-export const assessmentApi = {
-  login: (credentials) => apiRequest('/api/auth/login', { method: 'POST', body: credentials }),
-  listProfessors: () => apiRequest('/api/professors'),
-  getProfessor: (email) => apiRequest(`/api/professors/${segment(email)}`),
-  patchProfessor: (email, changes) => apiRequest(`/api/professors/${segment(email)}`, { method: 'PATCH', body: changes }),
-  getProfessorEvaluationStatus: (email) => apiRequest(`/api/professors/${segment(email)}/evaluation-status`),
+  // 1. Professors
+  professors: (term) => request('GET', `/professors${q({ term })}`),
+  evaluationStatus: (email, term) => request('GET', `/professors/${enc(email)}/evaluation-status${q({ term })}`),
 
-  listCourseSections: (filters) => apiRequest(`/api/course-sections${queryString(filters)}`),
-  getCourseSection: ({ course_code, section_number, term }) => apiRequest(
-    `/api/course-sections/${segment(course_code)}/${segment(section_number)}/${segment(term)}`
-  ),
-  createCourseSection: (section) => apiRequest('/api/course-sections', { method: 'POST', body: section }),
-  patchCourseSection: ({ course_code, section_number, term }, changes) => apiRequest(
-    `/api/course-sections/${segment(course_code)}/${segment(section_number)}/${segment(term)}`,
-    { method: 'PATCH', body: changes }
-  ),
+  // 2. Course sections
+  courseSections: (params) => request('GET', `/course-sections${q(params)}`),
 
-  listEvaluationCycles: () => apiRequest('/api/evaluation-cycles'),
-  getEvaluationCycle: (term) => apiRequest(`/api/evaluation-cycles/${segment(term)}`),
-  createEvaluationCycle: (cycle) => apiRequest('/api/evaluation-cycles', { method: 'POST', body: cycle }),
-  patchEvaluationCycle: (term, changes) => apiRequest(
-    `/api/evaluation-cycles/${segment(term)}`,
-    { method: 'PATCH', body: changes }
-  ),
-  getDueProfessors: (term) => apiRequest(`/api/evaluation-cycles/${segment(term)}/due-professors`),
-  getEvaluationTemplate: (term) => apiRequest(`/api/evaluation-cycles/${segment(term)}/template`),
+  // 3. Evaluation cycles
+  cycles: () => request('GET', '/evaluation-cycles'),
+  updateCycle: (term, deadlines) => request('PATCH', `/evaluation-cycles/${enc(term)}`, deadlines),
+  dueProfessors: (term) => request('GET', `/evaluation-cycles/${enc(term)}/due-professors`),
+  template: (term) => request('GET', `/evaluation-cycles/${enc(term)}/template`),
+  saveTemplate: (term, criteria) => request('PUT', `/evaluation-cycles/${enc(term)}/template`, { criteria }),
 
-  listObservations: (filters) => apiRequest(`/api/observations${queryString(filters)}`),
-  getObservation: ({ course_code, section_number, term }) => apiRequest(
-    `/api/observations/${segment(course_code)}/${segment(section_number)}/${segment(term)}`
-  ),
-  createObservation: (observation) => apiRequest('/api/observations', { method: 'POST', body: observation }),
-  patchObservation: ({ course_code, section_number, term }, changes) => apiRequest(
-    `/api/observations/${segment(course_code)}/${segment(section_number)}/${segment(term)}`,
-    { method: 'PATCH', body: changes }
-  ),
-  patchObservationStatus: (key, status) => apiRequest(
-    `/api/observations/${segment(key.course_code)}/${segment(key.section_number)}/${segment(key.term)}/status`,
-    { method: 'PATCH', body: { status } }
-  ),
-  patchObservationForm: (key, form) => apiRequest(
-    `/api/observations/${segment(key.course_code)}/${segment(key.section_number)}/${segment(key.term)}/form`,
-    { method: 'PATCH', body: form }
-  ),
-  reportMissedObservation: (key) => apiRequest(
-    `/api/observations/${segment(key.course_code)}/${segment(key.section_number)}/${segment(key.term)}/missed`,
-    { method: 'PATCH', body: {} }
-  ),
+  // 4. Observations
+  observations: (params) => request('GET', `/observations${q(params)}`),
+  signUp: (course_code, section_number, term) => request('POST', '/observations', { course_code, section_number, term }),
+  schedule: (id, observation_date, observation_time) => request('PATCH', `/observations${keyPath(id)}`, { observation_date, observation_time }),
+  setStatus: (id, status, reason) => request('PATCH', `/observations${keyPath(id)}/status`, { status, reason }),
+  form: (id, body) => request('PATCH', `/observations${keyPath(id)}/form`, body),
+  reportMissed: (id, reason) => request('PATCH', `/observations${keyPath(id)}/missed`, { reason }),
 
-  listObserverMatches: (filters) => apiRequest(`/api/observer-matches${queryString(filters)}`),
-  generateObserverMatches: (request) => apiRequest('/api/observer-matches/generate', { method: 'POST', body: request }),
-  updateObserverMatchStatus: ({ course_code, section_number, term }, observerEmail, status) => apiRequest(
-    `/api/observer-matches/${segment(course_code)}/${segment(section_number)}/${segment(term)}/${segment(observerEmail)}`,
-    { method: 'PATCH', body: { status } }
-  ),
-  assignObserver: (assignment) => apiRequest('/api/observer-matches/assign', { method: 'POST', body: assignment }),
+  // 5. Observer matches
+  observerMatches: (params) => request('GET', `/observer-matches${q(params)}`),
+  generateList: (id) => request('POST', `/observations${keyPath(id)}/generate-observer-list`),
+  generateAllLists: (term, dryRun = false) => request('POST', '/observer-matches/generate', { term, dry_run: dryRun }),
+  releaseList: (id) => request('POST', `/observations${keyPath(id)}/release-observer-list`),
+  sendRequests: (id, observer_emails) => request('POST', `/observations${keyPath(id)}/observer-requests`, { observer_emails }),
+  respond: (observationId, observerEmail, response) =>
+    request('PATCH', `/observer-matches${keyPath(observationId)}/${enc(observerEmail)}/response`, { response }),
+  selectObserver: (id, observer_email) => request('POST', `/observations${keyPath(id)}/select-observer`, { observer_email }),
 
-  getSurveyStatus: (professor_email, term) => apiRequest(
-    `/api/surveys/status${queryString({ professor_email, term })}`
-  ),
-  submitSurvey: (response) => apiRequest('/api/surveys', { method: 'POST', body: response }),
-  getSurveyResponses: (term) => apiRequest(`/api/surveys/responses${queryString({ term })}`),
+  // 6. Surveys
+  surveyStatus: (term, all) => request('GET', `/surveys/status${q({ term, all: all ? 'true' : undefined })}`),
+  submitSurvey: (answers) => request('POST', '/surveys', answers),
+  surveyResponses: (term) => request('GET', `/surveys/responses${q({ term })}`),
+  surveyReminders: (term) => request('POST', '/surveys/reminders', { term }),
+
+  // 7. Reports and KPIs
+  kpis: (term) => request('GET', `/reports/kpis${q({ term })}`),
+  outstanding: (term) => request('GET', `/reports/outstanding-observations${q({ term })}`),
+  unmatched: (term, includeAllDue) => request('GET', `/reports/unmatched-faculty${q({ term, include: includeAllDue ? 'all_due' : undefined })}`),
+
+  // 8. Notifications
+  notifications: () => request('GET', '/notifications'),
+  markRead: (id) => request('PATCH', `/notifications/${enc(id)}/read`),
+  archive: (id) => request('PATCH', `/notifications/${enc(id)}/archive`),
 };

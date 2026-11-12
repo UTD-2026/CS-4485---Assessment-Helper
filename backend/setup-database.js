@@ -8,6 +8,7 @@ const {
   Observation,
   ObserverMatch,
   Survey,
+  Notification,
 } = require("./models");
 
 async function setupDatabase() {
@@ -26,7 +27,8 @@ async function setupDatabase() {
 
     for (const item of obsoleteIndexes) {
       const collection = mongoose.connection.db.collection(item.collection);
-      const indexes = await collection.indexes();
+      // indexes() throws on a brand-new database where the collection does not exist yet.
+      const indexes = await collection.indexes().catch(() => []);
       const exists = indexes.some((index) => index.name === item.index);
 
       if (exists) {
@@ -42,6 +44,7 @@ async function setupDatabase() {
       Observation,
       ObserverMatch,
       Survey,
+      Notification,
     ];
 
     for (const model of models) {

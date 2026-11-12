@@ -1,190 +1,137 @@
-const fs = require("node:fs/promises");
-const path = require("node:path");
+// 3. Evaluation Cycles
 const express = require("express");
-const { EvaluationCycle, Professor } = require("../models");
-const {
-  ApiError,
-  asyncRoute,
-  sendData,
-  requireObject,
-  rejectUnknownFields,
-  normalizeTerm,
-  sortTermsDescending,
-  parseDate,
-  ensureDateOrder,
-} = require("./apiHelpers");
-const { getCompletedEvaluationTerms, getStatusForTerm } = require("./professors");
+const { EvaluationCycle } = require("../models");
+const { requireAc } = require("../middleware/auth");
+const { badRequest, conflict, notFound } = require("../middleware/errors");
+const { isValidTerm } = require("../services/terms");
+const { getTemplate, saveTemplate, copyLatestTemplate } = require("../services/templates");
+const { notify } = require("../services/notifications");
 
 const router = express.Router();
-const CYCLE_FIELDS = ["term", "signup_deadline", "observation_deadline", "feedback_deadline"];
-const DEADLINE_FIELDS = ["signup_deadline", "observation_deadline", "feedback_deadline"];
-const templatesDirectory = path.join(__dirname, "..", "templates");
+const { getCycles, getCurrentTerm, loadTermContext, presentProfessor, toISODate, observeeOf, deadlineClosesAt } = require("../services/context");
+const DEADLINES = ["signup_deadline", "observation_deadline", "feedback_deadline"];
+// Each deadline has an optional close time ("HH:MM", 24-hour). null = closes at 11:59 PM on its date.
+const TIMES = DEADLINES.map((f) => `${f}_time`);
 
-async function createTemplateForNewCycle(term) {
-  const targetPath = path.join(templatesDirectory, `${term}.json`);
-  try {
-    await fs.access(targetPath);
-    return;
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
+const presentCycle = (c) => ({
+  term: c.term,
+  signup_deadline: toISODate(c.signup_deadline),
+  signup_deadline_time: c.signup_deadline_time || null,
+  observation_deadline: toISODate(c.observation_deadline),
+  observation_deadline_time: c.observation_deadline_time || null,
+  feedback_deadline: toISODate(c.feedback_deadline),
+  feedback_deadline_time: c.feedback_deadline_time || null,
+});
 
-  const cycles = await EvaluationCycle.find({}).select("term").lean();
-  cycles.sort(sortTermsDescending);
-  for (const cycle of cycles) {
-    try {
-      const sourcePath = path.join(templatesDirectory, `${cycle.term}.json`);
-      const contents = await fs.readFile(sourcePath, "utf8");
-      const template = JSON.parse(contents);
-      if (!Array.isArray(template)) throw new Error("Template must be a JSON array.");
-      await fs.mkdir(templatesDirectory, { recursive: true });
-      await fs.writeFile(targetPath, `${JSON.stringify(template, null, 2)}\n`, { flag: "wx" });
-      return;
-    } catch (error) {
-      if (error.code === "ENOENT") continue;
-      if (error.code === "EEXIST") return;
-      throw error;
+// "2026-11-13" + "17:00" -> "2026-11-13 at 17:00"; no time -> "2026-11-13"
+const withTime = (date, time) => (time ? `${date} at ${time}` : date);
+
+function readDeadlines(body, partial) {
+  const out = {};
+  for (const f of DEADLINES) {
+    if (body?.[f] === undefined) {
+      if (!partial) throw badRequest(`Missing required field: ${f}.`);
+      continue;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body[f]))) throw badRequest(`${f} must be a date (YYYY-MM-DD).`);
+    out[f] = new Date(`${body[f]}T00:00:00.000Z`);
   }
-  throw new ApiError(500, "Could not initialize a template for the new cycle.");
+  // Optional close times ("HH:MM", 24-hour). null or "" = close at 11:59 PM.
+  for (const f of TIMES) {
+    if (body?.[f] === undefined) continue;
+    const t = body[f];
+    if (t === null || t === "") out[f] = null;
+    else if (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(t))) out[f] = String(t);
+    else throw badRequest(`${f} must be a time (HH:MM, 24-hour) or null.`);
+  }
+  // Ordering uses the full closing moment, so two deadlines on the same day are compared by time.
+  const at = (f) => (out[f] ? deadlineClosesAt(out[f], out[`${f}_time`]) : null);
+  const s = at("signup_deadline"), o = at("observation_deadline"), fb = at("feedback_deadline");
+  if (s && o && s > o) throw badRequest("The signup deadline must be on or before the observation deadline.");
+  if (o && fb && o > fb) throw badRequest("The observation deadline must be on or before the feedback deadline.");
+  return out;
 }
 
-function asDateFields(body) {
-  return {
-    signup_deadline: parseDate(body.signup_deadline, "signup_deadline"),
-    observation_deadline: parseDate(body.observation_deadline, "observation_deadline"),
-    feedback_deadline: parseDate(body.feedback_deadline, "feedback_deadline"),
-  };
-}
+// GET /api/evaluation-cycles  (meta.current_term = the term the app is working in)
+router.get("/", async (req, res) => {
+  const cycles = await getCycles();
+  res.json({ data: cycles.map(presentCycle), meta: { current_term: await getCurrentTerm(cycles) } });
+});
 
-router.get(
-  "/",
-  asyncRoute(async (request, response) => {
-    const cycles = await EvaluationCycle.find({}).lean();
-    cycles.sort(sortTermsDescending);
-    return sendData(response, cycles);
-  })
-);
+// GET /api/evaluation-cycles/:term
+router.get("/:term", async (req, res) => {
+  const cycle = await EvaluationCycle.findOne({ term: req.params.term }).lean();
+  if (!cycle) throw notFound("Evaluation cycle not found.");
+  res.json({ data: presentCycle(cycle) });
+});
 
-router.get(
-  "/:term/due-professors",
-  asyncRoute(async (request, response) => {
-    const term = normalizeTerm(request.params.term);
-    const cycle = await EvaluationCycle.findOne({ term }).lean();
-    if (!cycle) throw new ApiError(404, "Evaluation cycle not found.");
+// POST /api/evaluation-cycles  (committee)
+router.post("/", requireAc, async (req, res) => {
+  const term = String(req.body?.term || "").trim();
+  if (!isValidTerm(term)) throw badRequest('term is required, e.g. "Spring 2027".');
+  if (await EvaluationCycle.exists({ term })) throw conflict(`An evaluation cycle for ${term} already exists.`);
+  const cycle = await EvaluationCycle.create({ term, ...readDeadlines(req.body, false) });
+  await copyLatestTemplate(term, (await getCycles()).map((c) => c.term)); // from main: start from the last term's form
+  res.status(201).json({ data: presentCycle(cycle.toObject()) });
+});
 
-    const [professors, completedTerms] = await Promise.all([
-      Professor.find({}).select("-password_hash").lean(),
-      getCompletedEvaluationTerms(),
-    ]);
-    const evaluated = await Promise.all(
-      professors.map((professor) => getStatusForTerm(professor, term, completedTerms))
-    );
-    const dueProfessors = evaluated.filter((entry) => entry.status !== "not_due");
-    const breakdown = {};
-    for (const entry of dueProfessors) {
-      const level = entry.professor.hire_level;
-      breakdown[level] ||= { due: 0, overdue: 0 };
-      breakdown[level][entry.status] += 1;
-    }
+// PATCH /api/evaluation-cycles/:term  (committee: update deadlines; professors in the cycle are notified)
+router.patch("/:term", requireAc, async (req, res) => {
+  const cycle = await EvaluationCycle.findOne({ term: req.params.term });
+  if (!cycle) throw notFound("Evaluation cycle not found.");
+  const updates = readDeadlines(req.body, true);
+  if (!Object.keys(updates).length) throw badRequest(`Nothing to update. Allowed fields: ${[...DEADLINES, ...TIMES].join(", ")}.`);
+  Object.assign(cycle, updates);
+  readDeadlines(presentCycle(cycle.toObject()), false); // re-check ordering with the merged values
+  await cycle.save();
 
-    return sendData(response, {
-      term,
-      count: dueProfessors.length,
-      breakdown_by_hire_level: breakdown,
-      professors: dueProfessors,
-    });
-  })
-);
+  const ctx = await loadTermContext(cycle.term);
+  const participants = new Set();
+  for (const o of ctx.observations) {
+    participants.add(observeeOf(ctx, o));
+    if (o.observer_email) participants.add(o.observer_email);
+  }
+  const c = presentCycle(cycle.toObject());
+  await notify([...participants], `Deadlines updated for ${cycle.term}: sign-up ${withTime(c.signup_deadline, c.signup_deadline_time)}, observations ${withTime(c.observation_deadline, c.observation_deadline_time)}, survey ${withTime(c.feedback_deadline, c.feedback_deadline_time)}.`, "deadline");
+  res.json({ data: c });
+});
 
-router.get(
-  "/:term/template",
-  asyncRoute(async (request, response) => {
-    const term = normalizeTerm(request.params.term);
-    if (!(await EvaluationCycle.exists({ term }))) {
-      throw new ApiError(404, "Evaluation cycle not found.");
-    }
+// GET /api/evaluation-cycles/:term/due-professors
+router.get("/:term/due-professors", async (req, res) => {
+  if (!isValidTerm(req.params.term)) throw badRequest(`Invalid term "${req.params.term}".`);
+  const ctx = await loadTermContext(req.params.term);
+  const signedUp = new Set(ctx.observations.map((o) => observeeOf(ctx, o)));
+  const list = ctx.professors
+    .map((p) => ({ ...presentProfessor(p, ctx.due.get(p.email)), signed_up: signedUp.has(p.email) }))
+    .filter((p) => p.evaluation_status.status !== "not_due")
+    .sort((a, b) => b.evaluation_status.overdue_by - a.evaluation_status.overdue_by || a.name.localeCompare(b.name));
+  // count + breakdown_by_hire_level: from main
+  const breakdown = {};
+  for (const p of list) {
+    breakdown[p.hire_level] ||= { due: 0, overdue: 0 };
+    breakdown[p.hire_level][p.evaluation_status.status] += 1;
+  }
+  res.json({ data: list, meta: {
+    term: req.params.term,
+    count: list.length,
+    due: list.filter((p) => p.evaluation_status.status === "due").length,
+    overdue: list.filter((p) => p.evaluation_status.status === "overdue").length,
+    breakdown_by_hire_level: breakdown,
+  } });
+});
 
-    const templatePath = path.join(templatesDirectory, `${term}.json`);
-    let contents;
-    try {
-      contents = await fs.readFile(templatePath, "utf8");
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        throw new ApiError(404, `No evaluation template file exists for ${term}.`);
-      }
-      throw error;
-    }
+// GET /api/evaluation-cycles/:term/template  (reads backend/templates/<term>.json)
+router.get("/:term/template", async (req, res) => {
+  if (!isValidTerm(req.params.term)) throw badRequest(`Invalid term "${req.params.term}".`);
+  res.json({ data: await getTemplate(req.params.term) });
+});
 
-    let template;
-    try {
-      template = JSON.parse(contents);
-    } catch {
-      throw new ApiError(500, `The evaluation template file for ${term} is invalid JSON.`);
-    }
-    return sendData(response, template);
-  })
-);
-
-router.get(
-  "/:term",
-  asyncRoute(async (request, response) => {
-    const term = normalizeTerm(request.params.term);
-    const cycle = await EvaluationCycle.findOne({ term }).lean();
-    if (!cycle) throw new ApiError(404, "Evaluation cycle not found.");
-    return sendData(response, cycle);
-  })
-);
-
-router.post(
-  "/",
-  asyncRoute(async (request, response) => {
-    requireObject(request.body);
-    rejectUnknownFields(request.body, CYCLE_FIELDS);
-    const term = normalizeTerm(request.body.term);
-    const dates = asDateFields(request.body);
-    ensureDateOrder(dates.signup_deadline, dates.observation_deadline, dates.feedback_deadline);
-    if (await EvaluationCycle.exists({ term })) {
-      throw new ApiError(409, "An evaluation cycle already exists for that term.");
-    }
-    await createTemplateForNewCycle(term);
-    const cycle = await EvaluationCycle.create({ term, ...dates });
-    return sendData(response, cycle, 201);
-  })
-);
-
-router.patch(
-  "/:term",
-  asyncRoute(async (request, response) => {
-    const term = normalizeTerm(request.params.term);
-    requireObject(request.body);
-    rejectUnknownFields(request.body, DEADLINE_FIELDS);
-    if (!Object.keys(request.body).length) {
-      throw new ApiError(400, "Provide at least one deadline to update.");
-    }
-
-    const existing = await EvaluationCycle.findOne({ term }).lean();
-    if (!existing) throw new ApiError(404, "Evaluation cycle not found.");
-    const dates = {
-      signup_deadline: "signup_deadline" in request.body
-        ? parseDate(request.body.signup_deadline, "signup_deadline")
-        : existing.signup_deadline,
-      observation_deadline: "observation_deadline" in request.body
-        ? parseDate(request.body.observation_deadline, "observation_deadline")
-        : existing.observation_deadline,
-      feedback_deadline: "feedback_deadline" in request.body
-        ? parseDate(request.body.feedback_deadline, "feedback_deadline")
-        : existing.feedback_deadline,
-    };
-    ensureDateOrder(dates.signup_deadline, dates.observation_deadline, dates.feedback_deadline);
-
-    const cycle = await EvaluationCycle.findOneAndUpdate(
-      { term },
-      { $set: dates },
-      { new: true, runValidators: true }
-    ).lean();
-    return sendData(response, cycle);
-  })
-);
+// PUT /api/evaluation-cycles/:term/template  (committee)
+// EXTENSION: not in the endpoint doc (which manages templates by hand as JSON files). Added so the
+// front end's Template Editor can write that same per-term JSON file instead of only changing browser state.
+router.put("/:term/template", requireAc, async (req, res) => {
+  if (!isValidTerm(req.params.term)) throw badRequest(`Invalid term "${req.params.term}".`);
+  res.json({ data: await saveTemplate(req.params.term, req.body?.criteria, req.user.email) });
+});
 
 module.exports = router;

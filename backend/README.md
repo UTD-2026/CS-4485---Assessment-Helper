@@ -1,110 +1,150 @@
 # Backend
 
-The Express API connects to MongoDB Atlas using `MONGODB_URI` from `backend/.env`.
+Express 5 + Mongoose API for Assessment Helper. It started from the `mikael_backend_db` branch (`server.js`, read-only routes,
+`{ "data": ... }` responses) and now implements every endpoint in the team's **API Endpoints** Google Doc.
 
 ## Start the API
 
-Create `backend/.env` from the example, set `MONGODB_URI`, then start the server:
-
 ```bash
-cp backend/.env.example backend/.env
-cd backend
-npm run dev
+npm install                      # in backend/
+cp .env.example .env             # set MONGODB_URI and JWT_SECRET
+npm run test-db                  # ping MongoDB
+npm run setup-db                 # collections + indexes (safe to re-run)
+npm run seed                     # load seed/seed-data.json into EMPTY collections
+npm run dev                      # http://127.0.0.1:5000/api/health
+npm run setup-demo-logins        # optional: reset every professor's password to Password123!
 ```
 
-The server listens on `127.0.0.1:5000` by default. Set `PORT` in `backend/.env` to use another local port. Keep it bound to the local machine; the API routes do not yet enforce authenticated sessions.
+`npm run seed:reset-local` drops the collections first, but only for a `mongodb://localhost/...` database; the shared Atlas
+database is never wiped. The Vite dev server proxies `/api` to `http://127.0.0.1:5000`.
 
-## Demo professor accounts
+| Variable | Default | Meaning |
+|---|---|---|
+| `MONGODB_URI` | (required) | Connection string |
+| `PORT` / `HOST` | `5000` / `127.0.0.1` | Where the API listens |
+| `JWT_SECRET` | dev-only value | Signs login tokens. Set a long random value outside local development |
+| `TOKEN_LIFETIME` | `8h` | Login session length |
+| `CURRENT_TERM` | derived | Force the current term (otherwise: earliest cycle whose survey deadline has not passed) |
+| `OBSERVER_POOL` | `signed_up` | `signed_up` = observers come from professors who signed up this cycle; `all` = anyone teaching this term |
+| `MAX_OBSERVERS_PER_LIST` | `5` | Size of a generated observer list |
 
-The login endpoint checks professor credentials against `password_hash`. Run `npm run setup-demo-logins` once after the database has been seeded to set each professor's password to the shared demo password `123`. This updates only the `professors.password_hash` values. Future database seeding also creates per-account scrypt hashes for `123`.
+## Conventions
 
-Usernames are generated from the professor's first initial and last name, with punctuation removed. The current professor list has one duplicate base username; those two accounts use the middle initial as well. Committee members (`is_ac_member: true`) enter the Committee portal; other accounts enter the Professor portal.
+- Every response is `{ "data": ... }` (lists may add `meta`). Errors are `{ "error": "message" }` with the doc's status codes
+  (400, 401, 403, 404, 409, 500); archiving a notification returns 204.
+- Everything except `/api/health`, `/api/auth/login` and `/api/auth/test-accounts` needs `Authorization: Bearer <token>`.
+- Observations and observer matches are identified by course section: `/:course_code/:section_number/:term`, URL-encoded
+  (`/api/observations/CS%202117/001/Fall%202026`).
+- Professors only see observations and requests they are part of; ratings are visible to the observer, the observee and the
+  committee; a saved draft only to its observer; survey answers never carry an email.
 
-## Implemented endpoint groups
+## Endpoints
 
-### Authentication
+### Auth (needed for the doc's 401 status)
+| Method | Endpoint | Notes |
+|---|---|---|
+| POST | /api/auth/login | `{ username, password }` (NetID or email) → `{ token, professor }` |
+| GET | /api/auth/me | The signed-in professor |
+| GET | /api/auth/test-accounts | **Extension.** Public, off when `NODE_ENV=production`. Every professor's `{ netid, name, department, role }` (`Committee`/`Professor`) for the login page's test-accounts list |
 
-- `POST /api/auth/login` with `{ "username": "...", "password": "123" }`
+### 1. Professors
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/professors | `?term=` (default current). Each professor includes `evaluation_status` (`due`/`overdue`/`not_due`, next due term) |
+| GET | /api/professors/:email | |
+| PATCH | /api/professors/:email | Committee: `name, department, hire_level, is_ac_member, last_observed`. Self: `name` |
+| GET | /api/professors/:email/evaluation-status | `?term=`; also says whether they signed up |
 
-The login response contains the professor profile and portal role, but never the stored password hash. AC access is based on `is_ac_member`.
+### 2. Course Sections
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/course-sections | `?term=&instructor_email=` |
+| GET | /api/course-sections/:course_code/:section_number/:term | |
+| POST | /api/course-sections | Committee. `{ course_code, section_number, term, timing, instructor_email }` |
+| PATCH | /api/course-sections/:course_code/:section_number/:term | Committee. `timing`, `instructor_email` |
 
-### Professors
+### 3. Evaluation Cycles
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/evaluation-cycles | `meta.current_term` = the term the app works in |
+| GET | /api/evaluation-cycles/:term | |
+| POST | /api/evaluation-cycles | Committee. `{ term, signup_deadline, observation_deadline, feedback_deadline }` (YYYY-MM-DD), optional `feedback_deadline_time` (HH:MM, 24-hour; omitted/null = survey closes 11:59 PM) |
+| PATCH | /api/evaluation-cycles/:term | Committee. Any of the three deadlines and/or `feedback_deadline_time`; participants are notified |
+| GET | /api/evaluation-cycles/:term/due-professors | Due + overdue professors with `signed_up` |
+| GET | /api/evaluation-cycles/:term/template | Reads `templates/<term-slug>.json` (e.g. `fall-2026.json`), else `templates/default.json` |
+| PUT | /api/evaluation-cycles/:term/template | **Extension.** Committee. `{ criteria: [{ id, criteria, ratingScale }] }` writes that term's JSON file (used by the Template Editor) |
 
-- `GET /api/professors`
-- `GET /api/professors/:email`
-- `PATCH /api/professors/:email`
-- `GET /api/professors/:email/evaluation-status`
+### 4. Observations
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/observations | `?term=&observee_email=&observer_email=&status=` (status may be a comma list) |
+| GET | /api/observations/:course_code/:section_number/:term | |
+| POST | /api/observations | Course sign-up: `{ course_code, section_number, term? }`. Must be your section, before the sign-up deadline, one per professor per term. Generates the observer list |
+| PATCH | /api/observations/:course_code/:section_number/:term | Schedule: `{ observation_date, observation_time? }` (observee). Must be a class meeting day, not in the past, by the observation deadline |
+| PATCH | …/status | `{ status, reason }`. Participants: `deferred` + reason (committee notified). Committee: any legal transition |
+| PATCH | …/form | `{ ratings, draft: true }` save progress · `{ ratings, items?, submit: true }` submit · `{ observer_signed: true }` · `{ observee_signed: true }`. Both signed → `completed` and the observee's `last_observed` is updated |
+| PATCH | …/missed | `{ reason? }` observer, observee or committee |
 
-Professor responses never include `password_hash`. The PATCH route accepts `name`, `department`, `hire_level`, `last_observed`, and `is_ac_member`; it does not change the professor email or password hash.
+Status lifecycle (`services/observationStateMachine.js`): `signed_up | unmatched → matched → scheduled → awaiting_confirmation → completed`, plus `missed` and `deferred`.
 
-Evaluation status uses the existing prototype rule: assistant professors are evaluated every two terms, and associate/full professors every four. The last completed observation term is used as the evaluation term; if there is no completed observation record, `last_observed` is mapped to Spring for January through June and Fall for July through December. The status response includes `assessed_term`, `last_evaluation_term`, `next_due_term`, `status`, and `semesters_overdue`.
+### 5. Observer Matches
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/observer-matches | `?term=&observer_email=&status=` (+ `observee_email`) |
+| POST | /api/observer-matches/generate | Committee. `{ term?, dry_run? }`. Generates or tops up the list for every sign-up still waiting for an observer (extension, from main) |
+| POST | /api/observations/…/generate-observer-list | Committee. Rules from `matching/matchmaker.js`: same department, not self, teaches the same course level this term, no time overlap (unreadable timing counts as a conflict), committee members left off; up to 5, same-course teachers first, then lightest workload |
+| POST | /api/observations/…/release-observer-list | Committee. Observee is notified and can send requests |
+| POST | /api/observations/…/observer-requests | Observee. `{ observer_emails: [...] }` from the released list |
+| PATCH | /api/observer-matches/:course_code/:section_number/:term/:observer_email/response | Requested observer. `{ response: "accept" \| "decline" }` |
+| POST | /api/observations/…/select-observer | `{ observer_email }`. Observee: an observer who accepted (other requests are cancelled). Committee: manual assignment; `meta.warnings` lists any matching rules it breaks |
 
-### Course Sections
+Match statuses: `suggested → requested → accepted | declined → confirmed | cancelled`.
 
-- `GET /api/course-sections?term=...&instructor_email=...`
-- `GET /api/course-sections/:course_code/:section_number/:term`
-- `POST /api/course-sections`
-- `PATCH /api/course-sections/:course_code/:section_number/:term`
+### 6. Surveys
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/surveys/status | `?term=`. Committee may add `all=true` to get who submitted (emails only, for the KPI) |
+| POST | /api/surveys | `{ rating, answers: [{ key, question, answer }], notes?, attachment_count? }`. `rating` is `difficult` / `manageable` / `smooth`, each with its own required answers (see `routes/surveys.js`). Once per term, before the survey closes. The older `{ process_ok, difficulties, improvements, has_attachment }` body is still accepted |
+| GET | /api/surveys/responses | Committee. Answers with a hashed `response_id` and `submitted_at` (ISO timestamp), no email |
+| POST | /api/surveys/reminders | **Extension.** Committee. Notifies signed-up professors who have not submitted (the "Request End-of-Process Surveys" button) |
 
-The composite key is fixed after creation. PATCH accepts `timing` and/or `instructor_email`. `section_number` must be a three-character string, such as `"001"`; the timing format is `MW HH:MM-HH:MM` or `TT HH:MM-HH:MM`.
+### 7. Reports and KPIs (committee)
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/reports/kpis?term= | All dashboard KPIs + faculty due by hire level + observer workload |
+| GET | /api/reports/outstanding-observations?term= | Not completed/deferred; `meta.by_hire_level` |
+| GET | /api/reports/unmatched-faculty?term= | No eligible candidates. `&include=all_due` adds every due/overdue professor without an observer, with a reason |
 
-### Evaluation Cycles
+### 8. Notifications
+| Method | Endpoint | Notes |
+|---|---|---|
+| GET | /api/notifications | The signed-in user's notifications (`?archived=`) |
+| PATCH | /api/notifications/:notification_id/read | |
+| PATCH | /api/notifications/:notification_id/archive | 204 No Content |
 
-- `GET /api/evaluation-cycles`
-- `GET /api/evaluation-cycles/:term`
-- `POST /api/evaluation-cycles`
-- `PATCH /api/evaluation-cycles/:term`
-- `GET /api/evaluation-cycles/:term/due-professors`
-- `GET /api/evaluation-cycles/:term/template`
+## Data model changes (models/index.js)
 
-Cycle deadlines must be ordered signup, observation, then feedback. The due-professors response includes due and overdue faculty and counts by hire level.
+Existing fields and keys are unchanged, so the seed data loads as before. Added:
+- `Observation`: `observer_email` optional (null until selected), `observation_time`, `match_flag`, `list_generated_date`,
+  `list_released_date`, `selected_manually`, `evaluation_items`, `evaluation_submitted_date`, `evaluation_draft`,
+  `evaluation_draft_saved`, `missed_reason`, `missed_reported_by`, `missed_date`, `deferral_reason`, `deferred_by`
+- `ObserverMatch`: `requested_date` optional (null for suggestions), `responded_date`
+- `Survey`: `rating`, `answers`, `notes`, `attachment_count`, plus summary fields `process_ok`, `difficulties`, `improvements`, `has_attachment` (seeded `process_rating` / feedback fields still read)
+- New `Notification` collection (`setup-database.js` creates it)
 
-The template route reads `backend/templates/<term>.json`. JSON templates are present for each seeded cycle. Creating a cycle copies the latest available template to its new term file. The template editor in the demo UI is a local preview because the agreed API has no template-update route; edit the matching JSON file to publish criteria changes.
+## Tests
 
-### Observations
+```bash
+MONGODB_URI_TEST=mongodb://127.0.0.1:27017/assessment_helper_test npm test
+```
 
-- `GET /api/observations?term=...&observee_email=...&observer_email=...&status=...`
-- `GET /api/observations/:course_code/:section_number/:term`
-- `POST /api/observations`
-- `PATCH /api/observations/:course_code/:section_number/:term`
-- `PATCH /api/observations/:course_code/:section_number/:term/status`
-- `PATCH /api/observations/:course_code/:section_number/:term/form`
-- `PATCH /api/observations/:course_code/:section_number/:term/missed`
+`test/api.test.js` wipes that local database, loads the seed data and runs the whole workflow through HTTP (login, sign-up,
+list generation and release, request/accept/select, scheduling rules, draft, submit, pair confirmation, survey anonymity,
+notifications, reports), plus unit tests for the due-status and eligibility rules. Without `MONGODB_URI_TEST` only the unit tests run.
 
-The observee is resolved from the matching course section's `instructor_email`. An initial signup can omit `observer_email`; its default status is `signed_up`. Form ratings and notes are stored in the existing `ratings` field, with signature dates stored in the observation's signature fields.
+## Known gaps
 
-### Observer Matches
-
-- `GET /api/observer-matches?term=...&course_code=...&section_number=...&observer_email=...&observee_email=...&status=...`
-- `POST /api/observer-matches/generate` with `{ "term": "...", "course_code"?: "...", "section_number"?: "...", "dry_run"?: true }`
-- `PATCH /api/observer-matches/:course_code/:section_number/:term/:observer_email` with `{ "status": "..." }`
-- `POST /api/observer-matches/assign` with `{ "course_code", "section_number", "term", "observer_email" }`
-
-The matching engine lives in `backend/matching/matchmaker.js`. A colleague is eligible to observe a section when they:
-
-1. are not the observee;
-2. are in the observee's department;
-3. teach a course at the same level (first digit of the course number) in the same term;
-4. teach no section that term whose meeting overlaps the observed class (a shared day and overlapping times; back-to-back classes are fine, and an unreadable timing counts as a conflict).
-
-Committee members (`is_ac_member: true`) are left off generated lists because they sign in to the Committee portal and cannot answer requests there; the committee can still assign one manually. Eligible colleagues are ranked by: teaches the same course, then fewest observations already assigned this term, then fewest other open lists, then name. Lists hold up to 5 people. These rule codes match the KPI audit in `frontend/src/utils/kpis.js`.
-
-`generate` works on every signup in the term that is still waiting for an observer (status `signed_up` or `unmatched`), or on one section. It is safe to run repeatedly: it never touches open requests, marks suggestions that no longer pass the rules as `removed`, tops lists back up to 5 with colleagues who were never on that list, and marks signups with nobody eligible as `unmatched` (and back to `signed_up` once someone is). `dry_run: true` returns the same report without saving.
-
-Match statuses: `suggested` → `requested` (observee asks) → `accepted` or `declined` (observer answers) → `confirmed` (observee picks one). Requests can also be `cancelled`. Confirming sets the observation's `observer_email` and cancels the signup's other open requests; untouched suggestions stay as a record, and the list can no longer change. Status changes use conditional updates, so two people acting at once get a `409` instead of two observers. `assign` is the committee override: any professor except the observee can be assigned, and any matching rule the choice breaks is returned in `violations`.
-
-List responses add `observee_email`, `observee_name`, `observer_name`, `observer_department`, `timing`, and `violations` (rule codes the pairing breaks) to each match.
-
-Run the matching unit tests with `npm test` in `backend/`.
-
-### Surveys
-
-- `GET /api/surveys/status?professor_email=...&term=...`
-- `POST /api/surveys`
-- `GET /api/surveys/responses?term=...`
-
-The database keeps the professor email to enforce one response per professor per term and to report completion. The reporting endpoint removes respondent identities. The current UI does not upload file contents: it saves only whether an attachment was selected.
-
-Successful responses use `{ "data": ... }`; collection responses use an array. Creates return `201`. Invalid input returns `400`, missing records `404`, duplicate keys or invalid state changes `409`, and unexpected errors `500`.
-
-The Vite development server proxies `/api` to `http://127.0.0.1:5000`. The login screen authenticates against the professor collection. Authentication currently gates the UI only; API authorization and role-based route protection are not implemented. The shared password is intentionally for local demonstration only. Keep the API bound to the local machine. Reports/KPIs, notifications, and email remain front-end only or unimplemented as agreed; observer matching is served by the API above.
+- Real UTD NetID single sign-on and UTD Course Book import are not wired in (password login against the seed hashes for now).
+- Notifications are in-app only (no email).
+- Survey attachments are recorded as a yes/no flag; files are not uploaded.
+- Seed quirks: a few self-matches and many different-level suggestions, so Eligibility Accuracy shows ≈ 29% on the seed data.
