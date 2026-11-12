@@ -42,7 +42,7 @@ test("full observation workflow through the API", { skip }, async (t) => {
     const text = await res.text();
     return { status: res.status, body: text ? JSON.parse(text) : null };
   };
-  const login = async (username) => (await call("POST", "/auth/login", null, { username, password: "Password123!" })).body.data.token;
+  const login = async (username) => (await call("POST", "/auth/login", null, { username, password: "123" })).body.data.token;
   const enc = (s) => encodeURIComponent(s);
 
   // Auth

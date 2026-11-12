@@ -96,7 +96,7 @@ A local database is only on your computer, so teammates won't see your changes.
 | Backend logs `MONGODB_URI` missing or `JWT_SECRET` errors | `backend/.env` is missing or empty | Create it as shown in step 2. The file must be in `backend/`, not the repo root |
 | Backend logs `bad auth` / `authentication failed` | Wrong database username or password in `MONGODB_URI` | Check the user under **Database Access** in Atlas, and get the current URI from the team |
 | Backend logs `Could not connect to any servers` / `IP that isn't whitelisted` | Your network can't reach Atlas | The Atlas **Network Access** list allows `0.0.0.0/0` (all IPs). If it still fails, your Wi-Fi may block port 27017, so try a phone hotspot or use a local database |
-| "Invalid username or password" | Wrong credentials | Use the NetID (e.g. `ddr199513`), not the full name, with password `Password123!` |
+| "Invalid username or password" | Wrong credentials | Use the NetID (e.g. `ddr199513`), not the full name, with password `123` |
 | Changes you made don't show up for teammates | You're on a local database | Point `MONGODB_URI` at the shared Atlas cluster |
 
 ### Available Scripts
@@ -110,11 +110,11 @@ A local database is only on your computer, so teammates won't see your changes.
 | `npm run backend:dev` / `backend:start` | Start the API (with / without auto-restart) |
 | `npm run backend:test` | API tests (set `MONGODB_URI_TEST` to a local database for the end-to-end test) |
 | `npm run backend:setup-db` / `backend:seed` / `backend:test-db` | Database setup, seeding, connection check |
-| `npm run backend:setup-demo-logins` | Reset every professor's password to `Password123!` (use if test logins stop working) |
+| `npm run backend:setup-demo-logins` | Reset every professor's password to `123` (use if test logins stop working) |
 
 ## Test Login (seed data)
 
-All seeded professors use the password `Password123!`. Sign in with the NetID (the part of the email before `@`). For the full list of accounts, click **"click here"** under *Test credentials* on the login page. Clicking a username fills it in.
+All seeded professors use the password `123`. Sign in with the NetID (the part of the email before `@`). For the full list of accounts, click **"click here"** under *Test credentials* on the login page. Clicking a username fills it in.
 
 | NetID | Good for trying |
 |---|---|

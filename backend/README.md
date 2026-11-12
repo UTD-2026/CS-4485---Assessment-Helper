@@ -12,7 +12,7 @@ npm run test-db                  # ping MongoDB
 npm run setup-db                 # collections + indexes (safe to re-run)
 npm run seed                     # load seed/seed-data.json into EMPTY collections
 npm run dev                      # http://127.0.0.1:5000/api/health
-npm run setup-demo-logins        # optional: reset every professor's password to Password123!
+npm run setup-demo-logins        # optional: reset every professor's password to 123
 ```
 
 `npm run seed:reset-local` drops the collections first, but only for a `mongodb://localhost/...` database; the shared Atlas

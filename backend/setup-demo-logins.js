@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 const { Professor } = require("./models");
 const { hashPassword } = require("./services/password");
 
-const DEMO_PASSWORD = "Password123!";
+const DEMO_PASSWORD = "123";
 
 async function setupDemoLogins() {
   if (!process.env.MONGODB_URI) throw new Error("MONGODB_URI is missing. Check backend/.env.");

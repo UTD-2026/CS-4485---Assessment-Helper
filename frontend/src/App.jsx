@@ -303,7 +303,7 @@ function Login({ onLogin }) {
               <span className="login-hint-acct"><span className="mono">ddr199513</span></span>
             </div>
           </div>
-          <span className="login-hint-pw">Password: <span className="mono">Password123!</span></span>
+          <span className="login-hint-pw">Password: <span className="mono">123</span></span>
           <span>Need more? <button type="button" className="btn-link login-hint-link" onClick={() => setShowAccounts(true)}>Browse all test accounts</button></span>
         </div>
       </div>
@@ -311,7 +311,7 @@ function Login({ onLogin }) {
       {showAccounts && (
         <TestAccountsDialog
           onClose={closeAccounts}
-          onPick={(netid) => { setUsername(netid); setPassword('Password123!'); setShowAccounts(false); }}
+          onPick={(netid) => { setUsername(netid); setPassword('123'); setShowAccounts(false); }}
         />
       )}
     </div>
