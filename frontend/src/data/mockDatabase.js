@@ -25,29 +25,25 @@ export const calculateEvaluationStatus = (professor) => {
   }
 };
 
-export const mockAdmins = [
-  { professor_id: 0, username: "admin", password: "123", name: "Assessment Committee Admin", email: "assessment.committee@utdallas.edu", role: "admin" }
-];
-
 export const mockProfessors = [
-  { professor_id: 1, username: "asmith", password: "123", name: "Dr. Alice Smith", email: "asmith@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" },
-  { professor_id: 2, username: "bjones", password: "123", name: "Dr. Bob Jones", email: "bjones@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: true, last_evaluation: "Spring 2025" },
-  { professor_id: 3, username: "cwhite", password: "123", name: "Dr. Carol White", email: "cwhite@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: false, last_evaluation: "Fall 2024" },
-  { professor_id: 4, username: "dbrown", password: "123", name: "Dr. David Brown", email: "dbrown@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2026" },
-  { professor_id: 5, username: "stran", password: "123", name: "Dr. Scott Tran", email: "stran@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: false, last_evaluation: "Fall 2025" },
-  { professor_id: 6, username: "fgreen", password: "123", name: "Dr. Frank Green", email: "fgreen@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: false, last_evaluation: "Fall 2026" },
-  { professor_id: 7, username: "msagar", password: "123", name: "Dr. Mikael Sagar", email: "msagar@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: true, last_evaluation: "Spring 2026" },
-  { professor_id: 8, username: "nkho", password: "123", name: "Dr. Nicholas Kho", email: "nkho@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: false, last_evaluation: null },
+  { professor_id: 1, name: "Dr. Alice Smith", email: "asmith@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" },
+  { professor_id: 2, name: "Dr. Bob Jones", email: "bjones@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: true, last_evaluation: "Spring 2025" },
+  { professor_id: 3, name: "Dr. Carol White", email: "cwhite@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: false, last_evaluation: "Fall 2024" },
+  { professor_id: 4, name: "Dr. David Brown", email: "dbrown@utdallas.edu", department: "CS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2026" },
+  { professor_id: 5, name: "Dr. Scott Tran", email: "stran@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: false, last_evaluation: "Fall 2025" },
+  { professor_id: 6, name: "Dr. Frank Green", email: "fgreen@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: false, last_evaluation: "Fall 2026" },
+  { professor_id: 7, name: "Dr. Mikael Sagar", email: "msagar@utdallas.edu", department: "CS", hire_level: "Full", is_ac_member: true, last_evaluation: "Spring 2026" },
+  { professor_id: 8, name: "Dr. Nicholas Kho", email: "nkho@utdallas.edu", department: "CS", hire_level: "Associate", is_ac_member: false, last_evaluation: null },
 
-  { professor_id: 9, username: "jdoe", password: "123", name: "Dr. John Doe", email: "jdoe@utdallas.edu", department: "MATH", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" }, 
-  { professor_id: 10, username: "rroe", password: "123", name: "Dr. Richard Roe", email: "rroe@utdallas.edu", department: "MATH", hire_level: "Associate", is_ac_member: false, last_evaluation: "Spring 2025" }, 
-  { professor_id: 11, username: "mmay", password: "123", name: "Dr. Mary May", email: "mmay@utdallas.edu", department: "MATH", hire_level: "Full", is_ac_member: false, last_evaluation: "Spring 2024" }, 
-  { professor_id: 12, username: "tlee", password: "123", name: "Dr. Tom Lee", email: "tlee@utdallas.edu", department: "MATH", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2026" }, 
+  { professor_id: 9, name: "Dr. John Doe", email: "jdoe@utdallas.edu", department: "MATH", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" },
+  { professor_id: 10, name: "Dr. Richard Roe", email: "rroe@utdallas.edu", department: "MATH", hire_level: "Associate", is_ac_member: false, last_evaluation: "Spring 2025" },
+  { professor_id: 11, name: "Dr. Mary May", email: "mmay@utdallas.edu", department: "MATH", hire_level: "Full", is_ac_member: false, last_evaluation: "Spring 2024" },
+  { professor_id: 12, name: "Dr. Tom Lee", email: "tlee@utdallas.edu", department: "MATH", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Fall 2026" },
 
-  { professor_id: 13, username: "wchen", password: "123", name: "Dr. Wei Chen", email: "wchen@utdallas.edu", department: "PHYS", hire_level: "Associate", is_ac_member: false, last_evaluation: "Spring 2025" }, 
-  { professor_id: 14, username: "epark", password: "123", name: "Dr. Eun Park", email: "epark@utdallas.edu", department: "PHYS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" }, 
+  { professor_id: 13, name: "Dr. Wei Chen", email: "wchen@utdallas.edu", department: "PHYS", hire_level: "Associate", is_ac_member: false, last_evaluation: "Spring 2025" },
+  { professor_id: 14, name: "Dr. Eun Park", email: "epark@utdallas.edu", department: "PHYS", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" },
 
-  { professor_id: 15, username: "fiona", password: "123", name: "Dr. Fiona Green", email: "fiona.green@utdallas.edu", department: "FILM", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" } 
+  { professor_id: 15, name: "Dr. Fiona Green", email: "fiona.green@utdallas.edu", department: "FILM", hire_level: "Assistant", is_ac_member: false, last_evaluation: "Spring 2026" }
 ];
 
 export const mockCourses = [
