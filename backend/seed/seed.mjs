@@ -1,8 +1,10 @@
 import "dotenv/config";
+import crypto from "node:crypto";
 import mongoose from "mongoose";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 const dataPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -10,6 +12,7 @@ const dataPath = path.join(
 );
 
 const data = JSON.parse(readFileSync(dataPath, "utf8"));
+const scrypt = promisify(crypto.scrypt);
 
 const collections = {
   professors: "professors",
@@ -48,6 +51,12 @@ function castDates(document) {
   }
 
   return result;
+}
+
+async function demoPasswordHash() {
+  const salt = crypto.randomBytes(16);
+  const key = await scrypt("123", salt, 32);
+  return `scrypt$${salt.toString("hex")}$${key.toString("hex")}`;
 }
 
 function sectionKey(section) {
@@ -244,7 +253,11 @@ async function main() {
     }
 
     for (const [key, name] of Object.entries(collections)) {
-      const documents = data[key].map(castDates);
+      const documents = await Promise.all(data[key].map(async (document) => {
+        const record = castDates(document);
+        if (key === "professors") record.password_hash = await demoPasswordHash();
+        return record;
+      }));
 
       if (documents.length > 0) {
         await db.collection(name).insertMany(documents, {

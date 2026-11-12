@@ -22,16 +22,26 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
   const [difficulties, setDifficulties] = useState('');
   const [improvements, setImprovements] = useState('');
   const [file, setFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isClosed) return; // deadline passed--block submission
-    onSubmit({
-      process_ok: processOk === 'ok',
-      difficulties: difficulties.trim(),
-      improvements: improvements.trim(),
-      has_attachment: Boolean(file), // the file name itself is never stored (could identify the sender)
-    });
+    if (isClosed || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await onSubmit({
+        process_ok: processOk === 'ok',
+        difficulties: difficulties.trim(),
+        improvements: improvements.trim(),
+        has_attachment: Boolean(file),
+      });
+    } catch (submitError) {
+      setError(submitError.message || 'The survey could not be submitted.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -84,6 +94,7 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
+            {error && <p className="login-error" role="alert">{error}</p>}
             <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
               🔒 Your responses are anonymous to the Assessment Committee.
             </p>
@@ -134,6 +145,7 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
 
             <button
               type="submit"
+              disabled={submitting}
               style={{
                 padding: '12px',
                 borderRadius: '8px',
@@ -146,7 +158,7 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
                 marginTop: '10px',
               }}
             >
-              Submit Survey
+              {submitting ? 'Submitting…' : 'Submit Survey'}
             </button>
           </form>
         )}

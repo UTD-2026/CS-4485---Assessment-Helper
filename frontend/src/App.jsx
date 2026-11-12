@@ -7,7 +7,8 @@ import AdminKpiDashboard from './components/AdminKpiDashboard.jsx';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import { validateObservationSlot, todayLocalISO } from './utils/scheduling.js';
 import { isPastDeadline } from './utils/deadlines.js';
-import { mockProfessors, mockAdmins, mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
+import { mockCourses, calculateEvaluationStatus, currentSemester, initialDeadlines, mockEvaluationTemplate } from './data/mockDatabase.js';
+import { assessmentApi } from './api/client.js';
 
 // Builds avatar initials from a person's first + last name, skipping titles like "Dr." / "Prof."
 const TITLE_PREFIXES = ['dr', 'prof', 'professor', 'mr', 'mrs', 'ms', 'mx'];
@@ -18,6 +19,36 @@ function getInitials(fullName) {
   const first = parts[0].charAt(0);
   const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
   return (first + last).toUpperCase();
+}
+
+function databaseKeyId(key) {
+  return key ? `${key.course_code}|${key.section_number}|${key.term}` : '';
+}
+
+function databaseObservationStatus(status) {
+  const names = {
+    signed_up: 'Pending Scheduling',
+    pending_scheduling: 'Pending Scheduling',
+    scheduled: 'Scheduled',
+    awaiting_confirmation: 'Awaiting Confirmation',
+    completed: 'Completed',
+    missed: 'Missed',
+    cancelled: 'Cancelled',
+  };
+  return names[String(status || '').toLowerCase()] || status || 'Pending Scheduling';
+}
+
+function displayCourseTiming(timing = '') {
+  const [days, range] = timing.split(' ');
+  if (!days || !range) return timing;
+  const toClock = value => {
+    const [hourText, minute] = value.split(':');
+    const hour = Number(hourText);
+    return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`;
+  };
+  const [start, end] = range.split('-');
+  if (!start || !end) return timing;
+  return `${days === 'TT' ? 'TR' : days} ${toClock(start)} - ${toClock(end)}`;
 }
 
 // Explains what each rating option means for a criterion's rating scale
@@ -71,6 +102,9 @@ function EvaluationDetail({ evaluation, evaluationTemplate, onBack }) {
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [databaseProfessors, setDatabaseProfessors] = useState([]);
+  const [databaseCycles, setDatabaseCycles] = useState([]);
+  const [selectedTerm, setSelectedTerm] = useState(currentSemester);
   
   // GLOBAL STATE
   const [globalRequests, setGlobalRequests] = useState([]);
@@ -86,14 +120,48 @@ export default function App() {
   // NEW: Saved (unsubmitted) evaluation progress, keyed by observation id
   const [evaluationDrafts, setEvaluationDrafts] = useState({});
 
-  const handleSurveySubmit = (professorId, answers) => {
+  useEffect(() => {
+    Promise.all([assessmentApi.listProfessors(), assessmentApi.listEvaluationCycles()])
+      .then(([professors, cycles]) => {
+        setDatabaseProfessors(professors);
+        setDatabaseCycles(cycles);
+        if (cycles.length) setSelectedTerm(cycles[0].term);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selectedTerm || !databaseCycles.some(cycle => cycle.term === selectedTerm)) return;
+    const cycle = databaseCycles.find(item => item.term === selectedTerm);
+    setGlobalDeadlines({
+      signup: new Date(cycle.signup_deadline).toISOString().slice(0, 10),
+      observation: new Date(cycle.observation_deadline).toISOString().slice(0, 10),
+      survey: new Date(cycle.feedback_deadline).toISOString().slice(0, 10),
+    });
+    assessmentApi.getEvaluationTemplate(selectedTerm)
+      .then(setEvaluationTemplate)
+      .catch(() => { if (selectedTerm === currentSemester) setEvaluationTemplate(mockEvaluationTemplate); });
+    assessmentApi.getSurveyResponses(selectedTerm).then(setSurveyResponses).catch(() => {});
+  }, [selectedTerm, databaseCycles]);
+
+  const handleSurveySubmit = async (professor, answers) => {
+    if (professor?.databaseProfessor?.email && selectedTerm) {
+      await assessmentApi.submitSurvey({
+        professor_email: professor.databaseProfessor.email,
+        term: selectedTerm,
+        ...answers,
+      });
+      setSurveySubmissions(prev => [...prev, { professor_id: professor.professor_id }]);
+      assessmentApi.getSurveyResponses(selectedTerm).then(setSurveyResponses).catch(() => {});
+      return;
+    }
+    const professorId = professor.professor_id;
     if (surveySubmissions.some(s => s.professor_id === professorId)) return;
       setSurveySubmissions(prev => [...prev, { professor_id: professorId }]);
       setSurveyResponses(prev => [...prev, { response_id: crypto.randomUUID(), ...answers }]);
   };
 
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
-
   if (currentUser.role === 'admin') {
     return (
       <AdminDashboard
@@ -101,8 +169,8 @@ export default function App() {
         onLogout={() => setCurrentUser(null)}
         globalRequests={globalRequests}
         surveyResponses={surveyResponses}
-        submittedCount={surveySubmissions.length}
-        totalProfessors={mockProfessors.length}
+        submittedCount={Math.max(surveySubmissions.length, surveyResponses.length)}
+        totalProfessors={databaseProfessors.length}
         globalSignups={globalSignups}
         setGlobalSignups={setGlobalSignups}
         globalObservations={globalObservations}
@@ -117,6 +185,10 @@ export default function App() {
       globalNotifications={globalNotifications}
       setGlobalNotifications={setGlobalNotifications}
       globalEvaluations={globalEvaluations}
+        databaseProfessors={databaseProfessors}
+        databaseCycles={databaseCycles}
+        selectedTerm={selectedTerm}
+        setSelectedTerm={setSelectedTerm}
       
       />
     );
@@ -133,7 +205,8 @@ export default function App() {
       globalObservations={globalObservations}
       setGlobalObservations={setGlobalObservations}
       hasSubmittedSurvey={surveySubmissions.some(s => s.professor_id === currentUser.professor_id)}
-      onSurveySubmit={(answers) => handleSurveySubmit(currentUser.professor_id, answers)}
+      onSurveySubmit={(answers) => handleSurveySubmit(currentUser, answers)}
+      selectedTerm={selectedTerm}
       evaluationTemplate={evaluationTemplate} 
       globalDeadlines={globalDeadlines}
       globalNotifications={globalNotifications}
@@ -152,23 +225,20 @@ function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = mockProfessors.find(p => p.username === username)
-          || mockAdmins.find(a => a.username === username);
-    
-    if (!user) {
-      setError("Professor not found.");
-      return;
-    }
-    if (user.password !== password) {
-      setError("Incorrect password.");
-      return;
-    }
-    
+    setSubmitting(true);
     setError('');
-    onLogin(user);
+    try {
+      const professor = await assessmentApi.login({ username: username.trim(), password });
+      onLogin({ ...professor, databaseProfessor: professor });
+    } catch (loginError) {
+      setError(loginError.message || 'Sign in failed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -188,7 +258,7 @@ function Login({ onLogin }) {
 
           <div className="input-group">
             <label htmlFor="username">Username</label>
-            <input id="username" type="text" placeholder="e.g., asmith" autoComplete="username" autoFocus value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <input id="username" type="text" placeholder="e.g., egutkowski" autoComplete="username" autoFocus value={username} onChange={(e) => setUsername(e.target.value)} required />
           </div>
 
           <div className="input-group">
@@ -196,14 +266,15 @@ function Login({ onLogin }) {
             <input id="password" type="password" placeholder="Enter your password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
 
-          <button type="submit" className="btn-primary btn-3d">Sign In</button>
+          <button type="submit" className="btn-primary btn-3d" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign In'}</button>
         </form>
 
         <div className="login-hint">
-          <span>Test credentials</span>
-          <div>Professors: asmith / cwhite / bjones / fiona</div>
-          <div>Admin (committee): admin</div>
-          <div>Password: 123</div>
+          <span>Account format</span>
+          <div>Username: first initial + last name</div>
+          <div>If two names collide, use the middle initial too.</div>
+          <div>Shared demo password: 123</div>
+          <div>AC members access the Committee portal.</div>
         </div>
       </div>
     </div>
@@ -213,7 +284,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, setGlobalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications }) {
+function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, setGlobalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications, databaseProfessors, databaseCycles, selectedTerm, setSelectedTerm }) {
   const [activeTab, setActiveTab] = useState('metrics');
   const [viewingEvaluation, setViewingEvaluation] = useState(null); 
   
@@ -230,47 +301,125 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
   // NEW: Manual Resolution & Deadline States
   const [resolvingSignupId, setResolvingSignupId] = useState(null);
   const [manualObserverId, setManualObserverId] = useState('');
+  const [databaseDue, setDatabaseDue] = useState(null);
+  const [deadlineError, setDeadlineError] = useState('');
+  const [signupError, setSignupError] = useState('');
+  const [assignmentError, setAssignmentError] = useState('');
+  const [databaseSections, setDatabaseSections] = useState([]);
+  const [sectionDraft, setSectionDraft] = useState({ course_code: '', section_number: '', timing: 'MW 08:30-09:45', instructor_email: '' });
+  const [sectionError, setSectionError] = useState('');
+  const [cycleDraft, setCycleDraft] = useState({ term: '', signup_deadline: '', observation_deadline: '', feedback_deadline: '' });
+  useEffect(() => {
+    if (selectedTerm) assessmentApi.getDueProfessors(selectedTerm).then(result => setDatabaseDue(result.professors || [])).catch(() => setDatabaseDue(null));
+  }, [selectedTerm]);
+  useEffect(() => {
+    if (selectedTerm) assessmentApi.listCourseSections({ term: selectedTerm }).then(setDatabaseSections).catch(() => setDatabaseSections([]));
+  }, [selectedTerm]);
+  useEffect(() => {
+    if (!selectedTerm || !databaseProfessors.length) return;
+    Promise.all([
+      assessmentApi.listObservations({ term: selectedTerm }),
+      assessmentApi.listCourseSections({ term: selectedTerm }),
+    ]).then(([records, sections]) => {
+      const sectionByKey = new Map(sections.map(section => [databaseKeyId(section), section]));
+      const professorByEmail = new Map(databaseProfessors.map(professor => [professor.email.toLowerCase(), professor]));
+      const databaseSignups = records.map(record => {
+        const key = { course_code: record.course_code, section_number: record.section_number, term: record.term };
+        const section = sectionByKey.get(databaseKeyId(key));
+        const instructorEmail = section?.instructor_email?.toLowerCase();
+        const professor = professorByEmail.get(instructorEmail);
+        const observerEmail = record.observer_email?.toLowerCase() || null;
+        const observer = observerEmail ? professorByEmail.get(observerEmail) : null;
+        return {
+          id: `db-signup-${databaseKeyId(key)}`,
+          observeeId: instructorEmail || null,
+          observeeName: professor?.name || instructorEmail || 'Unknown professor',
+          courseCode: record.course_code,
+          section: record.section_number,
+          timing: section?.timing || '',
+          matchesCount: observer ? 1 : 0,
+          matchFlag: observer ? 'OK' : 'MATCHING_PENDING',
+          eligibleObservers: observer ? [{ ...observer, professor_id: observer.email }] : [],
+          listReleased: Boolean(observer),
+          databaseKey: key,
+          assignedObserverEmail: observerEmail,
+        };
+      });
+      const mappedObservations = records.map(record => {
+        const key = { course_code: record.course_code, section_number: record.section_number, term: record.term };
+        const section = sectionByKey.get(databaseKeyId(key));
+        const observeeEmail = section?.instructor_email?.toLowerCase() || null;
+        const observerEmail = record.observer_email?.toLowerCase() || null;
+        const observee = professorByEmail.get(observeeEmail);
+        const observer = observerEmail ? professorByEmail.get(observerEmail) : null;
+        return {
+          id: `db-${databaseKeyId(key)}`,
+          observeeId: observeeEmail,
+          observeeName: observee?.name || observeeEmail || 'Unknown professor',
+          observerId: observerEmail,
+          observerName: observer?.name || 'Not assigned',
+          courseCode: record.course_code,
+          timing: displayCourseTiming(section?.timing || ''),
+          status: databaseObservationStatus(record.status),
+          scheduledDate: record.observation_date ? new Date(record.observation_date).toISOString().slice(0, 10) : null,
+          observerConfirmed: Boolean(record.observer_signed_date),
+          observeeConfirmed: Boolean(record.observee_signed_date),
+          ratings: record.ratings,
+          databaseKey: key,
+        };
+      });
+      setGlobalSignups(previous => {
+        const previousByKey = new Map(previous.filter(item => item.databaseKey).map(item => [databaseKeyId(item.databaseKey), item]));
+        const otherSignups = previous.filter(item => !item.databaseKey || item.databaseKey.term !== selectedTerm);
+        return [...otherSignups, ...databaseSignups.map(item => ({ ...previousByKey.get(databaseKeyId(item.databaseKey)), ...item }))];
+      });
+      setGlobalObservations(previous => {
+        const databaseKeys = new Set(mappedObservations.map(item => databaseKeyId(item.databaseKey)));
+        const retained = previous.filter(item => !item.databaseKey || item.databaseKey.term !== selectedTerm || !databaseKeys.has(databaseKeyId(item.databaseKey)));
+        return [...retained, ...mappedObservations];
+      });
+      setSignupError('');
+    }).catch(error => setSignupError(error.message));
+  }, [selectedTerm, databaseProfessors, user.email, setGlobalSignups, setGlobalObservations]);
   
-  // Check if observation deadline passed
-  const isPastObservationDeadline = globalDeadlines?.observation 
-    ? new Date() > new Date(`${globalDeadlines.observation}T23:59:59`) 
-    : false;
-
-  // NEW: Blast out end-of-process survey reminders
-  const handleSurveyBlast = () => {
-    const newNotifs = globalSignups.map(s => ({
-      id: Math.random().toString(), recipientId: s.observeeId,
-      message: `Action Required: The observation period has officially ended. Please complete your end-of-process feedback survey.`,
-      read: false, timestamp: new Date().toLocaleDateString()
-    }));
-    setGlobalNotifications(prev => [...(prev || []), ...newNotifs]);
-    alert("End-of-process survey reminders blasted to all observees!");
-  };
-
   // NEW: Manually assign an observer
-  const handleManualAssignment = (signup) => {
+  const handleManualAssignment = async (signup) => {
     if (!manualObserverId) {
-      alert("Please select a faculty member from the dropdown first.");
+      setAssignmentError('Select a faculty member first.');
       return;
     }
-    // FIX: Convert both IDs to strings to prevent strict equality failures from the HTML <select> element
-    const observer = mockProfessors.find(p => p.professor_id.toString() === manualObserverId.toString());
+    const observer = databaseProfessors.find(p => p.email === manualObserverId);
     
     if (!observer) {
-      alert("Error: Observer not found in database.");
+      setAssignmentError('The selected professor could not be found.');
       return;
+    }
+    setAssignmentError('');
+    if (signup.databaseKey) {
+      try {
+        await assessmentApi.patchObservation(signup.databaseKey, { observer_email: observer.email });
+      } catch (error) {
+        setAssignmentError(error.message);
+        return;
+      }
     }
 
     const newObservation = {
-      id: Date.now(), observeeId: signup.observeeId, observeeName: signup.observeeName,
-      observerId: observer.professor_id, observerName: observer.name,
+      id: `db-${databaseKeyId(signup.databaseKey)}` || Date.now(),
+      observeeId: signup.observeeId, observeeName: signup.observeeName,
+      observerId: observer.email, observerName: observer.name,
       courseCode: signup.courseCode, timing: signup.timing,
+      databaseKey: signup.databaseKey,
       status: 'Pending Scheduling', scheduledDate: null, observerConfirmed: false, observeeConfirmed: false,
     };
     
-    setGlobalObservations(prev => [...(prev || []), newObservation]);
-    // FIX: Force matchFlag to 'OK' and bypass the list release step so it jumps straight to scheduling
-    setGlobalSignups(prev => prev.map(s => s.id === signup.id ? { ...s, matchFlag: 'OK', listReleased: true } : s));
+    setGlobalObservations(prev => [...(prev || []).filter(item => databaseKeyId(item.databaseKey) !== databaseKeyId(signup.databaseKey)), newObservation]);
+    setGlobalSignups(prev => prev.map(s => s.id === signup.id ? {
+      ...s,
+      matchFlag: 'OK', listReleased: true, matchesCount: 1,
+      eligibleObservers: [{ ...observer, professor_id: observer.email }],
+      assignedObserverEmail: observer.email,
+    } : s));
     
     // Notify both parties of the manual committee assignment
     setGlobalNotifications(prev => [...(prev || []), 
@@ -280,7 +429,6 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
     
     setResolvingSignupId(null);
     setManualObserverId('');
-    alert(`Successfully assigned ${observer.name} to observe ${signup.observeeName}! They can now schedule the date.`);
   };
   const startEditing = (item) => {
     setEditingId(item.id); setEditCriteria(item.criteria); setEditRating(item.ratingScale);
@@ -291,8 +439,7 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
   };
   const cancelEdit = () => setEditingId(null);
 
-  const allFacultyStatus = mockProfessors.map(prof => ({ ...prof, ...calculateEvaluationStatus(prof) }));
-  const dueFaculty = allFacultyStatus.filter(f => f.status === 'Due' || f.status === 'Overdue');
+  const dueFaculty = (databaseDue || []).map(item => ({ ...item.professor, ...item, name: item.professor.name, status: item.status === 'overdue' ? 'Overdue' : 'Due', last_evaluation: item.last_evaluation_term, overdue_by: item.semesters_overdue }));
   const NavItem = ({ id, label }) => (<li className={activeTab === id ? 'active' : ''} onClick={() => { setActiveTab(id); setViewingEvaluation(null); }}><span>{label}</span></li>);
 
   const handleAddCriteria = () => {
@@ -306,17 +453,6 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
     setEvaluationTemplate(evaluationTemplate.filter(item => item.id !== id));
   };
 
-  // NEW: Admin releases the list of potential observers
-  const handleReleaseList = (signup) => {
-    setGlobalSignups(prev => prev.map(s => s.id === signup.id ? { ...s, listReleased: true } : s));
-    setGlobalNotifications(prev => [...(prev || []), {
-      id: Math.random().toString(), recipientId: signup.observeeId,
-      message: `Action Required: The Assessment Committee has released your list of potential observers for ${signup.courseCode}. You may now send requests.`,
-      read: false, timestamp: new Date().toLocaleDateString()
-    }]);
-    alert(`List successfully released to ${signup.observeeName}!`);
-  };
-
   return (
     <div className="dashboard-layout">
       <div className="sidebar premium-glass-dark" style={{ background: '#1e293b' }}>
@@ -326,6 +462,7 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
           <NavItem id="faculty" label="👥 Due / Overdue Faculty" />
           <NavItem id="signups" label="📝 Signup Monitor" />
           <NavItem id="deadlines" label="📅 Deadlines" />
+          <NavItem id="course-sections" label="🏫 Course Sections" />
           <NavItem id="template" label="⚙️ Template Editor" />
           <NavItem id="evaluations" label="📄 Digital Evaluations" />
           <NavItem id="surveys" label="📋 Survey Responses" />
@@ -351,7 +488,7 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
 
           {activeTab === 'faculty' && (
             <div className="bento-card full-span">
-              <h3>Faculty Due for Evaluation ({currentSemester})</h3>
+              <h3>Faculty Due for Evaluation ({selectedTerm || currentSemester})</h3>
               <table className="data-table">
                 <thead><tr><th>Professor</th><th>Level</th><th>Dept</th><th>Last Eval</th><th>Status</th></tr></thead>
                 <tbody>
@@ -372,19 +509,17 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
             <div className="bento-card full-span">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                 <h3 style={{ margin: 0 }}>Signup & Matching Monitor</h3>
-                {isPastObservationDeadline && (
-                  <button className="btn-primary btn-3d" onClick={handleSurveyBlast} style={{ background: 'var(--utd-orange)', border: 'none' }}>
-                    📢 Request End-of-Process Surveys
-                  </button>
-                )}
               </div>
               <div className="table-scroll-x">
               <table className="data-table nowrap-table">
-                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Confirmed Observer</th><th>AC Action</th></tr></thead>
+                <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Assigned Observer / Status</th><th>AC Action</th></tr></thead>
                 <tbody>
                   {globalSignups.length === 0 ? <tr><td colSpan="6" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
                     globalSignups.map(signup => {
-                      const obs = globalObservations.find(o => o.observeeId === signup.observeeId);
+                      const obs = globalObservations.find(o => signup.databaseKey
+                        ? databaseKeyId(o.databaseKey) === databaseKeyId(signup.databaseKey)
+                        : o.observeeId === signup.observeeId);
+                      const hasAssignedObserver = Boolean(signup.assignedObserverEmail || obs?.observerId);
                       const isExpanded = expandedSignup === signup.id;
                       const isResolving = resolvingSignupId === signup.id;
                       
@@ -392,19 +527,19 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                         <React.Fragment key={signup.id}>
                           <tr>
                             <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
-                            <td>{signup.matchesCount} Observers</td>
+                            <td>{signup.databaseKey ? ((signup.eligibleObservers || []).length ? `${signup.eligibleObservers.length} candidates` : '—') : `${signup.matchesCount} Observers`}</td>
                             <td>
-                              {signup.matchFlag === 'NO ELIGIBLE OBSERVER' && <span className="badge badge-danger" style={{background: '#ef4444', color:'white'}}>No Eligible Observer</span>}
-                              {signup.matchFlag === 'INSUFFICIENT OBSERVERS' && <span className="badge badge-warning">Insufficient Observers</span>}
-                              {signup.matchFlag === 'OK' && <span className="badge badge-success">OK</span>}
+                              {hasAssignedObserver ? <span className="badge badge-success">Observer assigned</span> : <span className="badge badge-warning">Not assigned</span>}
                             </td>
-                            <td>{obs ? <><strong>{obs.observerName}</strong> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></> : <span style={{color: '#94a3b8'}}>Pending</span>}</td>
+                            <td>{hasAssignedObserver ? <><strong>{obs?.observerName || databaseProfessors.find(p => p.email === signup.assignedObserverEmail)?.name || signup.assignedObserverEmail}</strong>{obs?.status && <> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></>}</> : <span style={{color: '#94a3b8'}}>Not assigned</span>}</td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
-                                <button className="btn-secondary sm" onClick={() => { setExpandedSignup(isExpanded ? null : signup.id); setResolvingSignupId(null); }}>
-                                  {isExpanded ? 'Hide List' : 'View List'}
-                                </button>
-                                {(signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS') && !obs && (
+                                {!signup.databaseKey && (
+                                  <button className="btn-secondary sm" onClick={() => { setExpandedSignup(isExpanded ? null : signup.id); setResolvingSignupId(null); }}>
+                                    {isExpanded ? 'Hide List' : 'View List'}
+                                  </button>
+                                )}
+                                {!hasAssignedObserver && signup.databaseKey && (
                                   <button className="btn-danger sm" onClick={() => { setResolvingSignupId(isResolving ? null : signup.id); setExpandedSignup(null); }}>
                                     Resolve Manually
                                   </button>
@@ -421,10 +556,11 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                   <select value={manualObserverId} onChange={(e) => setManualObserverId(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #d97706', width: '350px' }}>
                                     <option value="">-- Select Faculty Member --</option>
-                                    {mockProfessors.filter(p => p.professor_id !== signup.observeeId).map(p => (
-                                      <option key={p.professor_id} value={p.professor_id}>{p.name} ({p.department}) - ID: {p.professor_id}</option>
+                                    {databaseProfessors.filter(p => p.email !== signup.observeeId).map(p => (
+                                      <option key={p.email} value={p.email}>{p.name} ({p.department})</option>
                                     ))}
                                   </select>
+                                  {assignmentError && <span role="alert" style={{ color: '#b91c1c' }}>{assignmentError}</span>}
                                   <button className="btn-primary btn-3d sm" onClick={() => handleManualAssignment(signup)}>Assign & Confirm Pair</button>
                                   <button className="btn-secondary sm" onClick={() => setResolvingSignupId(null)}>Cancel</button>
                                 </div>
@@ -439,19 +575,13 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                                 <h4 style={{ marginBottom: '10px', color: 'var(--utd-orange)' }}>Generated Observer List for {signup.observeeName}</h4>
                                 <ul style={{ marginBottom: '15px', paddingLeft: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                   {(signup.eligibleObservers || []).length === 0 ? (
-                                    <li style={{ color: '#ef4444' }}>No eligible observers found in database.</li>
+                                    <li style={{ color: '#ef4444' }}>No candidate list is available for this signup.</li>
                                   ) : (
                                     (signup.eligibleObservers || []).map(po => <li key={po.professor_id}><strong>{po.name}</strong> ({po.department})</li>)
                                   )}
                                 </ul>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                  {(signup.matchFlag === 'NO ELIGIBLE OBSERVER' || signup.matchFlag === 'INSUFFICIENT OBSERVERS') ? (
-                                    <span className="badge badge-error" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>🔒 List cannot be released. Please click 'Resolve Manually'.</span>
-                                  ) : signup.listReleased ? (
-                                    <span className="badge badge-success" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>✓ List has been released to {signup.observeeName}</span>
-                                  ) : (
-                                    <button className="btn-primary btn-3d sm" onClick={() => handleReleaseList(signup)}>Release List & Notify Observee</button>
-                                  )}
+                                  <span className="badge badge-neutral" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>No candidate list has been generated.</span>
                                 </div>
                               </td>
                             </tr>
@@ -474,8 +604,68 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                   <div className="form-group"><label>Signup Deadline</label><input type="date" value={globalDeadlines.signup} onChange={e => setGlobalDeadlines({...globalDeadlines, signup: e.target.value})} /></div>
                   <div className="form-group"><label>Observation Period Ends</label><input type="date" value={globalDeadlines.observation} onChange={e => setGlobalDeadlines({...globalDeadlines, observation: e.target.value})} /></div>
                   <div className="form-group"><label>Survey Deadline (Hand-off)</label><input type="date" value={globalDeadlines.survey} onChange={e => setGlobalDeadlines({...globalDeadlines, survey: e.target.value})} /></div>
-                  <button type="button" className="btn-primary" onClick={() => alert("Deadlines updated! Notifications dispatched.")}>Update Deadlines</button>
+                  <div className="form-group"><label>Cycle</label><select value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)}>{databaseCycles.map(cycle => <option key={cycle.term} value={cycle.term}>{cycle.term}</option>)}</select></div>
+                  {deadlineError && <p className="login-error" role="alert">{deadlineError}</p>}
+                  <button type="button" className="btn-primary" onClick={async () => {
+                    setDeadlineError('');
+                    try {
+                      const updated = await assessmentApi.patchEvaluationCycle(selectedTerm, {
+                        signup_deadline: globalDeadlines.signup,
+                        observation_deadline: globalDeadlines.observation,
+                        feedback_deadline: globalDeadlines.survey,
+                      });
+                      setSelectedTerm(updated.term);
+                      alert('Cycle deadlines saved.');
+                    } catch (error) { setDeadlineError(error.message); }
+                  }}>Update Deadlines</button>
                 </form>
+              </div>
+              <div className="bento-card">
+                <h3>Create Evaluation Cycle</h3>
+                <form className="modern-form" onSubmit={async event => {
+                  event.preventDefault(); setDeadlineError('');
+                  try {
+                    const created = await assessmentApi.createEvaluationCycle(cycleDraft);
+                    setDatabaseCycles(previous => [...previous, created].sort((a, b) => b.term.localeCompare(a.term)));
+                    setSelectedTerm(created.term);
+                    setCycleDraft({ term: '', signup_deadline: '', observation_deadline: '', feedback_deadline: '' });
+                  } catch (error) { setDeadlineError(error.message); }
+                }}>
+                  <div className="form-group"><label>Term (for example, Spring 2027)</label><input required value={cycleDraft.term} onChange={e => setCycleDraft({ ...cycleDraft, term: e.target.value })} /></div>
+                  <div className="form-group"><label>Signup deadline</label><input required type="date" value={cycleDraft.signup_deadline} onChange={e => setCycleDraft({ ...cycleDraft, signup_deadline: e.target.value })} /></div>
+                  <div className="form-group"><label>Observation deadline</label><input required type="date" value={cycleDraft.observation_deadline} onChange={e => setCycleDraft({ ...cycleDraft, observation_deadline: e.target.value })} /></div>
+                  <div className="form-group"><label>Feedback deadline</label><input required type="date" value={cycleDraft.feedback_deadline} onChange={e => setCycleDraft({ ...cycleDraft, feedback_deadline: e.target.value })} /></div>
+                  <button className="btn-primary" type="submit">Create Cycle</button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'course-sections' && (
+            <div className="bento-grid">
+              <div className="bento-card full-span">
+                <h3>Course Sections · {selectedTerm}</h3>
+                {sectionError && <p className="login-error" role="alert">{sectionError}</p>}
+                <form className="modern-form" onSubmit={async event => {
+                  event.preventDefault(); setSectionError('');
+                  try {
+                    const created = await assessmentApi.createCourseSection({ ...sectionDraft, term: selectedTerm });
+                    setDatabaseSections(previous => [...previous, created]);
+                    setSectionDraft({ course_code: '', section_number: '', timing: 'MW 08:30-09:45', instructor_email: '' });
+                  } catch (error) { setSectionError(error.message); }
+                }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+                  <div className="form-group"><label>Course code</label><input required value={sectionDraft.course_code} onChange={e => setSectionDraft({ ...sectionDraft, course_code: e.target.value })} placeholder="CS 1337" /></div>
+                  <div className="form-group"><label>Section (3 digits)</label><input required pattern="[0-9]{3}" maxLength="3" value={sectionDraft.section_number} onChange={e => setSectionDraft({ ...sectionDraft, section_number: e.target.value })} placeholder="001" /></div>
+                  <div className="form-group"><label>Timing (24 hour)</label><input required pattern="(MW|TT) [0-9]{2}:[0-9]{2}-[0-9]{2}:[0-9]{2}" value={sectionDraft.timing} onChange={e => setSectionDraft({ ...sectionDraft, timing: e.target.value })} /></div>
+                  <div className="form-group"><label>Instructor</label><select required value={sectionDraft.instructor_email} onChange={e => setSectionDraft({ ...sectionDraft, instructor_email: e.target.value })}><option value="">Choose professor</option>{databaseProfessors.map(professor => <option key={professor.email} value={professor.email}>{professor.name}</option>)}</select></div>
+                  <button className="btn-primary" type="submit">Create Section</button>
+                </form>
+                <div className="modern-table-wrapper"><table className="data-table"><thead><tr><th>Course</th><th>Section</th><th>Timing</th><th>Instructor</th><th>Update</th></tr></thead>
+                  <tbody>{databaseSections.map(section => <CourseSectionRow key={`${section.course_code}-${section.section_number}-${section.term}`} section={section} professors={databaseProfessors} onUpdate={async changes => {
+                    await assessmentApi.patchCourseSection(section, changes);
+                    setDatabaseSections(previous => previous.map(item => item.course_code === section.course_code && item.section_number === section.section_number && item.term === section.term ? { ...item, ...changes } : item));
+                  }} onError={setSectionError} />)}
+                  {!databaseSections.length && <tr><td colSpan="5">No sections found for this cycle.</td></tr>}</tbody></table></div>
               </div>
             </div>
           )}
@@ -563,9 +753,6 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                   </table>
                 </div>
                 
-                <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                  <button className="btn-primary btn-3d" onClick={() => alert("Template saved and published to Observer Portals!")}>Save & Publish Template</button>
-                </div>
               </div>
             </div>
           )}
@@ -615,10 +802,22 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
     </div>
   )
 }
+
+function CourseSectionRow({ section, professors, onUpdate, onError }) {
+  const [timing, setTiming] = useState(section.timing);
+  const [instructorEmail, setInstructorEmail] = useState(section.instructor_email);
+  return <tr>
+    <td>{section.course_code}</td><td>{section.section_number}</td>
+    <td><input aria-label={`Timing for ${section.course_code} ${section.section_number}`} value={timing} onChange={event => setTiming(event.target.value)} /></td>
+    <td><select aria-label={`Instructor for ${section.course_code} ${section.section_number}`} value={instructorEmail} onChange={event => setInstructorEmail(event.target.value)}>{professors.map(professor => <option key={professor.email} value={professor.email}>{professor.name}</option>)}</select></td>
+    <td><button type="button" className="btn-secondary sm" onClick={() => onUpdate({ timing, instructor_email: instructorEmail }).catch(error => onError(error.message))}>Save</button></td>
+  </tr>;
+}
+
 /* =========================================
    PROFESSOR DASHBOARD 
 ========================================= */
-function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines, globalNotifications, setGlobalNotifications, globalEvaluations, setGlobalEvaluations, evaluationDrafts, setEvaluationDrafts }) {
+function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests, hasSubmittedSurvey, onSurveySubmit, globalSignups, setGlobalSignups, globalObservations, setGlobalObservations, evaluationTemplate, globalDeadlines, globalNotifications, setGlobalNotifications, globalEvaluations, setGlobalEvaluations, evaluationDrafts, setEvaluationDrafts, selectedTerm }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [activeEvaluationTarget, setActiveEvaluationTarget] = useState(null);
@@ -631,6 +830,90 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   // NEW: State for deferred observation reasoning
   const [deferReason, setDeferReason] = useState('');
   const [showDeferForm, setShowDeferForm] = useState(false);
+  const [databaseCourses, setDatabaseCourses] = useState(null);
+  const [databaseObservation, setDatabaseObservation] = useState(null);
+  const [databaseStatus, setDatabaseStatus] = useState(null);
+  const [surveyIsSubmitted, setSurveyIsSubmitted] = useState(hasSubmittedSurvey);
+  const [apiError, setApiError] = useState('');
+
+  useEffect(() => {
+    const email = user?.databaseProfessor?.email;
+    if (!email || !selectedTerm) return;
+    Promise.all([
+      assessmentApi.listCourseSections({ term: selectedTerm, instructor_email: email }),
+      assessmentApi.getProfessorEvaluationStatus(email),
+      assessmentApi.listObservations({ term: selectedTerm, observee_email: email }),
+      assessmentApi.listObservations({ term: selectedTerm, observer_email: email }),
+      assessmentApi.getSurveyStatus(email, selectedTerm),
+    ]).then(([sections, status, observations, observerObservations, surveyStatus]) => {
+      const parseTime = value => {
+        const [hourText, minute] = value.split(':');
+        const hour = Number(hourText);
+        return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`;
+      };
+      const mappedSections = sections.map(section => {
+        const [days, range] = section.timing.split(' ');
+        const [start, end] = range.split('-');
+        return { ...section, section_id: `${section.course_code}|${section.section_number}|${section.term}`,
+          section: section.section_number, timing: `${days === 'TT' ? 'TR' : days} ${parseTime(start)} - ${parseTime(end)}` };
+      });
+      setDatabaseCourses(mappedSections);
+      setDatabaseStatus(status);
+      const observation = observations[0] || null;
+      setDatabaseObservation(observation);
+      const allObservations = [...new Map([...observations, ...observerObservations].map(item => [`${item.course_code}|${item.section_number}|${item.term}`, item])).values()];
+      Promise.all(allObservations.map(async item => {
+        const section = sections.find(course => course.course_code === item.course_code && course.section_number === item.section_number)
+          || await assessmentApi.getCourseSection(item).catch(() => null);
+        const mappedSection = mappedSections.find(course => course.course_code === item.course_code && course.section_number === item.section_number);
+        const observee = section?.instructor_email?.toLowerCase() === email
+          ? user.databaseProfessor
+          : section?.instructor_email ? await assessmentApi.getProfessor(section.instructor_email).catch(() => null) : null;
+        const observer = item.observer_email ? await assessmentApi.getProfessor(item.observer_email).catch(() => null) : null;
+        const statusNames = { signed_up: 'Pending Scheduling', scheduled: 'Scheduled', awaiting_confirmation: 'Awaiting Confirmation', completed: 'Completed', missed: 'Missed', cancelled: 'Cancelled' };
+        return {
+          id: `db-${item.course_code}-${item.section_number}-${item.term}`,
+          observeeId: observee?.email?.toLowerCase() === email ? user.professor_id : observee?.email || null,
+          observeeName: observee?.name || 'Unknown professor',
+          observerId: item.observer_email?.toLowerCase() === email ? user.professor_id : item.observer_email || null,
+          observerName: observer?.name || item.observer_email || 'Not selected',
+          courseCode: item.course_code, timing: mappedSection?.timing || section?.timing || '',
+          status: statusNames[item.status] || item.status,
+          scheduledDate: item.observation_date ? new Date(item.observation_date).toISOString().slice(0, 10) : null,
+          observerConfirmed: Boolean(item.observer_signed_date), observeeConfirmed: Boolean(item.observee_signed_date),
+          ratings: item.ratings,
+          databaseKey: { course_code: item.course_code, section_number: item.section_number, term: item.term },
+        };
+      })).then(databaseObservations => {
+        setGlobalObservations(previous => {
+          const databaseIds = new Set(databaseObservations.map(item => item.id));
+          return [...previous.filter(item => !databaseIds.has(item.id)), ...databaseObservations];
+        });
+        const submittedEvaluations = databaseObservations.filter(item => item.ratings && Object.keys(item.ratings).length > 0).map(item => ({
+          id: `evaluation-${item.id}`, observationId: item.id, observerId: item.observerId, observerName: item.observerName,
+          observeeId: item.observeeId, observeeName: item.observeeName, courseCode: item.courseCode, timing: item.timing,
+          dateSubmitted: 'Previously submitted', answers: item.ratings,
+          items: (evaluationTemplate || []).filter(criteria => Object.hasOwn(item.ratings, criteria.id)),
+        }));
+        setGlobalEvaluations(previous => {
+          const databaseEvaluationIds = new Set(submittedEvaluations.map(item => item.id));
+          return [...previous.filter(item => !databaseEvaluationIds.has(item.id) && !databaseObservations.some(observation => observation.id === item.observationId)), ...submittedEvaluations];
+        });
+      });
+      if (observation && !globalSignups.some(signup => signup.databaseKey?.course_code === observation.course_code && signup.databaseKey?.term === observation.term)) {
+        const section = sections.find(item => item.course_code === observation.course_code && item.section_number === observation.section_number);
+        if (section) setGlobalSignups(previous => [...previous, {
+          id: `db-${observation.course_code}-${observation.section_number}-${observation.term}`,
+          observeeId: user.professor_id, observeeName: user.name, courseCode: section.course_code,
+          section: section.section_number, timing: mappedSections.find(item => item.section_id === `${section.course_code}|${section.section_number}|${section.term}`)?.timing || section.timing,
+          matchesCount: 0, matchFlag: 'NO ELIGIBLE OBSERVER', eligibleObservers: [],
+          databaseKey: { course_code: section.course_code, section_number: section.section_number, term: section.term },
+        }]);
+      }
+      setSurveyIsSubmitted(surveyStatus.submitted);
+      setApiError('');
+    }).catch(error => setApiError(error.message));
+  }, [user?.databaseProfessor?.email, selectedTerm]);
 
   const handleDeferObservation = (obsId) => {
     if (!deferReason.trim()) {
@@ -691,10 +974,15 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   };
 
   // SAFE DEFAULTS: Added fallbacks (|| []) to prevent null-reference crashes
-  const myStatus = calculateEvaluationStatus(user) || { status: 'Unknown', next_eval: 'TBD' };
-  const myCourses = (mockCourses || []).filter(c => c.instructor_id === user?.professor_id);
-  const mySignup = (globalSignups || []).find(s => s.observeeId === user?.professor_id);
-  const myConfirmedObservation = (globalObservations || []).find(o => o.observeeId === user?.professor_id);
+  const apiStatus = databaseStatus && ({ ...databaseStatus,
+    status: databaseStatus.status === 'not_due' ? 'Not Due' : databaseStatus.status === 'overdue' ? 'Overdue' : 'Due',
+    next_eval: databaseStatus.next_due_term, overdue_by: databaseStatus.semesters_overdue });
+  const myStatus = apiStatus || calculateEvaluationStatus(user) || { status: 'Unknown', next_eval: 'TBD' };
+  const myCourses = databaseCourses !== null ? databaseCourses : (mockCourses || []).filter(c => c.instructor_id === user?.professor_id);
+  const mySignup = (globalSignups || []).find(s => s.observeeId === user?.professor_id && (!s.databaseKey || s.databaseKey.term === selectedTerm));
+  const myConfirmedObservation = (globalObservations || []).find(o => mySignup?.databaseKey
+    ? databaseKeyId(o.databaseKey) === databaseKeyId(mySignup.databaseKey)
+    : o.observeeId === user?.professor_id && (!o.databaseKey || o.databaseKey.term === selectedTerm));
   const isPastSignupDeadline = globalDeadlines?.signup 
     ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
     : false;
@@ -740,11 +1028,22 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     </li>
   );
 
-  const confirmObservation = (obsId, side) => {
+  const confirmObservation = async (obsId, side) => {
     // VALIDATION: the observer can't mark the observation complete until the evaluation form is submitted
-    if (side === 'observer' && !(globalEvaluations || []).some(e => e.observationId === obsId)) {
+    const currentObservation = (globalObservations || []).find(item => item.id === obsId);
+    const hasStoredRatings = currentObservation?.ratings && Object.keys(currentObservation.ratings).length > 0;
+    if (side === 'observer' && !hasStoredRatings && !(globalEvaluations || []).some(e => e.observationId === obsId)) {
       alert("Please complete and submit the evaluation form (Begin Evaluation) before marking this evaluation as completed.");
       return false;
+    }
+    if (currentObservation?.databaseKey) {
+      const peerConfirmed = side === 'observer' ? currentObservation.observeeConfirmed : currentObservation.observerConfirmed;
+      try {
+        await assessmentApi.patchObservationForm(currentObservation.databaseKey, {
+          [side === 'observer' ? 'observer_signed_date' : 'observee_signed_date']: new Date().toISOString(),
+        });
+        await assessmentApi.patchObservationStatus(currentObservation.databaseKey, peerConfirmed ? 'completed' : 'awaiting_confirmation');
+      } catch (error) { setApiError(error.message); alert(error.message); return false; }
     }
     setGlobalObservations(prev => {
       let justCompleted = false;
@@ -806,6 +1105,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
       observerId: acceptedRequest.observerId, observerName: acceptedRequest.observerName,
       courseCode: acceptedRequest.courseCode, timing: acceptedRequest.timing,
+      databaseKey: mySignup.databaseKey,
       status: 'Pending Scheduling',
       scheduledDate: null, observerConfirmed: false, observeeConfirmed: false,
     };
@@ -835,7 +1135,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     alert(`${acceptedRequest.observerName} is confirmed! Please set the specific observation date.`);
   };
 
-  const handleScheduleDate = (obsId, dateStr, timeStr) => {
+  const handleScheduleDate = async (obsId, dateStr, timeStr) => {
     const obs = (globalObservations || []).find(o => o.id === obsId);
     if (!obs) return;
 
@@ -845,6 +1145,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       maxDate: globalDeadlines?.observation || undefined,
     });
     if (slotError) { alert(slotError); return; }
+
+    if (obs.databaseKey) {
+      try {
+        await assessmentApi.patchObservation(obs.databaseKey, { observation_date: dateStr });
+        await assessmentApi.patchObservationStatus(obs.databaseKey, 'scheduled');
+        setDatabaseObservation(previous => previous ? { ...previous, observation_date: dateStr, status: 'scheduled' } : previous);
+      } catch (error) { setApiError(error.message); alert(error.message); return; }
+    }
 
     setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Scheduled', scheduledDate: dateStr, scheduledTime: timeStr } : o));
 
@@ -861,6 +1169,21 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const handleSignup = () => {
     if (!selectedCourseId) { alert("Select a course first."); return; }
     const course = myCourses.find(c => c.section_id.toString() === selectedCourseId);
+    if (!course) return;
+    if (course.term && user?.databaseProfessor?.email) {
+      assessmentApi.createObservation({ course_code: course.course_code, section_number: course.section_number, term: course.term })
+        .then(() => {
+          const databaseKey = { course_code: course.course_code, section_number: course.section_number, term: course.term };
+          setGlobalSignups(prev => [...(prev || []).filter(s => databaseKeyId(s.databaseKey) !== databaseKeyId(databaseKey)), {
+            id: `db-signup-${databaseKeyId(databaseKey)}`, observeeId: user.professor_id, observeeName: user.name,
+            courseCode: course.course_code, section: course.section_number, timing: course.timing,
+            matchesCount: 0, matchFlag: 'MATCHING_PENDING', eligibleObservers: [], databaseKey,
+          }]);
+          setDatabaseObservation({ course_code: course.course_code, section_number: course.section_number, term: course.term, status: 'signed_up' });
+          setActiveTab('observee-status');
+        }).catch(error => { setApiError(error.message); alert(error.message); });
+      return;
+    }
     const result = generateObserverMatches(user.professor_id, course.course_code, course.timing);
     setGlobalSignups(prev => [
       ...(prev || []).filter(s => s.observeeId !== user.professor_id),
@@ -874,8 +1197,13 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     setActiveTab('observee-status');
   };
 
-  const reportMissedObservation = (obsId) => {
+  const reportMissedObservation = async (obsId) => {
     if (!window.confirm("Report that this observation did NOT take place?")) return;
+    const observation = (globalObservations || []).find(item => item.id === obsId);
+    if (observation?.databaseKey) {
+      try { await assessmentApi.reportMissedObservation(observation.databaseKey); }
+      catch (error) { setApiError(error.message); alert(error.message); return; }
+    }
     setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Missed', missedReportedBy: user.name } : o));
   };
 
@@ -942,7 +1270,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                     <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                       <option value="">-- Choose a Course --</option>
                       {myCourses.map(c => (
-                        <option key={c.section_id} value={c.section_id}>{c.course_code} Sec {c.section} ({c.timing})</option>
+                        <option key={c.section_id} value={c.section_id}>{c.course_code} Sec {c.section_number || c.section} ({c.timing})</option>
                       ))}
                     </select>
                     <button type="button" onClick={handleSignup} className="btn-primary btn-3d" style={{ marginTop: '15px' }}>Submit & Enter Observer Pool</button>
@@ -1057,13 +1385,22 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                 <>
                   <div className="bento-card full-span">
                     <h3>Step 2: Request Observers</h3>
-                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> : 
-                      !isPastSignupDeadline ? (
+                    {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> :
+                      mySignup.databaseKey ? (
+                        <div style={{ textAlign: 'center', padding: '32px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                          <h4 style={{ color: '#0f172a', marginBottom: '8px' }}>{myConfirmedObservation?.observerId ? 'Observer assigned' : 'Waiting for committee assignment'}</h4>
+                          <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '500' }}>
+                            {myConfirmedObservation?.observerId
+                              ? `${myConfirmedObservation.observerName} is assigned. View the schedule and confirm the observation under Observee Status.`
+                              : 'Your signup is saved. The committee will assign an observer; scheduling and confirmation will appear under Observee Status after assignment.'}
+                          </p>
+                        </div>
+                      ) : !isPastSignupDeadline ? (
                         <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                           <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
                           <h4 style={{ color: '#0f172a', marginBottom: '5px' }}>List Hidden</h4>
                           <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '500' }}>
-                            Potential observers will show up once the Signup Deadline ({globalDeadlines?.signup || 'TBD'}) passes.
+                            The observer list is awaiting committee review after the signup deadline.
                           </p>
                         </div>
                       ) : !mySignup.listReleased ? (
@@ -1080,7 +1417,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                           <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
                           <tbody>
                             {mySignup.eligibleObservers?.length === 0 ? (
-                              <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No eligible observers found.</td></tr>
+                              <tr><td colSpan="2" style={{textAlign: 'center', padding: '20px'}}>No observer candidates are listed.</td></tr>
                             ) : (
                               (mySignup.eligibleObservers || []).map(observer => {
                                 const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
@@ -1169,7 +1506,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                       ) : (
                         myAssignedObservations.map(obs => {
                           // VALIDATION: "Evaluation Completed" is locked until the evaluation form is submitted
-                          const hasSubmittedEvaluation = (globalEvaluations || []).some(e => e.observationId === obs.id);
+                          const hasSubmittedEvaluation = Boolean(obs.ratings && Object.keys(obs.ratings).length) || (globalEvaluations || []).some(e => e.observationId === obs.id);
                           return (
                           <tr key={obs.id}>
                             <td><strong>{obs.observeeName}</strong></td>
@@ -1210,8 +1547,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                                     disabled={!hasSubmittedEvaluation || isPastObservationDeadline}
                                     title={isPastObservationDeadline ? 'Observation deadline has passed' : hasSubmittedEvaluation ? '' : 'Submit the evaluation form (Begin Evaluation) first'}
                                     style={{padding: '5px 10px', borderRadius: '4px', opacity: (hasSubmittedEvaluation && !isPastObservationDeadline) ? 1 : 0.5, cursor: (hasSubmittedEvaluation && !isPastObservationDeadline) ? 'pointer' : 'not-allowed'}}
-                                    onClick={() => {
-                                      if (!confirmObservation(obs.id, 'observer')) return;
+                                    onClick={async () => {
+                                      if (!await confirmObservation(obs.id, 'observer')) return;
                                       alert("Observation confirmed. It will be marked Completed once the observee also confirms.");
                                     }}
                                   >Evaluation Completed</button>
@@ -1253,9 +1590,14 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   </div>
                 </div>
 
-                <form className="modern-form" onSubmit={(e) => {
+                <form className="modern-form" onSubmit={async (e) => {
                   e.preventDefault();
                   const activeItems = (evaluationTemplate || []).filter(item => !item.effective || item.effective === currentSemester);
+                  if (activeEvaluationTarget.databaseKey) {
+                    try {
+                      await assessmentApi.patchObservationForm(activeEvaluationTarget.databaseKey, { ratings: evalAnswers });
+                    } catch (error) { setApiError(error.message); alert(error.message); return; }
+                  }
                   setGlobalEvaluations(prev => [...(prev || []), {
                     id: Date.now(), observationId: activeEvaluationTarget.id,
                     observerId: user.professor_id, observerName: user.name,
@@ -1419,7 +1761,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           )}
 
           {activeTab === 'survey' && (
-            <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={globalDeadlines?.survey} />
+            <FeedbackSurvey hasSubmitted={surveyIsSubmitted || hasSubmittedSurvey} onSubmit={async answers => { await onSurveySubmit(answers); setSurveyIsSubmitted(true); }} isClosed={isSurveyClosed} deadline={globalDeadlines?.survey} />
           )}
         </div>
       </div>

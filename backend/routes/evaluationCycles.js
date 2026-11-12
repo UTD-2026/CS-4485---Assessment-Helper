@@ -20,6 +20,35 @@ const CYCLE_FIELDS = ["term", "signup_deadline", "observation_deadline", "feedba
 const DEADLINE_FIELDS = ["signup_deadline", "observation_deadline", "feedback_deadline"];
 const templatesDirectory = path.join(__dirname, "..", "templates");
 
+async function createTemplateForNewCycle(term) {
+  const targetPath = path.join(templatesDirectory, `${term}.json`);
+  try {
+    await fs.access(targetPath);
+    return;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+
+  const cycles = await EvaluationCycle.find({}).select("term").lean();
+  cycles.sort(sortTermsDescending);
+  for (const cycle of cycles) {
+    try {
+      const sourcePath = path.join(templatesDirectory, `${cycle.term}.json`);
+      const contents = await fs.readFile(sourcePath, "utf8");
+      const template = JSON.parse(contents);
+      if (!Array.isArray(template)) throw new Error("Template must be a JSON array.");
+      await fs.mkdir(templatesDirectory, { recursive: true });
+      await fs.writeFile(targetPath, `${JSON.stringify(template, null, 2)}\n`, { flag: "wx" });
+      return;
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      if (error.code === "EEXIST") return;
+      throw error;
+    }
+  }
+  throw new ApiError(500, "Could not initialize a template for the new cycle.");
+}
+
 function asDateFields(body) {
   return {
     signup_deadline: parseDate(body.signup_deadline, "signup_deadline"),
@@ -115,6 +144,10 @@ router.post(
     const term = normalizeTerm(request.body.term);
     const dates = asDateFields(request.body);
     ensureDateOrder(dates.signup_deadline, dates.observation_deadline, dates.feedback_deadline);
+    if (await EvaluationCycle.exists({ term })) {
+      throw new ApiError(409, "An evaluation cycle already exists for that term.");
+    }
+    await createTemplateForNewCycle(term);
     const cycle = await EvaluationCycle.create({ term, ...dates });
     return sendData(response, cycle, 201);
   })

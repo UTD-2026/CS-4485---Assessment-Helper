@@ -12,9 +12,21 @@ cd backend
 npm run dev
 ```
 
-The server listens on `127.0.0.1:5000` by default. Set `PORT` in `backend/.env` to use another local port. It remains bound to the local machine while authentication is not implemented.
+The server listens on `127.0.0.1:5000` by default. Set `PORT` in `backend/.env` to use another local port. Keep it bound to the local machine; the API routes do not yet enforce authenticated sessions.
+
+## Demo professor accounts
+
+The login endpoint checks professor credentials against `password_hash`. Run `npm run setup-demo-logins` once after the database has been seeded to set each professor's password to the shared demo password `123`. This updates only the `professors.password_hash` values. Future database seeding also creates per-account scrypt hashes for `123`.
+
+Usernames are generated from the professor's first initial and last name, with punctuation removed. The current professor list has one duplicate base username; those two accounts use the middle initial as well. Committee members (`is_ac_member: true`) enter the Committee portal; other accounts enter the Professor portal.
 
 ## Implemented endpoint groups
+
+### Authentication
+
+- `POST /api/auth/login` with `{ "username": "...", "password": "123" }`
+
+The login response contains the professor profile and portal role, but never the stored password hash. AC access is based on `is_ac_member`.
 
 ### Professors
 
@@ -47,7 +59,7 @@ The composite key is fixed after creation. PATCH accepts `timing` and/or `instru
 
 Cycle deadlines must be ordered signup, observation, then feedback. The due-professors response includes due and overdue faculty and counts by hire level.
 
-The template route reads `backend/templates/<term>.json`. No term template files are present yet, so it returns `404` until the group adds the JSON file for the requested cycle.
+The template route reads `backend/templates/<term>.json`. JSON templates are present for each seeded cycle. Creating a cycle copies the latest available template to its new term file. The template editor in the demo UI is a local preview because the agreed API has no template-update route; edit the matching JSON file to publish criteria changes.
 
 ### Observations
 
@@ -61,6 +73,14 @@ The template route reads `backend/templates/<term>.json`. No term template files
 
 The observee is resolved from the matching course section's `instructor_email`. An initial signup can omit `observer_email`; its default status is `signed_up`. Form ratings and notes are stored in the existing `ratings` field, with signature dates stored in the observation's signature fields.
 
+### Surveys
+
+- `GET /api/surveys/status?professor_email=...&term=...`
+- `POST /api/surveys`
+- `GET /api/surveys/responses?term=...`
+
+The database keeps the professor email to enforce one response per professor per term and to report completion. The reporting endpoint removes respondent identities. The current UI does not upload file contents: it saves only whether an attachment was selected.
+
 Successful responses use `{ "data": ... }`; collection responses use an array. Creates return `201`. Invalid input returns `400`, missing records `404`, duplicate keys or invalid state changes `409`, and unexpected errors `500`.
 
-The Vite development server proxies `/api` to `http://localhost:5000`. Authentication, authorization, observer-match routes, surveys, reports, notifications, and email are not implemented in this endpoint group.
+The Vite development server proxies `/api` to `http://127.0.0.1:5000`. The login screen authenticates against the professor collection. Authentication currently gates the UI only; API authorization and role-based route protection are not implemented. The shared password is intentionally for local demonstration only. Keep the API bound to the local machine. Observer matching, reports/KPIs, notifications, and email remain mock-only or unimplemented as agreed.
