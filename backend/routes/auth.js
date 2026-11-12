@@ -36,8 +36,11 @@ router.post("/login", async (req, res) => {
 // GET /api/auth/test-accounts  (public, development/demo only)
 // Backs the login page's "Need more test accounts?" list: every professor's NetID, name and role.
 // Disabled when NODE_ENV=production so a real deployment never publishes the faculty list.
+// NOW a real deployment can enable it with ENABLE_TEST_ACCOUNTS=true, e.g. for a demo or testing.
 router.get("/test-accounts", async (req, res) => {
-  if (process.env.NODE_ENV === "production") throw notFound();
+  const enabled =
+    process.env.NODE_ENV !== "production" || process.env.ENABLE_TEST_ACCOUNTS === "true";
+  if (!enabled) throw notFound();
   const rows = await Professor.find({}).select("email name department is_ac_member").lean();
   const data = rows
     .map((p) => ({
