@@ -46,7 +46,9 @@ async function validateCourseSection(data) {
 
 async function validateObservation(data) {
   await requireCourseSection(data);
-  await requireProfessor(data.observer_email);
+  if (data.observer_email) {
+    await requireProfessor(data.observer_email);
+  }
 }
 
 async function validateObserverMatch(data) {

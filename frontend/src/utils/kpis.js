@@ -86,7 +86,8 @@ export const computeEligibilityAccuracy = (signups, observations, directory) => 
         observerName: obs.name,
         courseCode: s.courseCode,
         timing: s.timing,
-        violations: auditPairing(s.observeeId, obs.professor_id, s.courseCode, s.timing, directory),
+        // Lists from the server can carry its own audit (main's matching engine); otherwise audit here
+        violations: obs.violations ?? auditPairing(s.observeeId, obs.professor_id, s.courseCode, s.timing, directory),
       });
     });
   });
@@ -98,7 +99,7 @@ export const computeEligibilityAccuracy = (signups, observations, directory) => 
       observerName: o.observerName,
       courseCode: o.courseCode,
       timing: o.timing,
-      violations: auditPairing(o.observeeId, o.observerId, o.courseCode, o.timing, directory),
+      violations: o.violations ?? auditPairing(o.observeeId, o.observerId, o.courseCode, o.timing, directory),
     });
   });
  

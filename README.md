@@ -24,7 +24,7 @@ A centralized platform for managing faculty evaluations, course histories, and p
 - **Live Metrics & KPIs:** eligibility accuracy, overdue count, participation, observer utilization, list sufficiency, missing observations, survey completion
 - **Faculty Search:** name search, department/status filters, CSV export
 - **Committee Reports:** due/overdue by hiring level, unmatched faculty, outstanding observations, observer workload (each exportable to CSV)
-- **Signup Monitor:** view/regenerate observer lists, release lists, resolve manually, request end-of-process surveys
+- **Signup Monitor:** generate or top up every observer list at once (same department, same course level, no class at that time), view/regenerate single lists, release lists, assign an observer manually (with a warning when it breaks a matching rule)
 - **Deadlines:** sign-up, observation and survey deadlines for the current term (saved to the database; participants notified)
 - **Template Editor:** per-term evaluation criteria saved to `backend/templates/<term>.json`
 - **Digital Evaluations** and anonymous **Survey Responses**
@@ -110,6 +110,7 @@ A local database is only on your computer, so teammates won't see your changes.
 | `npm run backend:dev` / `backend:start` | Start the API (with / without auto-restart) |
 | `npm run backend:test` | API tests (set `MONGODB_URI_TEST` to a local database for the end-to-end test) |
 | `npm run backend:setup-db` / `backend:seed` / `backend:test-db` | Database setup, seeding, connection check |
+| `npm run backend:setup-demo-logins` | Reset every professor's password to `Password123!` (use if test logins stop working) |
 
 ## Test Login (seed data)
 

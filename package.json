@@ -15,6 +15,7 @@
     "backend:test": "npm test --prefix backend",
     "backend:seed": "npm run seed --prefix backend",
     "backend:setup-db": "npm run setup-db --prefix backend",
+    "backend:setup-demo-logins": "npm run setup-demo-logins --prefix backend",
     "backend:test-db": "npm run test-db --prefix backend"
   }
 }

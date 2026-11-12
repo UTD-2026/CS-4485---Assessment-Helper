@@ -83,6 +83,7 @@ export const api = {
   // 5. Observer matches
   observerMatches: (params) => request('GET', `/observer-matches${q(params)}`),
   generateList: (id) => request('POST', `/observations${keyPath(id)}/generate-observer-list`),
+  generateAllLists: (term, dryRun = false) => request('POST', '/observer-matches/generate', { term, dry_run: dryRun }),
   releaseList: (id) => request('POST', `/observations${keyPath(id)}/release-observer-list`),
   sendRequests: (id, observer_emails) => request('POST', `/observations${keyPath(id)}/observer-requests`, { observer_emails }),
   respond: (observationId, observerEmail, response) =>

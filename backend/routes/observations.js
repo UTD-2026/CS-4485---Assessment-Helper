@@ -11,7 +11,8 @@ const {
   sectionKey, keyFilter, loadTermContext, resolveTerm, observeeOf, isSignupClosed, isObservationPeriodOver, todayISO, toISODate,
 } = require("../services/context");
 const { presentObservation, presentMatch, nameOf, flagFor } = require("../services/presenters");
-const { candidatesFor } = require("../services/matching");
+const { candidatesFor, violationsFor } = require("../services/matching");
+const { RULES } = require("../matching/matchmaker");
 const { assertTransition } = require("../services/observationStateMachine");
 const { isMeetingDay, meetingOf, toMinutes, clockText, to12h, formatTiming } = require("../services/eligibility");
 const { getTemplate } = require("../services/templates");
@@ -36,9 +37,9 @@ async function load(req) {
   return { observation, ctx, observee, role };
 }
 
-async function respond(res, observation, req, status = 200) {
+async function respond(res, observation, req, status = 200, meta) {
   const ctx = await loadTermContext(observation.term);
-  res.status(status).json({ data: presentObservation(observation.toObject(), ctx, req.user) });
+  res.status(status).json({ data: presentObservation(observation.toObject(), ctx, req.user), ...(meta ? { meta } : {}) });
 }
 
 /** Generates (or regenerates) the suggested observer list for one observation. */
@@ -350,13 +351,16 @@ router.post(`${KEY}/select-observer`, async (req, res) => {
   if (manual) observation.match_flag = "OK";
   await observation.save();
 
+  // Committee overrides may break the matching rules; tell the committee which ones (from main's /assign).
+  const warnings = manual ? violationsFor(ctx, observation, email).map((code) => ({ code, label: RULES[code] })) : [];
+
   if (manual) {
     await notify(email, `System Assignment: You have been manually assigned by the Committee to observe ${nameOf(ctx, observee)} (${observation.course_code}).`, "assignment");
     await notify(observee, `System Update: The Committee has manually assigned ${nameOf(ctx, email)} as your observer for ${observation.course_code}. Head to 'Observee Status' to schedule the date.`, "assignment");
   } else {
     await notify(email, `${req.user.name} confirmed you as their official observer for ${observation.course_code}! They will set a specific date soon.`, "assignment");
   }
-  await respond(res, observation, req);
+  await respond(res, observation, req, 200, manual ? { warnings } : undefined);
 });
 
 module.exports = router;

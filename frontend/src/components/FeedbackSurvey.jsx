@@ -62,6 +62,7 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
   const [files, setFiles] = useState([]);
   const [error, setError] = useState('');
   const [showMissing, setShowMissing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const fileInput = useRef(null);
 
   const questions = questionsFor(rating, answers);
@@ -75,9 +76,9 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
     if (fileInput.current) fileInput.current.value = '';
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isClosed) return; // deadline passed--block submission
+    if (isClosed || submitting) return; // deadline passed, or already sending
     if (!rating) {
       setError('Please rate the observation process.');
       return;
@@ -88,12 +89,19 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
       return;
     }
     setError('');
-    onSubmit({
-      rating,
-      answers: questions.map((q) => ({ key: q.key, question: q.question, answer: String(answers[q.key] || '').trim() })),
-      notes: notes.trim(),
-      attachment_count: files.length, // file names are never stored (they could identify the sender)
-    });
+    setSubmitting(true); // from main: block double submits while the request is in flight
+    try {
+      await onSubmit({
+        rating,
+        answers: questions.map((q) => ({ key: q.key, question: q.question, answer: String(answers[q.key] || '').trim() })),
+        notes: notes.trim(),
+        attachment_count: files.length, // file names are never stored (they could identify the sender)
+      });
+    } catch (submitError) {
+      setError(submitError.message || 'The survey could not be submitted.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (hasSubmitted) {
@@ -192,7 +200,7 @@ export default function FeedbackSurvey({ hasSubmitted, onSubmit, isClosed = fals
           </>
         )}
 
-        <div><button type="submit" className="btn btn-primary btn-lg" disabled={!rating}>Submit survey</button></div>
+        <div><button type="submit" className="btn btn-primary btn-lg" disabled={!rating || submitting}>{submitting ? 'Submitting…' : 'Submit survey'}</button></div>
       </form>
     </section>
   );

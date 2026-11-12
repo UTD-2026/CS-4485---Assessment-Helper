@@ -46,4 +46,24 @@ async function saveTemplate(term, criteria, editorEmail) {
   return { ...doc, source: `${termSlug(term)}.json` };
 }
 
-module.exports = { getTemplate, saveTemplate, RATING_SCALES };
+/**
+ * From main: a new cycle starts with a copy of the most recent earlier term's template file, so the
+ * committee edits last term's form instead of the default. Does nothing if the term already has a file
+ * or no earlier term has one (getTemplate then falls back to default.json).
+ */
+async function copyLatestTemplate(term, knownTerms) {
+  const { termOrdinal } = require("./terms");
+  const target = path.join(DIR, `${termSlug(term)}.json`);
+  if (await readJson(target)) return null;
+  const earlier = knownTerms.filter((t) => t !== term && termOrdinal(t) < termOrdinal(term)).sort((a, b) => termOrdinal(b) - termOrdinal(a));
+  for (const source of earlier) {
+    const doc = await readJson(path.join(DIR, `${termSlug(source)}.json`));
+    if (!doc) continue;
+    const copy = { term, copied_from: source, updated_at: new Date().toISOString(), criteria: doc.criteria || [] };
+    await fs.writeFile(target, `${JSON.stringify(copy, null, 2)}\n`, { encoding: "utf8", flag: "wx" }).catch((e) => { if (e.code !== "EEXIST") throw e; });
+    return source;
+  }
+  return null;
+}
+
+module.exports = { getTemplate, saveTemplate, copyLatestTemplate, RATING_SCALES };

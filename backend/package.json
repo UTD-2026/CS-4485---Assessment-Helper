@@ -7,10 +7,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "setup-db": "node setup-database.js",
+    "setup-demo-logins": "node setup-demo-logins.js",
     "test-db": "node test-database.js",
     "seed": "node seed/seed.mjs",
     "seed:reset-local": "node seed/reset-local.mjs",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js matching/*.test.js"
   },
   "keywords": [],
   "author": "",

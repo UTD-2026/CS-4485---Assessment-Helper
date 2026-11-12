@@ -1,11 +1,13 @@
 // Sign-in. Not in the endpoint doc's tables, but the doc's 401 status ("A user has not yet been
-// authenticated") needs it. Accepts a NetID (part of the email before @) or the full email.
+// authenticated") needs it. Accepts a NetID (part of the email before @), the full email, or main's
+// name-based username (first initial + last name, e.g. "jsmith"; see services/usernames.js).
 const express = require("express");
 const { env } = require("../config/env");
 const { Professor } = require("../models");
 const { sign } = require("../services/jwt");
 const { verifyPassword } = require("../services/password");
 const { presentProfessor } = require("../services/context");
+const { makeUsernameMap } = require("../services/usernames");
 const { authenticate } = require("../middleware/auth");
 const { badRequest, unauthorized, notFound } = require("../middleware/errors");
 
@@ -17,9 +19,13 @@ router.post("/login", async (req, res) => {
   if (!login || !password) throw badRequest("Username and password are required.");
 
   const email = login.includes("@") ? login : null;
-  const professor = email
+  let professor = email
     ? await Professor.findOne({ email }).lean()
     : await Professor.findOne({ email: { $regex: `^${login.replace(/[^a-z0-9._-]/g, "")}@` } }).lean();
+  if (!professor && !email) {
+    // Not a NetID: try the name-based username from main (e.g. "jsmith")
+    professor = makeUsernameMap(await Professor.find({}).lean()).get(login) || null;
+  }
   if (!professor) throw unauthorized("Professor not found.");
   if (!verifyPassword(password, professor.password_hash)) throw unauthorized("Incorrect password.");
 

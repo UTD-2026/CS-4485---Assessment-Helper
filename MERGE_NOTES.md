@@ -27,3 +27,20 @@ The API follows the team's **API Endpoints** Google Doc. Each branch is recorded
 ## Not done yet
 
 UTD NetID single sign-on, Course Book import, email delivery, and survey file uploads (see `backend/README.md`).
+
+## ui-overhaul ← main (PR #14, Nov 2026)
+
+`main` had grown its own backend (`routes/apiHelpers.js`, no login tokens) and a front end wired to it. Every
+route it added already existed in ui-overhaul, so ui-overhaul's structure was kept and main's behavior ported in:
+
+- **Matching engine** (Scott's `backend/matching/matchmaker.js` + its unit tests) now drives observer lists through
+  `services/matching.js`: committee members left off lists, same-course teachers ranked first, then workload,
+  unreadable timings treated as conflicts.
+- **Generate / top up all lists** for a term: `POST /api/observer-matches/generate` and a button on the Signup monitor.
+- **Manual assignment warnings**: `select-observer` returns `meta.warnings` for broken rules; the UI shows them.
+- **Login**: name-based usernames (`jsmith`) work alongside NetIDs; passwords hashed by main's scripts (hex salt) are accepted.
+- `setup-demo-logins.js` sets `Password123!`. Course-section validation (3-digit section, `MW|TT HH:MM-HH:MM`, cycle must
+  exist), new cycles copy the latest earlier template, extra fields on due-professors and evaluation-status.
+- Survey submit button is disabled while sending. Vite proxies to `127.0.0.1:5000`.
+- Removed: `routes/apiHelpers.js`, `templates/<Term>.json` (numeric ids didn't match seeded ratings), the mock
+  `frontend/src/data/mockDatabase.js` and `frontend/src/utils/matchmaker.js` (the UI reads from the API).

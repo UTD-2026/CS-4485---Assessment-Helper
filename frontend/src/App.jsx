@@ -404,9 +404,14 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
       toast.error('That observer was not found in the database.');
       return;
     }
-    const ok = await run(() => api.selectObserver(signup.id, observer.email),
-      `${observer.name} is assigned to observe ${signup.observeeName}. They can now schedule the date.`);
-    if (ok) { setExpandedSignup(null); setManualObserverId(''); }
+    try {
+      const res = await api.selectObserver(signup.id, observer.email);
+      toast.success(`${observer.name} is assigned to observe ${signup.observeeName}. They can now schedule the date.`);
+      // The server lists any matching rules this override breaks (from main's /assign)
+      const warnings = (res?.meta?.warnings || []).map(w => w.label);
+      if (warnings.length) toast.info(`Assigned outside the matching rules: ${warnings.join('; ')}.`, { title: 'Heads up', duration: 8000 });
+      setExpandedSignup(null); setManualObserverId('');
+    } catch (e) { toast.error(e.message); }
     await refresh();
   };
 
@@ -448,6 +453,20 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
       const res = await api.generateList(signup.id);
       toast.success(`Observer list regenerated: ${plural(res.data.candidates.length, 'candidate')} (${res.data.flag.replaceAll('_', ' ').toLowerCase()}).`);
     } catch (e) { toast.error(e.message); }
+    await refresh();
+  };
+
+  // Generate / top up every observer list still waiting for an observer (POST /api/observer-matches/generate, from main)
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const handleGenerateAll = async () => {
+    setGeneratingAll(true);
+    try {
+      const { meta } = await api.generateAllLists(currentSemester);
+      toast.success(meta.processed
+        ? `${plural(meta.processed, 'list')} generated or topped up: ${meta.ok} full, ${meta.insufficient} insufficient, ${meta.none} with no eligible observer.`
+        : 'Every sign-up already has an observer. Nothing to generate.');
+    } catch (e) { toast.error(e.message); }
+    setGeneratingAll(false);
     await refresh();
   };
 
@@ -559,6 +578,12 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
               </div>
             ))}
           </section>
+          <div className="row-between section-gap">
+            <span className="muted">Lists are built from the matching rules: same department, same course level, no class-time conflict.</span>
+            <button type="button" className="btn btn-secondary" disabled={generatingAll} onClick={handleGenerateAll}>
+              <Icon name="refresh" size={16} /> {generatingAll ? 'Generating…' : 'Generate / top up all lists'}
+            </button>
+          </div>
           <div className="section-gap">
             <SignupFilters rows={signupRows} query={signupQuery} setQuery={(q) => { setSignupQuery(q); setExpandedSignup(null); }}
               filters={signupFilters} setFilters={(f) => { setSignupFilters(f); setExpandedSignup(null); }} />
@@ -631,6 +656,12 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
                                 <button type="button" className="btn btn-primary" onClick={() => handleManualAssignment(signup)}>Assign and confirm pair</button>
                                 {!signup.listReleased && <button type="button" className="btn btn-ghost" onClick={() => handleRegenerateList(signup)}><Icon name="refresh" size={16} /> Regenerate</button>}
                               </div>
+                            </>
+                          ) : signup.listReleased && people.length > 0 && people.every(po => ['declined', 'cancelled'].includes(po.matchStatus)) ? (
+                            <>
+                              {/* From main: nobody left to ask, so offer a fresh list */}
+                              <Notice tone="warn" title="Everyone on the list declined">Generate again to add colleagues who were not on the list yet.</Notice>
+                              <div className="row"><button type="button" className="btn btn-ghost" onClick={() => handleRegenerateList(signup)}><Icon name="refresh" size={16} /> Regenerate</button></div>
                             </>
                           ) : signup.listReleased ? (
                             <Notice tone="good" title="List released">{signup.observeeName} can send requests from this list.</Notice>

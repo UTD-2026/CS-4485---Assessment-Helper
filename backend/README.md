@@ -12,10 +12,11 @@ npm run test-db                  # ping MongoDB
 npm run setup-db                 # collections + indexes (safe to re-run)
 npm run seed                     # load seed/seed-data.json into EMPTY collections
 npm run dev                      # http://127.0.0.1:5000/api/health
+npm run setup-demo-logins        # optional: reset every professor's password to Password123!
 ```
 
 `npm run seed:reset-local` drops the collections first, but only for a `mongodb://localhost/...` database; the shared Atlas
-database is never wiped. The Vite dev server proxies `/api` to `http://localhost:5000`.
+database is never wiped. The Vite dev server proxies `/api` to `http://127.0.0.1:5000`.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -90,11 +91,12 @@ Status lifecycle (`services/observationStateMachine.js`): `signed_up | unmatched
 | Method | Endpoint | Notes |
 |---|---|---|
 | GET | /api/observer-matches | `?term=&observer_email=&status=` (+ `observee_email`) |
-| POST | /api/observations/…/generate-observer-list | Committee. Same department, not self, teaches the same course level this term, no time overlap; up to 5, lightest observer workload first |
+| POST | /api/observer-matches/generate | Committee. `{ term?, dry_run? }`. Generates or tops up the list for every sign-up still waiting for an observer (extension, from main) |
+| POST | /api/observations/…/generate-observer-list | Committee. Rules from `matching/matchmaker.js`: same department, not self, teaches the same course level this term, no time overlap (unreadable timing counts as a conflict), committee members left off; up to 5, same-course teachers first, then lightest workload |
 | POST | /api/observations/…/release-observer-list | Committee. Observee is notified and can send requests |
 | POST | /api/observations/…/observer-requests | Observee. `{ observer_emails: [...] }` from the released list |
 | PATCH | /api/observer-matches/:course_code/:section_number/:term/:observer_email/response | Requested observer. `{ response: "accept" \| "decline" }` |
-| POST | /api/observations/…/select-observer | `{ observer_email }`. Observee: an observer who accepted (other requests are cancelled). Committee: manual assignment |
+| POST | /api/observations/…/select-observer | `{ observer_email }`. Observee: an observer who accepted (other requests are cancelled). Committee: manual assignment; `meta.warnings` lists any matching rules it breaks |
 
 Match statuses: `suggested → requested → accepted | declined → confirmed | cancelled`.
 

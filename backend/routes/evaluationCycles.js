@@ -4,7 +4,7 @@ const { EvaluationCycle } = require("../models");
 const { requireAc } = require("../middleware/auth");
 const { badRequest, conflict, notFound } = require("../middleware/errors");
 const { isValidTerm } = require("../services/terms");
-const { getTemplate, saveTemplate } = require("../services/templates");
+const { getTemplate, saveTemplate, copyLatestTemplate } = require("../services/templates");
 const { notify } = require("../services/notifications");
 
 const router = express.Router();
@@ -71,6 +71,7 @@ router.post("/", requireAc, async (req, res) => {
   if (!isValidTerm(term)) throw badRequest('term is required, e.g. "Spring 2027".');
   if (await EvaluationCycle.exists({ term })) throw conflict(`An evaluation cycle for ${term} already exists.`);
   const cycle = await EvaluationCycle.create({ term, ...readDeadlines(req.body, false) });
+  await copyLatestTemplate(term, (await getCycles()).map((c) => c.term)); // from main: start from the last term's form
   res.status(201).json({ data: presentCycle(cycle.toObject()) });
 });
 
@@ -104,7 +105,19 @@ router.get("/:term/due-professors", async (req, res) => {
     .map((p) => ({ ...presentProfessor(p, ctx.due.get(p.email)), signed_up: signedUp.has(p.email) }))
     .filter((p) => p.evaluation_status.status !== "not_due")
     .sort((a, b) => b.evaluation_status.overdue_by - a.evaluation_status.overdue_by || a.name.localeCompare(b.name));
-  res.json({ data: list, meta: { term: req.params.term, due: list.filter((p) => p.evaluation_status.status === "due").length, overdue: list.filter((p) => p.evaluation_status.status === "overdue").length } });
+  // count + breakdown_by_hire_level: from main
+  const breakdown = {};
+  for (const p of list) {
+    breakdown[p.hire_level] ||= { due: 0, overdue: 0 };
+    breakdown[p.hire_level][p.evaluation_status.status] += 1;
+  }
+  res.json({ data: list, meta: {
+    term: req.params.term,
+    count: list.length,
+    due: list.filter((p) => p.evaluation_status.status === "due").length,
+    overdue: list.filter((p) => p.evaluation_status.status === "overdue").length,
+    breakdown_by_hire_level: breakdown,
+  } });
 });
 
 // GET /api/evaluation-cycles/:term/template  (reads backend/templates/<term>.json)

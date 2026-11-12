@@ -54,7 +54,15 @@ router.get("/:email/evaluation-status", async (req, res) => {
   const professor = ctx.profByEmail.get(email);
   if (!professor) throw notFound("The specified professor was not found.");
   const signedUp = ctx.observations.some((o) => ctx.sectionByKey.get(`${o.course_code}|${o.section_number}|${o.term}`)?.instructor_email === email);
-  res.json({ data: { email, term, hire_level: professor.hire_level, signed_up: signedUp, ...ctx.due.get(email) } });
+  const status = ctx.due.get(email) || {};
+  res.json({ data: {
+    email, term, hire_level: professor.hire_level, signed_up: signedUp, ...status,
+    // Fields from main's version of this endpoint
+    professor: presentProfessor(professor),
+    assessed_term: term,
+    last_evaluation_term: status.last_evaluated_term ?? null,
+    semesters_overdue: status.overdue_by ?? 0,
+  } });
 });
 
 module.exports = router;
