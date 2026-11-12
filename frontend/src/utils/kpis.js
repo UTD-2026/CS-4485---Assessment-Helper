@@ -4,28 +4,12 @@
 // so the same logic can later run on the Node/MySQL back end unchanged.
  
 import { mockProfessors, mockCourses, calculateEvaluationStatus } from '../data/mockDatabase.js';
+// Same level and time-overlap rules as the matching engine
+import { OBSERVER_LIST_SIZE, courseLevel, timingsOverlap } from './matchmaker.js';
  
-export const TARGET_LIST_SIZE = 5; // matchmaker.js returns up to 5 observers per sign-up
+export const TARGET_LIST_SIZE = OBSERVER_LIST_SIZE; // observers per generated list
  
 const pct = (num, den) => (den ? Math.round((num / den) * 1000) / 10 : 0);
- 
-// "TR 10:00 AM" -> { days: ['T','R'], time: '10:00 AM' }
-const parseTiming = (timing = '') => {
-  const [days = '', ...rest] = timing.trim().split(/\s+/);
-  return { days: days.toUpperCase().split(''), time: rest.join(' ').toUpperCase() };
-};
- 
-const timingsOverlap = (a, b) => {
-  const ta = parseTiming(a);
-  const tb = parseTiming(b);
-  return ta.time === tb.time && ta.days.some(d => tb.days.includes(d));
-};
- 
-// Course level = first digit of the course number ("CS 3345" -> "3"), same rule as matchmaker.js
-const courseLevel = (courseCode = '') => {
-  const parts = courseCode.split(' ');
-  return parts.length > 1 ? parts[1].charAt(0) : '1';
-};
  
 /* =========================================
    1. FACULTY EVALUATION KPI
@@ -49,7 +33,7 @@ export const auditPairing = (observeeId, observerId, courseCode, timing) => {
  
   const level = courseLevel(courseCode);
   const observerCourses = mockCourses.filter(c => c.instructor_id === observer.professor_id);
-  const sameLevel = observerCourses.some(c => courseLevel(c.course_code) === level);
+  const sameLevel = level !== null && observerCourses.some(c => courseLevel(c.course_code) === level);
   const sameDept = observer.department === observee.department;
  
   const violations = [];
@@ -72,7 +56,8 @@ export const computeEligibilityAccuracy = (signups, observations) => {
         observerName: obs.name,
         courseCode: s.courseCode,
         timing: s.timing,
-        violations: auditPairing(s.observeeId, obs.professor_id, s.courseCode, s.timing),
+        // Database lists carry the server's audit; mock lists are audited here
+        violations: obs.violations ?? auditPairing(s.observeeId, obs.professor_id, s.courseCode, s.timing),
       });
     });
   });
@@ -84,7 +69,7 @@ export const computeEligibilityAccuracy = (signups, observations) => {
       observerName: o.observerName,
       courseCode: o.courseCode,
       timing: o.timing,
-      violations: auditPairing(o.observeeId, o.observerId, o.courseCode, o.timing),
+      violations: o.violations ?? auditPairing(o.observeeId, o.observerId, o.courseCode, o.timing),
     });
   });
  

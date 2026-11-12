@@ -6,6 +6,7 @@ const professorRoutes = require("./routes/professors").router;
 const courseSectionRoutes = require("./routes/courseSections");
 const evaluationCycleRoutes = require("./routes/evaluationCycles");
 const observationRoutes = require("./routes/observations");
+const observerMatchRoutes = require("./routes/observerMatches");
 const surveyRoutes = require("./routes/surveys");
 const authRoutes = require("./routes/auth").router;
 const { errorHandler } = require("./routes/apiHelpers");
@@ -29,6 +30,7 @@ app.use("/api/professors", professorRoutes);
 app.use("/api/course-sections", courseSectionRoutes);
 app.use("/api/evaluation-cycles", evaluationCycleRoutes);
 app.use("/api/observations", observationRoutes);
+app.use("/api/observer-matches", observerMatchRoutes);
 app.use("/api/surveys", surveyRoutes);
 
 app.use("/api", (request, response) => {

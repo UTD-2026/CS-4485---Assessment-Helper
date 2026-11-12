@@ -13,12 +13,12 @@ A centralized platform for managing faculty evaluations, course histories, and p
 
 **Professor Portal**
 - **My Cycle:** evaluation status and Step 1 course sign-up (course/section and meeting days/time)
-- **Observer Status:** Step 2 (request observers from eligible colleagues) and Step 3 (confirm or decline matches)
-- **My Duties:** observer-side upload of the signed observation template (PDF)
+- **Observee Status:** Step 2 (request observers from the generated list) and Step 3 (confirm one colleague who accepted)
+- **My Duties:** accept or decline observation requests, and observer-side upload of the signed observation template (PDF)
 - **End Survey:** end-of-cycle feedback form
 
 **Committee / Admin Portal**
-- **Matchmaking:** generate observer lists, notify faculty, and flag faculty with no eligible observers
+- **Matchmaking:** generate or top up observer lists (same department, same course level, no class at that time), notify faculty, flag short lists and faculty with no eligible observers, and assign an observer manually
 - **Metrics (KPIs):** participation rate, list sufficiency, and overdue evaluations
 - **Deadlines:** faculty due report with reminders
 

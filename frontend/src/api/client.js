@@ -97,6 +97,14 @@ export const assessmentApi = {
     { method: 'PATCH', body: {} }
   ),
 
+  listObserverMatches: (filters) => apiRequest(`/api/observer-matches${queryString(filters)}`),
+  generateObserverMatches: (request) => apiRequest('/api/observer-matches/generate', { method: 'POST', body: request }),
+  updateObserverMatchStatus: ({ course_code, section_number, term }, observerEmail, status) => apiRequest(
+    `/api/observer-matches/${segment(course_code)}/${segment(section_number)}/${segment(term)}/${segment(observerEmail)}`,
+    { method: 'PATCH', body: { status } }
+  ),
+  assignObserver: (assignment) => apiRequest('/api/observer-matches/assign', { method: 'POST', body: assignment }),
+
   getSurveyStatus: (professor_email, term) => apiRequest(
     `/api/surveys/status${queryString({ professor_email, term })}`
   ),

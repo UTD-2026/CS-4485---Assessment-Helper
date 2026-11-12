@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { generateObserverMatches } from './utils/matchmaker.js';
+import { generateObserverMatches, flagForListSize, OBSERVER_LIST_SIZE, MATCH_FLAGS } from './utils/matchmaker.js';
 import './styles/App.css';
 import FeedbackSurvey from './components/FeedbackSurvey.jsx';
 import AdminSurveyResults from './components/AdminSurveyResults.jsx';
@@ -34,8 +34,81 @@ function databaseObservationStatus(status) {
     completed: 'Completed',
     missed: 'Missed',
     cancelled: 'Cancelled',
+    unmatched: 'No Eligible Observer',
   };
   return names[String(status || '').toLowerCase()] || status || 'Pending Scheduling';
+}
+
+/* ---------- Observer matching (database) ----------
+   An observer match moves suggested -> requested -> accepted -> confirmed
+   (or declined / cancelled). Requested-and-later matches are shown with the
+   existing request UI, so they are mapped to its status names. */
+const MATCH_STATUS_TO_REQUEST_STATUS = {
+  requested: 'Pending', accepted: 'Accepted', declined: 'Declined', confirmed: 'Confirmed', cancelled: 'Cancelled',
+};
+const MATCHING_PENDING = 'MATCHING_PENDING';
+// Matches that were never requested (still suggested, or removed from the list) are not requests
+const isRequestMatch = match => !['suggested', 'removed'].includes(match.status);
+// "removed" suggestions failed the rules on a later check, so they are not part of the list
+const isListedMatch = match => match.status !== 'removed';
+
+function matchToRequest(match) {
+  return {
+    id: `match-${databaseKeyId(match)}|${match.observer_email}`,
+    observeeId: match.observee_email, observeeName: match.observee_name || match.observee_email,
+    observerId: match.observer_email, observerName: match.observer_name || match.observer_email,
+    courseCode: match.course_code, timing: displayCourseTiming(match.timing || ''),
+    status: MATCH_STATUS_TO_REQUEST_STATUS[match.status] || match.status,
+    matchStatus: match.status,
+    databaseKey: { course_code: match.course_code, section_number: match.section_number, term: match.term },
+  };
+}
+
+function matchToCandidate(match) {
+  return {
+    professor_id: match.observer_email, email: match.observer_email,
+    name: match.observer_name || match.observer_email, department: match.observer_department || '',
+    matchStatus: match.status, violations: match.violations,
+  };
+}
+
+// List fields for one signup, from its observer matches.
+//   eligibleObservers / matchesCount: everyone the engine (or committee) listed, except removed entries
+//   matchFlag: OK once an observer is confirmed; otherwise based on how many colleagues
+//     can still be asked (suggested/requested/accepted). A list everyone declined is
+//     "insufficient" (regenerating tops it up); NONE means nobody passed the rules.
+function signupMatchFields(matches, observationStatus) {
+  const listed = matches.filter(isListedMatch);
+  const open = matches.filter(match => ['suggested', 'requested', 'accepted'].includes(match.status)).length;
+  let matchFlag;
+  if (matches.some(match => match.status === 'confirmed')) matchFlag = MATCH_FLAGS.OK;
+  else if (String(observationStatus || '').toLowerCase() === 'unmatched') matchFlag = MATCH_FLAGS.NONE;
+  else if (!matches.length) matchFlag = MATCHING_PENDING;
+  else if (open === 0) matchFlag = MATCH_FLAGS.INSUFFICIENT;
+  else matchFlag = flagForListSize(open);
+  return {
+    eligibleObservers: listed.map(matchToCandidate),
+    matchesCount: listed.length,
+    matchFlag,
+    listReleased: listed.length > 0,
+    observationStatus,
+  };
+}
+
+const MATCH_STATUS_BADGES = {
+  suggested: ['badge-neutral', 'Suggested'], requested: ['badge-warning', 'Request sent'], accepted: ['badge-success', 'Accepted'],
+  confirmed: ['badge-success', 'Confirmed'], declined: ['badge-error', 'Declined'], cancelled: ['badge-neutral', 'Cancelled'],
+  removed: ['badge-neutral', 'Removed'],
+};
+const MATCH_FLAG_BADGES = {
+  [MATCH_FLAGS.OK]: ['badge-success', 'Full list'],
+  [MATCH_FLAGS.INSUFFICIENT]: ['badge-warning', 'Short list'],
+  [MATCH_FLAGS.NONE]: ['badge-error', 'No eligible observer'],
+  [MATCHING_PENDING]: ['badge-neutral', 'List not generated'],
+};
+function MatchStatusBadge({ status }) {
+  const [className, label] = MATCH_STATUS_BADGES[status] || ['badge-neutral', status];
+  return <span className={`badge ${className}`}>{label}</span>;
 }
 
 function displayCourseTiming(timing = '') {
@@ -168,6 +241,7 @@ export default function App() {
         user={currentUser}
         onLogout={() => setCurrentUser(null)}
         globalRequests={globalRequests}
+        setGlobalRequests={setGlobalRequests}
         surveyResponses={surveyResponses}
         submittedCount={Math.max(surveySubmissions.length, surveyResponses.length)}
         totalProfessors={databaseProfessors.length}
@@ -284,7 +358,7 @@ function Login({ onLogin }) {
 /* =========================================
    ADMIN DASHBOARD
 ========================================= */
-function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, globalObservations, setGlobalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications, databaseProfessors, databaseCycles, selectedTerm, setSelectedTerm }) {
+function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globalRequests, setGlobalRequests, globalObservations, setGlobalObservations, globalDeadlines, setGlobalDeadlines, surveyResponses, submittedCount, totalProfessors, surveySubmissions, evaluationTemplate, setEvaluationTemplate, globalEvaluations, globalNotifications, setGlobalNotifications, databaseProfessors, databaseCycles, selectedTerm, setSelectedTerm }) {
   const [activeTab, setActiveTab] = useState('metrics');
   const [viewingEvaluation, setViewingEvaluation] = useState(null); 
   
@@ -309,6 +383,10 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
   const [sectionDraft, setSectionDraft] = useState({ course_code: '', section_number: '', timing: 'MW 08:30-09:45', instructor_email: '' });
   const [sectionError, setSectionError] = useState('');
   const [cycleDraft, setCycleDraft] = useState({ term: '', signup_deadline: '', observation_deadline: '', feedback_deadline: '' });
+  // Observer matching: bump matchReload to re-read signups and lists after a change
+  const [matchReload, setMatchReload] = useState(0);
+  const [matchingBusy, setMatchingBusy] = useState(false);
+  const [matchingMessage, setMatchingMessage] = useState('');
   useEffect(() => {
     if (selectedTerm) assessmentApi.getDueProfessors(selectedTerm).then(result => setDatabaseDue(result.professors || [])).catch(() => setDatabaseDue(null));
   }, [selectedTerm]);
@@ -320,9 +398,16 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
     Promise.all([
       assessmentApi.listObservations({ term: selectedTerm }),
       assessmentApi.listCourseSections({ term: selectedTerm }),
-    ]).then(([records, sections]) => {
+      assessmentApi.listObserverMatches({ term: selectedTerm }),
+    ]).then(([records, sections, matches]) => {
       const sectionByKey = new Map(sections.map(section => [databaseKeyId(section), section]));
       const professorByEmail = new Map(databaseProfessors.map(professor => [professor.email.toLowerCase(), professor]));
+      const matchesByKey = new Map();
+      for (const match of matches) {
+        const id = databaseKeyId(match);
+        if (!matchesByKey.has(id)) matchesByKey.set(id, []);
+        matchesByKey.get(id).push(match);
+      }
       const databaseSignups = records.map(record => {
         const key = { course_code: record.course_code, section_number: record.section_number, term: record.term };
         const section = sectionByKey.get(databaseKeyId(key));
@@ -330,22 +415,26 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
         const professor = professorByEmail.get(instructorEmail);
         const observerEmail = record.observer_email?.toLowerCase() || null;
         const observer = observerEmail ? professorByEmail.get(observerEmail) : null;
+        const signupMatches = matchesByKey.get(databaseKeyId(key)) || [];
+        // An observer set without a match record (older data) still counts as a one-person list
+        const matchFields = signupMatches.length || !observer
+          ? signupMatchFields(signupMatches, record.status)
+          : { matchesCount: 1, matchFlag: MATCH_FLAGS.OK, eligibleObservers: [{ ...observer, professor_id: observer.email, matchStatus: 'confirmed' }], listReleased: true, observationStatus: record.status };
         return {
           id: `db-signup-${databaseKeyId(key)}`,
           observeeId: instructorEmail || null,
           observeeName: professor?.name || instructorEmail || 'Unknown professor',
           courseCode: record.course_code,
           section: record.section_number,
-          timing: section?.timing || '',
-          matchesCount: observer ? 1 : 0,
-          matchFlag: observer ? 'OK' : 'MATCHING_PENDING',
-          eligibleObservers: observer ? [{ ...observer, professor_id: observer.email }] : [],
-          listReleased: Boolean(observer),
+          timing: displayCourseTiming(section?.timing || ''),
+          ...matchFields,
           databaseKey: key,
           assignedObserverEmail: observerEmail,
         };
       });
-      const mappedObservations = records.map(record => {
+      const confirmedMatchByKey = new Map(matches.filter(match => match.status === 'confirmed').map(match => [databaseKeyId(match), match]));
+      // Only signups with an observer are appointments; waiting signups are shown in the Signup Monitor
+      const mappedObservations = records.filter(record => record.observer_email).map(record => {
         const key = { course_code: record.course_code, section_number: record.section_number, term: record.term };
         const section = sectionByKey.get(databaseKeyId(key));
         const observeeEmail = section?.instructor_email?.toLowerCase() || null;
@@ -365,6 +454,7 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
           observerConfirmed: Boolean(record.observer_signed_date),
           observeeConfirmed: Boolean(record.observee_signed_date),
           ratings: record.ratings,
+          violations: confirmedMatchByKey.get(databaseKeyId(key))?.violations,
           databaseKey: key,
         };
       });
@@ -373,14 +463,52 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
         const otherSignups = previous.filter(item => !item.databaseKey || item.databaseKey.term !== selectedTerm);
         return [...otherSignups, ...databaseSignups.map(item => ({ ...previousByKey.get(databaseKeyId(item.databaseKey)), ...item }))];
       });
-      setGlobalObservations(previous => {
-        const databaseKeys = new Set(mappedObservations.map(item => databaseKeyId(item.databaseKey)));
-        const retained = previous.filter(item => !item.databaseKey || item.databaseKey.term !== selectedTerm || !databaseKeys.has(databaseKeyId(item.databaseKey)));
-        return [...retained, ...mappedObservations];
-      });
+      setGlobalObservations(previous => [
+        // This term's database records are re-read in full; keep everything else
+        ...previous.filter(item => !item.databaseKey || item.databaseKey.term !== selectedTerm),
+        ...mappedObservations,
+      ]);
+      // Requests (anything past "suggested") feed the KPI participation funnel
+      setGlobalRequests(previous => [
+        ...previous.filter(item => !item.databaseKey || item.databaseKey.term !== selectedTerm),
+        ...matches.filter(isRequestMatch).map(matchToRequest),
+      ]);
       setSignupError('');
     }).catch(error => setSignupError(error.message));
-  }, [selectedTerm, databaseProfessors, user.email, setGlobalSignups, setGlobalObservations]);
+  }, [selectedTerm, databaseProfessors, user.email, setGlobalSignups, setGlobalObservations, setGlobalRequests, matchReload]);
+
+  // Builds or tops up the observer list of every signup in the term still waiting for an observer
+  const handleGenerateLists = async () => {
+    if (!selectedTerm) return;
+    setMatchingBusy(true);
+    setMatchingMessage('');
+    setSignupError('');
+    try {
+      const result = await assessmentApi.generateObserverMatches({ term: selectedTerm });
+      const { summary } = result;
+      const parts = [
+        `${summary.sections} waiting signup(s) checked`,
+        `${summary.added} observer suggestion(s) added`,
+        summary.removed ? `${summary.removed} suggestion(s) that no longer meet the rules removed` : '',
+        `${summary.ok} full list(s), ${summary.insufficient} short list(s), ${summary.none} with no eligible observer`,
+        summary.errors ? `${summary.errors} signup(s) skipped because their section or professor record is missing` : '',
+      ].filter(Boolean);
+      setMatchingMessage(`${parts.join(' · ')}.`);
+      const stamp = new Date().toLocaleDateString();
+      setGlobalNotifications(prev => [...(prev || []), ...result.results
+        .filter(item => !item.error && item.added.length > 0)
+        .map(item => ({
+          id: Math.random().toString(), recipientId: item.observee_email,
+          message: `Observer List Ready: ${item.list_size} eligible colleague(s) are listed for your ${item.course_code} observation. Go to 'Observee Status' to send requests.`,
+          read: false, timestamp: stamp,
+        }))]);
+      setMatchReload(n => n + 1);
+    } catch (error) {
+      setSignupError(error.message);
+    } finally {
+      setMatchingBusy(false);
+    }
+  };
   
   // NEW: Manually assign an observer
   const handleManualAssignment = async (signup) => {
@@ -395,17 +523,36 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
       return;
     }
     setAssignmentError('');
+    const stamp = new Date().toLocaleDateString();
     if (signup.databaseKey) {
+      let result;
       try {
-        await assessmentApi.patchObservation(signup.databaseKey, { observer_email: observer.email });
+        result = await assessmentApi.assignObserver({ ...signup.databaseKey, observer_email: observer.email });
       } catch (error) {
         setAssignmentError(error.message);
         return;
       }
+      const warnings = (result.violations || []).map(violation => violation.label);
+      setMatchingMessage(warnings.length
+        ? `${observer.name} was assigned to ${signup.observeeName} (${signup.courseCode}) as a committee override. Matching rules not met: ${warnings.join('; ')}.`
+        : `${observer.name} was assigned to ${signup.observeeName} (${signup.courseCode}).`);
+      // Colleagues with an open request on this signup are told it was withdrawn
+      const withdrawn = (signup.eligibleObservers || []).filter(candidate =>
+        ['requested', 'accepted'].includes(candidate.matchStatus) && candidate.email !== observer.email);
+      setGlobalNotifications(prev => [...(prev || []),
+        { id: Math.random().toString(), recipientId: observer.email, message: `System Assignment: You have been manually assigned by the Committee to observe ${signup.observeeName} (${signup.courseCode}).`, read: false, timestamp: stamp },
+        { id: Math.random().toString(), recipientId: signup.observeeId, message: `System Update: The Committee has manually assigned ${observer.name} as your observer for ${signup.courseCode}. Head to 'Observee Status' to schedule the date.`, read: false, timestamp: stamp },
+        ...withdrawn.map(candidate => ({ id: Math.random().toString(), recipientId: candidate.email, message: `Request Withdrawn: The Committee assigned an observer for ${signup.observeeName} (${signup.courseCode}), so your request to observe is no longer needed. Thank you!`, read: false, timestamp: stamp })),
+      ]);
+      setResolvingSignupId(null);
+      setManualObserverId('');
+      setMatchReload(n => n + 1);
+      return;
     }
 
+    // Offline (mock data) assignment
     const newObservation = {
-      id: `db-${databaseKeyId(signup.databaseKey)}` || Date.now(),
+      id: Date.now(),
       observeeId: signup.observeeId, observeeName: signup.observeeName,
       observerId: observer.email, observerName: observer.name,
       courseCode: signup.courseCode, timing: signup.timing,
@@ -423,8 +570,8 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
     
     // Notify both parties of the manual committee assignment
     setGlobalNotifications(prev => [...(prev || []), 
-      { id: Math.random().toString(), recipientId: observer.professor_id, message: `System Assignment: You have been manually assigned by the Committee to observe ${signup.observeeName} (${signup.courseCode}).`, read: false, timestamp: new Date().toLocaleDateString() },
-      { id: Math.random().toString(), recipientId: signup.observeeId, message: `System Update: The Committee has manually assigned ${observer.name} as your observer for ${signup.courseCode}. Head to 'Observee Status' to schedule the date.`, read: false, timestamp: new Date().toLocaleDateString() }
+      { id: Math.random().toString(), recipientId: observer.professor_id ?? observer.email, message: `System Assignment: You have been manually assigned by the Committee to observe ${signup.observeeName} (${signup.courseCode}).`, read: false, timestamp: stamp },
+      { id: Math.random().toString(), recipientId: signup.observeeId, message: `System Update: The Committee has manually assigned ${observer.name} as your observer for ${signup.courseCode}. Head to 'Observee Status' to schedule the date.`, read: false, timestamp: stamp }
     ]);
     
     setResolvingSignupId(null);
@@ -507,40 +654,54 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
 
           {activeTab === 'signups' && (
             <div className="bento-card full-span">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3 style={{ margin: 0 }}>Signup & Matching Monitor</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap', marginBottom: '15px' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Signup & Matching Monitor · {selectedTerm}</h3>
+                  <p className="subtitle" style={{ margin: '4px 0 0' }}>
+                    Lists hold up to {OBSERVER_LIST_SIZE} same-department colleagues who teach the same course level this term and have no class at that time. Committee members are not listed.
+                  </p>
+                </div>
+                <button type="button" className="btn-primary btn-3d sm" disabled={matchingBusy || !selectedTerm} onClick={handleGenerateLists}>
+                  {matchingBusy ? 'Generating…' : 'Generate / Top Up Observer Lists'}
+                </button>
               </div>
+              {signupError && <p className="login-error" role="alert">{signupError}</p>}
+              {matchingMessage && <p role="status" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '10px 14px', borderRadius: '8px', marginBottom: '15px' }}>{matchingMessage}</p>}
               <div className="table-scroll-x">
               <table className="data-table nowrap-table">
                 <thead><tr><th>Observee</th><th>Course</th><th>Matches Found</th><th>Match Status</th><th>Assigned Observer / Status</th><th>AC Action</th></tr></thead>
                 <tbody>
-                  {globalSignups.length === 0 ? <tr><td colSpan="6" style={{textAlign: 'center'}}>No signups yet.</td></tr> : 
-                    globalSignups.map(signup => {
+                  {(() => {
+                    const termSignups = globalSignups.filter(signup => !signup.databaseKey || signup.databaseKey.term === selectedTerm);
+                    if (termSignups.length === 0) return <tr><td colSpan="6" style={{textAlign: 'center'}}>No signups yet.</td></tr>;
+                    return termSignups.map(signup => {
                       const obs = globalObservations.find(o => signup.databaseKey
                         ? databaseKeyId(o.databaseKey) === databaseKeyId(signup.databaseKey)
                         : o.observeeId === signup.observeeId);
                       const hasAssignedObserver = Boolean(signup.assignedObserverEmail || obs?.observerId);
                       const isExpanded = expandedSignup === signup.id;
                       const isResolving = resolvingSignupId === signup.id;
+                      const [flagClass, flagLabel] = MATCH_FLAG_BADGES[signup.matchFlag] || ['badge-neutral', signup.matchFlag || 'Unknown'];
+                      const openCount = signup.databaseKey
+                        ? (signup.eligibleObservers || []).filter(candidate => ['suggested', 'requested', 'accepted'].includes(candidate.matchStatus)).length
+                        : (signup.eligibleObservers || []).length;
                       
                       return (
                         <React.Fragment key={signup.id}>
                           <tr>
-                            <td><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
-                            <td>{signup.databaseKey ? ((signup.eligibleObservers || []).length ? `${signup.eligibleObservers.length} candidates` : '—') : `${signup.matchesCount} Observers`}</td>
+                            <td style={{ whiteSpace: 'normal' }}><strong>{signup.observeeName}</strong></td><td>{signup.courseCode}</td>
+                            <td>{signup.matchesCount ? `${signup.matchesCount} Observer${signup.matchesCount === 1 ? '' : 's'}` : '—'}</td>
                             <td>
-                              {hasAssignedObserver ? <span className="badge badge-success">Observer assigned</span> : <span className="badge badge-warning">Not assigned</span>}
+                              {hasAssignedObserver ? <span className="badge badge-success">Observer assigned</span> : <span className={`badge ${flagClass}`}>{flagLabel}</span>}
                             </td>
-                            <td>{hasAssignedObserver ? <><strong>{obs?.observerName || databaseProfessors.find(p => p.email === signup.assignedObserverEmail)?.name || signup.assignedObserverEmail}</strong>{obs?.status && <> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></>}</> : <span style={{color: '#94a3b8'}}>Not assigned</span>}</td>
+                            <td style={{ whiteSpace: 'normal' }}>{hasAssignedObserver ? <><strong>{obs?.observerName || databaseProfessors.find(p => p.email === signup.assignedObserverEmail)?.name || signup.assignedObserverEmail}</strong>{obs?.status && <> <span className={`badge ${obs.status === 'Completed' ? 'badge-success' : obs.status === 'Missed' ? 'badge-error' : 'badge-warning'}`}>{obs.status}</span></>}</> : <span style={{color: '#94a3b8'}}>Not assigned</span>}</td>
                             <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                {!signup.databaseKey && (
-                                  <button className="btn-secondary sm" onClick={() => { setExpandedSignup(isExpanded ? null : signup.id); setResolvingSignupId(null); }}>
-                                    {isExpanded ? 'Hide List' : 'View List'}
-                                  </button>
-                                )}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                <button className="btn-secondary sm" onClick={() => { setExpandedSignup(isExpanded ? null : signup.id); setResolvingSignupId(null); }}>
+                                  {isExpanded ? 'Hide List' : 'View List'}
+                                </button>
                                 {!hasAssignedObserver && signup.databaseKey && (
-                                  <button className="btn-danger sm" onClick={() => { setResolvingSignupId(isResolving ? null : signup.id); setExpandedSignup(null); }}>
+                                  <button className="btn-danger sm" onClick={() => { setResolvingSignupId(isResolving ? null : signup.id); setExpandedSignup(null); setAssignmentError(''); }}>
                                     Resolve Manually
                                   </button>
                                 )}
@@ -551,8 +712,9 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                           {/* MANUAL RESOLUTION DROPDOWN ROW */}
                           {isResolving && (
                             <tr style={{ background: '#fffbeb', borderBottom: '2px solid #fde68a' }}>
-                              <td colSpan="6" style={{ padding: '20px' }}>
+                              <td colSpan="6" style={{ padding: '20px', whiteSpace: 'normal' }}>
                                 <h4 style={{ marginBottom: '10px', color: '#b45309' }}>Manual Observer Assignment for {signup.observeeName}</h4>
+                                <p style={{ fontSize: '0.85rem', color: '#92400e', margin: '0 0 10px' }}>Any colleague can be assigned. If the choice breaks a matching rule, the assignment still goes through and the rule is reported.</p>
                                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                   <select value={manualObserverId} onChange={(e) => setManualObserverId(e.target.value)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #d97706', width: '350px' }}>
                                     <option value="">-- Select Faculty Member --</option>
@@ -571,25 +733,36 @@ function AdminDashboard({ user, onLogout, globalSignups, setGlobalSignups, globa
                           {/* STANDARD POTENTIAL OBSERVERS ROW */}
                           {isExpanded && !isResolving && (
                             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                              <td colSpan="6" style={{ padding: '20px' }}>
+                              <td colSpan="6" style={{ padding: '20px', whiteSpace: 'normal' }}>
                                 <h4 style={{ marginBottom: '10px', color: 'var(--utd-orange)' }}>Generated Observer List for {signup.observeeName}</h4>
                                 <ul style={{ marginBottom: '15px', paddingLeft: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                   {(signup.eligibleObservers || []).length === 0 ? (
                                     <li style={{ color: '#ef4444' }}>No candidate list is available for this signup.</li>
                                   ) : (
-                                    (signup.eligibleObservers || []).map(po => <li key={po.professor_id}><strong>{po.name}</strong> ({po.department})</li>)
+                                    (signup.eligibleObservers || []).map(po => (
+                                      <li key={po.professor_id}>
+                                        <strong>{po.name}</strong> ({po.department}){po.matchStatus && <> <MatchStatusBadge status={po.matchStatus} /></>}
+                                        {po.violations?.length > 0 && <span style={{ color: '#b91c1c', fontSize: '0.8rem' }}> · breaks rule: {po.violations.join(', ')}</span>}
+                                      </li>
+                                    ))
                                   )}
                                 </ul>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                  <span className="badge badge-neutral" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>No candidate list has been generated.</span>
+                                  <p style={{ margin: 0, color: '#475569', fontSize: '0.9rem', fontWeight: 600 }}>
+                                    {hasAssignedObserver ? 'Observer assigned; this list is closed.'
+                                      : signup.matchFlag === MATCHING_PENDING ? 'No list generated yet. Use Generate / Top Up Observer Lists.'
+                                      : signup.matchFlag === MATCH_FLAGS.NONE ? 'No colleague meets the matching rules. Resolve manually.'
+                                      : openCount === 0 ? 'Everyone on the list declined. Generate again to add new colleagues.'
+                                      : `${openCount} of ${OBSERVER_LIST_SIZE} colleagues can still be asked.`}
+                                  </p>
                                 </div>
                               </td>
                             </tr>
                           )}
                         </React.Fragment>
                       );
-                    })
-                  }
+                    });
+                  })()}
                 </tbody>
               </table>
               </div>
@@ -835,6 +1008,8 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const [databaseStatus, setDatabaseStatus] = useState(null);
   const [surveyIsSubmitted, setSurveyIsSubmitted] = useState(hasSubmittedSurvey);
   const [apiError, setApiError] = useState('');
+  // Bump to re-read this professor's cycle data (signups, observer lists, requests) after a change
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const email = user?.databaseProfessor?.email;
@@ -845,7 +1020,9 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
       assessmentApi.listObservations({ term: selectedTerm, observee_email: email }),
       assessmentApi.listObservations({ term: selectedTerm, observer_email: email }),
       assessmentApi.getSurveyStatus(email, selectedTerm),
-    ]).then(([sections, status, observations, observerObservations, surveyStatus]) => {
+      assessmentApi.listObserverMatches({ term: selectedTerm, observee_email: email }),
+      assessmentApi.listObserverMatches({ term: selectedTerm, observer_email: email }),
+    ]).then(([sections, status, observations, observerObservations, surveyStatus, observeeMatches, observerMatches]) => {
       const parseTime = value => {
         const [hourText, minute] = value.split(':');
         const hour = Number(hourText);
@@ -900,20 +1077,31 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
           return [...previous.filter(item => !databaseEvaluationIds.has(item.id) && !databaseObservations.some(observation => observation.id === item.observationId)), ...submittedEvaluations];
         });
       });
-      if (observation && !globalSignups.some(signup => signup.databaseKey?.course_code === observation.course_code && signup.databaseKey?.term === observation.term)) {
-        const section = sections.find(item => item.course_code === observation.course_code && item.section_number === observation.section_number);
-        if (section) setGlobalSignups(previous => [...previous, {
-          id: `db-${observation.course_code}-${observation.section_number}-${observation.term}`,
-          observeeId: user.professor_id, observeeName: user.name, courseCode: section.course_code,
-          section: section.section_number, timing: mappedSections.find(item => item.section_id === `${section.course_code}|${section.section_number}|${section.term}`)?.timing || section.timing,
-          matchesCount: 0, matchFlag: 'NO ELIGIBLE OBSERVER', eligibleObservers: [],
-          databaseKey: { course_code: section.course_code, section_number: section.section_number, term: section.term },
-        }]);
+      // Requests this professor sent (as observee) or received (as observer) this term
+      setGlobalRequests(previous => [
+        ...(previous || []).filter(item => !(item.databaseKey?.term === selectedTerm && (item.observeeId === email || item.observerId === email))),
+        ...[...observeeMatches, ...observerMatches].filter(isRequestMatch).map(matchToRequest),
+      ]);
+      const section = observation && sections.find(item => item.course_code === observation.course_code && item.section_number === observation.section_number);
+      if (section) {
+        const databaseKey = { course_code: section.course_code, section_number: section.section_number, term: section.term };
+        const keyId = databaseKeyId(databaseKey);
+        const matchFields = signupMatchFields(observeeMatches.filter(match => databaseKeyId(match) === keyId), observation.status);
+        setGlobalSignups(previous => {
+          const existing = (previous || []).find(signup => databaseKeyId(signup.databaseKey) === keyId);
+          if (existing) return previous.map(signup => signup === existing ? { ...signup, ...matchFields } : signup);
+          return [...(previous || []), {
+            id: `db-signup-${keyId}`,
+            observeeId: user.professor_id, observeeName: user.name, courseCode: section.course_code,
+            section: section.section_number, timing: mappedSections.find(item => item.section_id === keyId)?.timing || section.timing,
+            databaseKey, ...matchFields,
+          }];
+        });
       }
       setSurveyIsSubmitted(surveyStatus.submitted);
       setApiError('');
     }).catch(error => setApiError(error.message));
-  }, [user?.databaseProfessor?.email, selectedTerm]);
+  }, [user?.databaseProfessor?.email, selectedTerm, reloadToken]);
 
   const handleDeferObservation = (obsId) => {
     if (!deferReason.trim()) {
@@ -980,9 +1168,10 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
   const myStatus = apiStatus || calculateEvaluationStatus(user) || { status: 'Unknown', next_eval: 'TBD' };
   const myCourses = databaseCourses !== null ? databaseCourses : (mockCourses || []).filter(c => c.instructor_id === user?.professor_id);
   const mySignup = (globalSignups || []).find(s => s.observeeId === user?.professor_id && (!s.databaseKey || s.databaseKey.term === selectedTerm));
-  const myConfirmedObservation = (globalObservations || []).find(o => mySignup?.databaseKey
+  // Only an observation with an observer is "confirmed"; a signup still waiting for one stays in Steps 2-3
+  const myConfirmedObservation = (globalObservations || []).find(o => Boolean(o.observerId) && (mySignup?.databaseKey
     ? databaseKeyId(o.databaseKey) === databaseKeyId(mySignup.databaseKey)
-    : o.observeeId === user?.professor_id && (!o.databaseKey || o.databaseKey.term === selectedTerm));
+    : o.observeeId === user?.professor_id && (!o.databaseKey || o.databaseKey.term === selectedTerm)));
   const isPastSignupDeadline = globalDeadlines?.signup 
     ? new Date() > new Date(`${globalDeadlines.signup}T00:00:00`) 
     : false;
@@ -1074,7 +1263,21 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     return true;
   }
 
-  const handleSendRequest = (observer) => {
+  const handleSendRequest = async (observer) => {
+    if (mySignup?.databaseKey) {
+      const observerEmail = observer.email || observer.professor_id;
+      try {
+        await assessmentApi.updateObserverMatchStatus(mySignup.databaseKey, observerEmail, 'requested');
+      } catch (error) { setApiError(error.message); alert(error.message); setReloadToken(n => n + 1); return; }
+      setGlobalNotifications(prev => [...(prev || []), {
+        id: Math.random().toString(), recipientId: observerEmail,
+        message: `${user.name} sent you a request to observe ${mySignup.courseCode}. Respond under 'My Duties'.`,
+        read: false, timestamp: new Date().toLocaleDateString()
+      }]);
+      setReloadToken(n => n + 1);
+      alert(`Request Sent to ${observer.name}!`);
+      return;
+    }
     const newRequest = {
       id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
       observerId: observer.professor_id, observerName: observer.name,
@@ -1089,9 +1292,23 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     alert(`Request Sent to ${observer.name}!`);
   };
 
-  const handleObserverAction = (reqId, action) => {
+  const handleObserverAction = async (reqId, action) => {
     const req = globalRequests.find(r => r.id === reqId);
     if (!req) return;
+    if (req.databaseKey) {
+      try {
+        await assessmentApi.updateObserverMatchStatus(req.databaseKey, req.observerId, action === 'Accepted' ? 'accepted' : 'declined');
+      } catch (error) { setApiError(error.message); alert(error.message); setReloadToken(n => n + 1); return; }
+      setGlobalNotifications(prev => [...(prev || []), {
+        id: Math.random().toString(), recipientId: req.observeeId,
+        message: action === 'Accepted'
+          ? `${user.name} has accepted your request to observe ${req.courseCode}. Confirm the final match under 'Observee Status'.`
+          : `${user.name} has declined your request to observe ${req.courseCode}.`,
+        read: false, timestamp: new Date().toLocaleDateString()
+      }]);
+      setReloadToken(n => n + 1);
+      return;
+    }
     setGlobalRequests(globalRequests.map(r => r.id === reqId ? { ...r, status: action } : r));
     setGlobalNotifications(prev => [...(prev || []), {
       id: Math.random().toString(), recipientId: req.observeeId,
@@ -1100,7 +1317,29 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     }]);
   };
 
-  const handleFinalConfirm = (acceptedRequest) => {
+  const handleFinalConfirm = async (acceptedRequest) => {
+    if (acceptedRequest.databaseKey) {
+      try {
+        await assessmentApi.updateObserverMatchStatus(acceptedRequest.databaseKey, acceptedRequest.observerId, 'confirmed');
+      } catch (error) { setApiError(error.message); alert(error.message); setReloadToken(n => n + 1); return; }
+      const stamp = new Date().toLocaleDateString();
+      // The server cancels every other open request on this signup; tell those colleagues
+      const released = (globalRequests || []).filter(req => databaseKeyId(req.databaseKey) === databaseKeyId(acceptedRequest.databaseKey)
+        && req.id !== acceptedRequest.id && (req.status === 'Accepted' || req.status === 'Pending'));
+      setGlobalNotifications(prev => [...(prev || []),
+        { id: Math.random().toString(), recipientId: acceptedRequest.observerId, message: `${user.name} confirmed you as their official observer for ${acceptedRequest.courseCode}! They will set a specific date soon.`, read: false, timestamp: stamp },
+        ...released.map(req => ({
+          id: Math.random().toString(), recipientId: req.observerId,
+          message: req.status === 'Accepted'
+            ? `${user.name} finalized their observer match. Your offer to observe ${req.courseCode} was respectfully declined. Thank you for volunteering!`
+            : `${user.name} finalized their observer match, so their request for you to observe ${req.courseCode} was withdrawn.`,
+          read: false, timestamp: stamp,
+        })),
+      ]);
+      setReloadToken(n => n + 1);
+      alert(`${acceptedRequest.observerName} is confirmed! Please set the specific observation date.`);
+      return;
+    }
     const newObservation = {
       id: Date.now(), observeeId: user.professor_id, observeeName: user.name,
       observerId: acceptedRequest.observerId, observerName: acceptedRequest.observerName,
@@ -1207,8 +1446,10 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
     setGlobalObservations(prev => prev.map(o => o.id === obsId ? { ...o, status: 'Missed', missedReportedBy: user.name } : o));
   };
 
-  const mySentRequests = (globalRequests || []).filter(req => req.observeeId === user?.professor_id);
-  const myIncomingDuties = (globalRequests || []).filter(req => req.observerId === user?.professor_id);
+  const isCurrentTermRequest = req => !req.databaseKey || req.databaseKey.term === selectedTerm;
+  const mySentRequests = (globalRequests || []).filter(req => req.observeeId === user?.professor_id && isCurrentTermRequest(req)
+    && (!mySignup?.databaseKey || !req.databaseKey || databaseKeyId(req.databaseKey) === databaseKeyId(mySignup.databaseKey)));
+  const myIncomingDuties = (globalRequests || []).filter(req => req.observerId === user?.professor_id && isCurrentTermRequest(req));
   const myAssignedObservations = (globalObservations || []).filter(o => o.observerId === user?.professor_id);
   // NEW: Evaluations this professor submitted as an observer, and evaluations submitted about them as an observee
   const mySubmittedEvaluations = (globalEvaluations || []).filter(ev => ev.observerId === user?.professor_id);
@@ -1386,16 +1627,16 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                   <div className="bento-card full-span">
                     <h3>Step 2: Request Observers</h3>
                     {!mySignup ? <p>Please sign up on the My Cycle tab first.</p> :
-                      mySignup.databaseKey ? (
-                        <div style={{ textAlign: 'center', padding: '32px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                          <h4 style={{ color: '#0f172a', marginBottom: '8px' }}>{myConfirmedObservation?.observerId ? 'Observer assigned' : 'Waiting for committee assignment'}</h4>
+                      mySignup.databaseKey && !(mySignup.eligibleObservers || []).length ? (
+                        <div style={{ textAlign: 'center', padding: '32px', background: mySignup.matchFlag === MATCH_FLAGS.NONE ? '#fffbeb' : '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                          <h4 style={{ color: '#0f172a', marginBottom: '8px' }}>{mySignup.matchFlag === MATCH_FLAGS.NONE ? 'No eligible observers found' : 'Observer list not generated yet'}</h4>
                           <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '500' }}>
-                            {myConfirmedObservation?.observerId
-                              ? `${myConfirmedObservation.observerName} is assigned. View the schedule and confirm the observation under Observee Status.`
-                              : 'Your signup is saved. The committee will assign an observer; scheduling and confirmation will appear under Observee Status after assignment.'}
+                            {mySignup.matchFlag === MATCH_FLAGS.NONE
+                              ? 'No colleague currently meets the matching rules for this section. The Assessment Committee will assign an observer for you.'
+                              : 'Your signup is saved. The Assessment Committee will generate your list of eligible observers, and you will be notified when it is ready.'}
                           </p>
                         </div>
-                      ) : !isPastSignupDeadline ? (
+                      ) : !mySignup.databaseKey && !isPastSignupDeadline ? (
                         <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                           <div style={{ fontSize: '2rem', marginBottom: '10px' }}>⏳</div>
                           <h4 style={{ color: '#0f172a', marginBottom: '5px' }}>List Hidden</h4>
@@ -1403,7 +1644,7 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                             The observer list is awaiting committee review after the signup deadline.
                           </p>
                         </div>
-                      ) : !mySignup.listReleased ? (
+                      ) : !mySignup.databaseKey && !mySignup.listReleased ? (
                         <div style={{ textAlign: 'center', padding: '40px', background: '#fffbeb', borderRadius: '12px', border: '1px dashed #fde68a' }}>
                           <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🔒</div>
                           <h4 style={{ color: '#b45309', marginBottom: '5px' }}>Pending Committee Approval</h4>
@@ -1413,6 +1654,11 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                         </div>
                       ) : (
                       <div className="modern-table-wrapper">
+                        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '0 0 10px' }}>
+                          {mySignup.databaseKey && (mySignup.eligibleObservers || []).every(observer => observer.matchStatus === 'declined')
+                            ? 'Everyone on your list has declined. The Assessment Committee can add more colleagues or assign an observer.'
+                            : 'These colleagues teach the same course level this term and are free during your class. You may send requests to several of them.'}
+                        </p>
                         <table className="data-table">
                           <thead><tr><th>Colleague</th><th>Action</th></tr></thead>
                           <tbody>
@@ -1421,10 +1667,15 @@ function ProfessorDashboard({ user, onLogout, globalRequests, setGlobalRequests,
                             ) : (
                               (mySignup.eligibleObservers || []).map(observer => {
                                 const hasRequested = mySentRequests.some(req => req.observerId === observer.professor_id);
+                                // Database candidates carry their match status; mock candidates are inferred from requests
+                                const status = observer.matchStatus ?? (hasRequested ? 'requested' : 'suggested');
                                 return (
                                   <tr key={observer.professor_id}>
                                     <td><strong>{observer.name}</strong></td>
-                                    <td>{hasRequested ? <span className="badge badge-warning">Request Sent</span> : <button className="btn-secondary btn-3d sm" onClick={() => handleSendRequest(observer)}>Send Request</button>}</td>
+                                    <td>{status === 'suggested'
+                                      ? <button className="btn-secondary btn-3d sm" onClick={() => handleSendRequest(observer)}>Send Request</button>
+                                      : status === 'requested' ? <span className="badge badge-warning">Request Sent</span>
+                                      : <MatchStatusBadge status={status} />}</td>
                                   </tr>
                                 );
                               })

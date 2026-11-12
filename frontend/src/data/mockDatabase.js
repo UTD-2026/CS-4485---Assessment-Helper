@@ -52,7 +52,7 @@ export const mockCourses = [
   { section_id: 103, course_code: "CS 1337", section: "002", timing: "TR 2:00 PM - 3:15 PM", instructor_id: 3 },
   { section_id: 104, course_code: "CS 1337", section: "003", timing: "TR 10:00 AM - 11:15 AM", instructor_id: 4 }, 
   
-  // Bob gets 5 matches because we are making CS 2305 a massive multi-section course!
+  // Bob gets 4 matches from this multi-section course (Mikael is a committee member, so he is left off generated lists)
   { section_id: 102, course_code: "CS 2305", section: "001", timing: "TR 10:00 AM - 11:15 AM", instructor_id: 2 }, // Bob
   { section_id: 105, course_code: "CS 2305", section: "002", timing: "MW 1:00 PM - 2:15 PM", instructor_id: 5 }, // Scott
   { section_id: 106, course_code: "CS 2305", section: "003", timing: "MW 8:30 AM - 9:45 AM", instructor_id: 6 }, // Frank

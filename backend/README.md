@@ -73,6 +73,30 @@ The template route reads `backend/templates/<term>.json`. JSON templates are pre
 
 The observee is resolved from the matching course section's `instructor_email`. An initial signup can omit `observer_email`; its default status is `signed_up`. Form ratings and notes are stored in the existing `ratings` field, with signature dates stored in the observation's signature fields.
 
+### Observer Matches
+
+- `GET /api/observer-matches?term=...&course_code=...&section_number=...&observer_email=...&observee_email=...&status=...`
+- `POST /api/observer-matches/generate` with `{ "term": "...", "course_code"?: "...", "section_number"?: "...", "dry_run"?: true }`
+- `PATCH /api/observer-matches/:course_code/:section_number/:term/:observer_email` with `{ "status": "..." }`
+- `POST /api/observer-matches/assign` with `{ "course_code", "section_number", "term", "observer_email" }`
+
+The matching engine lives in `backend/matching/matchmaker.js`. A colleague is eligible to observe a section when they:
+
+1. are not the observee;
+2. are in the observee's department;
+3. teach a course at the same level (first digit of the course number) in the same term;
+4. teach no section that term whose meeting overlaps the observed class (a shared day and overlapping times; back-to-back classes are fine, and an unreadable timing counts as a conflict).
+
+Committee members (`is_ac_member: true`) are left off generated lists because they sign in to the Committee portal and cannot answer requests there; the committee can still assign one manually. Eligible colleagues are ranked by: teaches the same course, then fewest observations already assigned this term, then fewest other open lists, then name. Lists hold up to 5 people. These rule codes match the KPI audit in `frontend/src/utils/kpis.js`.
+
+`generate` works on every signup in the term that is still waiting for an observer (status `signed_up` or `unmatched`), or on one section. It is safe to run repeatedly: it never touches open requests, marks suggestions that no longer pass the rules as `removed`, tops lists back up to 5 with colleagues who were never on that list, and marks signups with nobody eligible as `unmatched` (and back to `signed_up` once someone is). `dry_run: true` returns the same report without saving.
+
+Match statuses: `suggested` → `requested` (observee asks) → `accepted` or `declined` (observer answers) → `confirmed` (observee picks one). Requests can also be `cancelled`. Confirming sets the observation's `observer_email` and cancels the signup's other open requests; untouched suggestions stay as a record, and the list can no longer change. Status changes use conditional updates, so two people acting at once get a `409` instead of two observers. `assign` is the committee override: any professor except the observee can be assigned, and any matching rule the choice breaks is returned in `violations`.
+
+List responses add `observee_email`, `observee_name`, `observer_name`, `observer_department`, `timing`, and `violations` (rule codes the pairing breaks) to each match.
+
+Run the matching unit tests with `npm test` in `backend/`.
+
 ### Surveys
 
 - `GET /api/surveys/status?professor_email=...&term=...`
@@ -83,4 +107,4 @@ The database keeps the professor email to enforce one response per professor per
 
 Successful responses use `{ "data": ... }`; collection responses use an array. Creates return `201`. Invalid input returns `400`, missing records `404`, duplicate keys or invalid state changes `409`, and unexpected errors `500`.
 
-The Vite development server proxies `/api` to `http://127.0.0.1:5000`. The login screen authenticates against the professor collection. Authentication currently gates the UI only; API authorization and role-based route protection are not implemented. The shared password is intentionally for local demonstration only. Keep the API bound to the local machine. Observer matching, reports/KPIs, notifications, and email remain mock-only or unimplemented as agreed.
+The Vite development server proxies `/api` to `http://127.0.0.1:5000`. The login screen authenticates against the professor collection. Authentication currently gates the UI only; API authorization and role-based route protection are not implemented. The shared password is intentionally for local demonstration only. Keep the API bound to the local machine. Reports/KPIs, notifications, and email remain front-end only or unimplemented as agreed; observer matching is served by the API above.
