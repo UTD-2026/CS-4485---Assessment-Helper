@@ -1118,6 +1118,41 @@ a:hover { color: var(--accent-hover); }
 .page-filters { display: flex; flex-wrap: wrap; gap: 10px; }
 /* Extra room between Schedule's counts and the Status group. */
 .filter-groups-outstanding .filter-group-wide { padding-left: 32px; }
+/* Pairings that break a rule: Observer | Observee | Course | Days on row 1; Source | Rules broken (2x2, three tracks wide) on row 2. */
+.filter-groups-pairings { grid-template-columns: repeat(3, minmax(0, 1fr)) max-content; }
+.filter-groups-pairings .filter-group-wide { grid-column: span 3; }
+/* Observers (2b): Observer | Observing | Completed | In progress count groups, each with a min-max box pair. */
+.filter-groups-observers { grid-template-columns: minmax(0, 0.8fr) repeat(3, minmax(0, 1fr)); }
+.count-range { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--faint); }
+.count-range .input { width: 0; flex: 1 1 0; min-width: 0; padding-left: 10px; padding-right: 6px; }
+.count-range-error { margin: 0 0 2px; font-size: 12px; color: var(--bad-fg); }
+/* Observer lists (3a): Observee | Course | Days on row 1; Status (two tracks, with the Insufficient list-size range) | Released on row 2. */
+.filter-groups-lists { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.list-size-range { margin: 0 0 4px 36px; display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+.list-size-range .count-range { max-width: 260px; }
+.list-size-range .count-range .select { flex: 1 1 0; min-width: 0; }
+.list-size-range.is-off { opacity: 0.6; }
+.list-size-sorts { display: flex; flex-wrap: wrap; gap: 0 8px; margin-top: 2px; }
+.list-size-sorts .filter-check { width: auto; }
+.filter-check:disabled { cursor: not-allowed; }
+.filter-check:disabled:hover { background: transparent; }
+/* Appointments not held (4a): Observee | Observer | Course (wider, has the min-max boxes) | Reason. */
+.filter-groups-missing { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
+/* Faculty (1b): Professor | Level | Status | This cycle on row 1; Last evaluated across the whole of row 2. */
+.filter-groups-faculty { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.filter-groups-faculty-status { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); }
+.filter-group-full { grid-column: 1 / -1; }
+.semester-range { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.semester-picker { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; align-items: center; gap: 4px 8px; }
+.semester-picker-label { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: var(--muted); }
+.semester-picker .select { min-width: 150px; }
+.semester-picker .filter-check { width: auto; }
+.semester-range-dash { padding-bottom: 9px; color: var(--faint); }
+.semester-never { margin-left: 16px; padding-left: 16px; border-left: 1px solid var(--border); }
+/* Four options as two columns of two, filled top to bottom (a, b | c, d). */
+.filter-grid-2x2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, auto); grid-auto-flow: column; gap: 6px 24px; }
+/* Faculty list Status: three rows of two, filled left to right (Due | blank, Earliest | Latest not due, Least | Most overdue). */
+.filter-grid-3x2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; }
 /* Six options as two columns of three, filled top to bottom. */
 .filter-grid-2x3 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 6px 24px; }
 .filter-group legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 800; color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
@@ -1138,7 +1173,20 @@ a:hover { color: var(--accent-hover); }
 .filter-dialog-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--border); font-size: 13px; }
 @media (max-width: 640px) {
   .filter-group-wide { grid-column: auto; }
-  .filter-groups-workload, .filter-groups-outstanding, .filter-groups-signups { grid-template-columns: 1fr; }
+  .filter-groups-workload, .filter-groups-outstanding, .filter-groups-signups, .filter-groups-pairings, .filter-groups-faculty, .filter-groups-faculty-status { grid-template-columns: 1fr; }
+  .semester-range-dash { display: none; }
+  .semester-never { margin-left: 0; padding-left: 0; border-left: 0; }
+  .filter-groups-pairings .filter-group-wide { grid-column: auto; }
+  .filter-groups-observers { grid-template-columns: 1fr; }
+  .filter-groups-lists { grid-template-columns: 1fr; }
+  .filter-groups-progress, .filter-grid-steps { grid-template-columns: 1fr; }
+  .filter-groups-missing { grid-template-columns: 1fr; }
+  .list-size-range { margin-left: 28px; }
+  .observee-split { grid-template-columns: 1fr; gap: 16px; }
+  .observee-split-list { padding-left: 0; border-left: 0; }
+  .filter-grid-3x2 { grid-template-columns: 1fr; }
+  .filter-grid-3x2 > span:empty { display: none; }
+  .filter-grid-2x2 { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
   .filter-groups-signups > * { grid-column: 1 / -1 !important; }
   .signup-cards > *, .signup-cards > :nth-child(n + 3) { grid-column: 1 / -1; }
   .filter-grid-2x3 { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
@@ -1249,6 +1297,19 @@ a:hover { color: var(--accent-hover); }
 .next-action-what { overflow: hidden; text-overflow: ellipsis; }
 .next-action-btn svg { flex: none; opacity: 0.7; }
 .next-action-dialog { width: min(480px, 100%); }
+/* Observers (2b): Observees cell stays one line (… when it overflows) so rows keep the same height. */
+/* Both observee columns hug their content, so the buttons sit in one straight line just past the longest name. */
+.data-table td.observee-first { width: 1%; padding-right: 12px; }
+.data-table td.observee-btn-cell { width: 1%; padding-left: 0; white-space: nowrap; }
+.observee-btn-spacer { visibility: hidden; pointer-events: none; }
+.one-line { display: block; flex: 1 1 auto; min-width: 0; max-width: 340px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* "See Full Observee List" pop-up: observer on the left, observees in a column on the right. */
+.observee-dialog { width: min(560px, 100%); }
+.observee-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 0 24px; padding: 16px 20px 22px; overflow: auto; }
+.observee-split-list { padding-left: 24px; border-left: 1px solid var(--border-strong); }
+.observee-split-head { margin: 0 0 8px; font-size: 13px; font-weight: 800; text-decoration: underline; text-underline-offset: 4px; }
+.observee-split p.strong { margin: 0; }
+.observee-split ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 .next-action-body { padding: 16px 20px 20px; overflow: auto; }
 .next-action-facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 16px; font-size: 13.5px; }
 .next-action-facts dt { color: var(--faint); }
@@ -1285,6 +1346,23 @@ a:hover { color: var(--accent-hover); }
 .histo-label { font-size: 12px; color: var(--muted); text-align: center; }
 /* Drop-off note under a funnel step */
 .funnel-drop { font-size: 12px; color: var(--bad-fg); margin: -2px 0 4px; padding-left: 172px; }
+/* Progress by sign-up: numbered steps. Done + current steps are coloured from cool yellow (1) to green (5);
+   the current step is circled; future steps stay grey. */
+.step-nums { display: inline-flex; gap: 6px; }
+.step-num {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--track); color: var(--faint); font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.step-num-1 { background: #e4d14f; color: #3d3605; }
+.step-num-2 { background: #c6cf4c; color: #33380a; }
+.step-num-3 { background: #9fc24d; color: #24350d; }
+.step-num-4 { background: #72b052; color: #fff; }
+.step-num-5 { background: #3f9655; color: #fff; }
+.step-num.is-current { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.step-filter-label { display: inline-flex; align-items: center; gap: 10px; }
+.step-filter-label .step-num { width: 20px; height: 20px; font-size: 11px; }
+.filter-groups-progress { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); }
+.filter-grid-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; }
 .step-dots { display: inline-flex; gap: 4px; }
 .step-dots .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--track); }
 .step-dots .step-dot.done { background: var(--good-fill); }

@@ -1,13 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { Badge, Card, Meter, Notice } from './ui.jsx';
 import { VIOLATION_TYPES, TARGET_LIST_SIZE } from '../utils/kpis.js';
 import { useKpis, toneFor, pct, rateOf } from '../utils/metricPages.js';
 import { isSurveyClosed, formatDeadline, formatSurveyDeadline } from '../utils/deadlines.js';
 import { plural } from '../utils/format.js';
-import { ListPanel, MissingList, PairingsList } from './KpiListDialogs.jsx';
-import { MISSING_KINDS, kindOf, matches, optionsOf } from '../utils/lists.js';
-import { createFacultyCsv } from '../utils/facultyCsv.js';
+import {
+  FACULTY_PREVIEW, FacultyDialog, FacultyTable, OBSERVER_PREVIEW, ObserversDialog, ObserversTable, exportObserversCsv,
+  LIST_PREVIEW, ListsDialog, ListsTable, exportListsCsv, ProgressList, MissingList, PairingsList, exportFacultyCsv, facultyStatus,
+} from './KpiListDialogs.jsx';
+import { MISSING_KINDS, kindOf } from '../utils/lists.js';
 
 /*
  * Committee metric detail pages: one page per KPI, opened from the Metrics group in the side rail.
@@ -65,10 +67,6 @@ const RateValue = ({ num, den }) => <>{pct(rateOf(num, den))} <span className="f
 
 function Empty({ children }) {
   return <p className="muted">{children}</p>;
-}
-
-function ClearButton({ show, onClick }) {
-  return show ? <button type="button" className="btn btn-ghost btn-sm" onClick={onClick}>Clear</button> : null;
 }
 
 /* ---------- 1a: Eligibility accuracy ---------- */
@@ -134,66 +132,28 @@ function EligibilityPage({ k, signups, observations }) {
 
 const lateBucket = (n) => (n >= 4 ? '4+ semesters' : plural(n, 'semester'));
 
-// Evaluation-status filter for the faculty list (same choices the old Faculty search tab had).
-const STATUS_FILTERS = [
-  ['Overdue', 'Overdue', (f) => f.status === 'Overdue'],
-  ['due-overdue', 'Due or overdue', (f) => f.status === 'Due' || f.status === 'Overdue'],
-  ['Due', 'Due', (f) => f.status === 'Due'],
-  ['Not Due', 'Not due', (f) => f.status !== 'Due' && f.status !== 'Overdue'],
-  ['all', 'All statuses', () => true],
-];
 const STATUS_ORDER = { Overdue: 0, Due: 1 };
 
-function StatusBadgeFor({ f }) {
-  if (f.status === 'Overdue') return <Badge tone="bad">Overdue · {f.overdue_by} sem</Badge>;
-  if (f.status === 'Due') return <Badge tone="warn">Due</Badge>;
-  return <Badge tone="neutral">Not due{f.next_eval ? ` · next ${f.next_eval}` : ''}</Badge>;
-}
-
-function OverduePage({ k, signups, professors = [], term, filters: initialFilters }) {
+function OverduePage({ k, signups, professors = [], term }) {
   const { overdue } = k;
   const rows = overdue.overdue;
-  const dueOnly = overdue.due.length - overdue.count;
-  // Every professor (not just overdue), so the list can also show due and not-due faculty.
+  // Overdue professors only, most semesters overdue first.
   const signedIds = useMemo(() => new Set(signups.map((s) => s.observeeId)), [signups]);
-  const allFaculty = useMemo(() => professors
+  const overdueFaculty = useMemo(() => professors
+    .filter((f) => facultyStatus(f) === 'Overdue')
     .map((f) => ({ ...f, signedUp: signedIds.has(f.professor_id) }))
-    .sort((a, b) => (STATUS_ORDER[a.status] ?? 2) - (STATUS_ORDER[b.status] ?? 2) || (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name)),
+    .sort((a, b) => (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name)),
   [professors, signedIds]);
   const maxLate = rows.reduce((m, f) => Math.max(m, f.overdue_by || 0), 0);
   const byLate = tally(rows, (f) => lateBucket(f.overdue_by || 0)).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
   const byDept = tally(rows, (f) => f.department);
   const byLevel = tally(rows, (f) => f.hire_level);
 
-  const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
-  const [level, setLevel] = useState('all');
-  const [signed, setSigned] = useState('all');
-  const [status, setStatus] = useState(STATUS_FILTERS.some((s) => s[0] === initialFilters?.status) ? initialFilters.status : 'Overdue');
-  const departments = useMemo(() => optionsOf(allFaculty, 'department'), [allFaculty]);
-  const levels = useMemo(() => optionsOf(allFaculty, 'hire_level'), [allFaculty]);
-  const inStatus = useMemo(() => allFaculty.filter(STATUS_FILTERS.find((s) => s[0] === status)[2]), [allFaculty, status]);
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return inStatus.filter((f) =>
-      (dept === 'all' || f.department === dept) &&
-      (level === 'all' || f.hire_level === level) &&
-      (signed === 'all' || (signed === 'yes') === f.signedUp) &&
-      matches(q, f.name, f.department, f.email));
-  }, [inStatus, query, dept, level, signed]);
-  const filtered = query || dept !== 'all' || level !== 'all' || signed !== 'all' || status !== 'Overdue';
-  const inStatusSigned = inStatus.filter((f) => f.signedUp).length;
-  const exportCsv = () => {
-    if (shown.length === 0) return;
-    const url = URL.createObjectURL(new Blob([createFacultyCsv(shown)], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `faculty-${String(term || 'cycle').toLowerCase().replaceAll(' ', '-')}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  const notSigned = overdueFaculty.filter((f) => !f.signedUp).length;
+  const preview = overdueFaculty.slice(0, FACULTY_PREVIEW);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const showAllRef = useRef(null);
+  const closeDialog = useCallback(() => { setDialogOpen(false); showAllRef.current?.focus(); }, []);
 
   return (
     <div className="stack">
@@ -205,7 +165,6 @@ function OverduePage({ k, signups, professors = [], term, filters: initialFilter
           { label: 'Not signed up', value: overdue.notSignedUp, tone: overdue.notSignedUp ? 'bad' : 'good', sub: 'Overdue and still not in this cycle' },
           { label: 'Signed up', value: overdue.count - overdue.notSignedUp, tone: 'good', sub: 'Overdue but catching up this cycle' },
           { label: 'Most semesters late', value: maxLate, tone: maxLate ? 'bad' : 'neutral' },
-          { label: 'Due, not overdue yet', value: dueOnly, tone: dueOnly ? 'warn' : 'neutral', sub: 'Become overdue if missed this cycle' },
         ]}
       />
 
@@ -227,53 +186,34 @@ function OverduePage({ k, signups, professors = [], term, filters: initialFilter
         </Card>
       </div>
 
-      <ListPanel
-        titleId="overdue-title" title={status === 'Overdue' ? 'Overdue faculty' : 'Faculty'}
-        sub={`${inStatus.length} ${STATUS_FILTERS.find((s) => s[0] === status)[1].toLowerCase()} · ${inStatus.length - inStatusSigned} not signed up · most overdue first`}
-        actions={
-          <button type="button" className="btn btn-primary btn-sm" onClick={exportCsv} disabled={shown.length === 0}>
-            <Icon name="download" size={14} /> Export CSV
-          </button>
-        }
-        filters={<>
-          <input className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search faculty" />
-          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by evaluation status">
-            {STATUS_FILTERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <select className="select" value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Filter by hiring level">
-            <option value="all">All levels</option>
-            {levels.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-          <select className="select" value={signed} onChange={(e) => setSigned(e.target.value)} aria-label="Filter by sign-up">
-            <option value="all">Signed up or not</option>
-            <option value="no">Not signed up · {inStatus.length - inStatusSigned}</option>
-            <option value="yes">Signed up · {inStatusSigned}</option>
-          </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); setLevel('all'); setSigned('all'); setStatus('Overdue'); }} />
-        </>}
-        footer={`Showing ${shown.length} of ${inStatus.length} · ${professors.length} professors in total.`}
-      >
-        <table className="data-table data-table-compact">
-          <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Last evaluated</th><th>Status</th><th>This cycle</th></tr></thead>
-          <tbody>
-            {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{inStatus.length ? 'No faculty match these filters.' : status === 'Overdue' ? 'Nobody is overdue.' : 'No faculty have this status.'}</td></tr>}
-            {shown.map((f) => (
-              <tr key={f.professor_id}>
-                <td className="strong nowrap">{f.name}</td>
-                <td>{f.hire_level}</td>
-                <td>{f.department}</td>
-                <td className="mono">{f.last_evaluation || 'Never'}</td>
-                <td className="nowrap"><StatusBadgeFor f={f} /></td>
-                <td><Badge tone={f.signedUp ? 'good' : 'warn'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ListPanel>
+      <section className="card card-flush list-panel" aria-labelledby="overdue-title">
+        <div className="card-head">
+          <div>
+            <h2 id="overdue-title" className="card-title">Overdue faculty</h2>
+            <p className="card-sub">{`${overdueFaculty.length} overdue · ${notSigned} not signed up · most overdue first`}</p>
+          </div>
+          <div className="row">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => exportFacultyCsv(overdueFaculty, term)} disabled={overdueFaculty.length === 0}>
+              <Icon name="download" size={14} /> Export CSV
+            </button>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <FacultyTable rows={preview} empty="Nobody is overdue." />
+        </div>
+        <div className="card-foot row-between">
+          <span>Showing {preview.length} of {overdueFaculty.length}</span>
+          {overdueFaculty.length > 0 && (
+            <button ref={showAllRef} type="button" className="btn btn-ghost btn-sm" onClick={() => setDialogOpen(true)} aria-haspopup="dialog">
+              Show all {overdueFaculty.length}
+            </button>
+          )}
+        </div>
+        {dialogOpen && (
+          <FacultyDialog faculty={overdueFaculty} term={term} title="Overdue faculty" onClose={closeDialog}
+            sub={`${overdueFaculty.length} overdue · ${notSigned} not signed up · most overdue first`} />
+        )}
+      </section>
     </div>
   );
 }
@@ -305,7 +245,7 @@ function RateCard({ title, sub, groups, empty }) {
   );
 }
 
-function ParticipationPage({ k, signups, onNavigate }) {
+function ParticipationPage({ k, signups, professors = [], term }) {
   const { participation, overdue } = k;
   const signedIds = useMemo(() => new Set(signups.map((s) => s.observeeId)), [signups]);
   const rows = useMemo(() => overdue.due.map((f) => ({ ...f, signedUp: signedIds.has(f.professor_id) })), [overdue.due, signedIds]);
@@ -313,22 +253,16 @@ function ParticipationPage({ k, signups, onNavigate }) {
   const notDueSignups = new Set(signups.filter((s) => !dueIds.has(s.observeeId)).map((s) => s.observeeId)).size;
   const missingCount = participation.denominator - participation.numerator;
 
-  const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [signed, setSigned] = useState('no');
-  const departments = useMemo(() => optionsOf(rows, 'department'), [rows]);
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return rows
-      .filter((f) =>
-        (dept === 'all' || f.department === dept) &&
-        (status === 'all' || f.status === status) &&
-        (signed === 'all' || (signed === 'yes') === f.signedUp) &&
-        matches(q, f.name, f.department, f.email))
-      .sort((a, b) => Number(a.signedUp) - Number(b.signedUp) || (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name));
-  }, [rows, query, dept, status, signed]);
-  const filtered = query || dept !== 'all' || status !== 'all' || signed !== 'no';
+  // Faculty list: every professor, overdue first (most semesters late first), then due, then not due.
+  const allFaculty = useMemo(() => professors
+    .map((f) => ({ ...f, signedUp: signedIds.has(f.professor_id) }))
+    .sort((a, b) => (STATUS_ORDER[facultyStatus(a)] ?? 2) - (STATUS_ORDER[facultyStatus(b)] ?? 2) || (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name)),
+  [professors, signedIds]);
+  const preview = allFaculty.slice(0, FACULTY_PREVIEW);
+  const listSub = `${allFaculty.length} faculty · ${participation.denominator} due or overdue · ${missingCount} not signed up yet`;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const showAllRef = useRef(null);
+  const closeDialog = useCallback(() => { setDialogOpen(false); showAllRef.current?.focus(); }, []);
 
   return (
     <div className="stack">
@@ -350,51 +284,31 @@ function ParticipationPage({ k, signups, onNavigate }) {
         <RateCard title="Due vs overdue" sub="Overdue faculty should sign up first" groups={ratesBy(rows, (f) => f.status)} empty="Nobody is due this cycle." />
       </div>
 
-      <ListPanel
-        titleId="participation-title" title="Due faculty"
-        sub={`${participation.denominator} due or overdue · ${missingCount} not signed up yet`}
-        actions={onNavigate && (
-          <button type="button" className="btn btn-accent btn-sm" onClick={() => onNavigate('metric-1b', { status: 'due-overdue' })}>
-            Open in Overdue faculty <Icon name="chevronRight" size={14} />
-          </button>
-        )}
-        filters={<>
-          <input className="input" type="search" placeholder="Search by professor or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search due faculty" />
-          <select className="select" value={signed} onChange={(e) => setSigned(e.target.value)} aria-label="Filter by sign-up">
-            <option value="no">Not signed up · {missingCount}</option>
-            <option value="yes">Signed up · {participation.numerator}</option>
-            <option value="all">Signed up or not</option>
-          </select>
-          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by evaluation status">
-            <option value="all">Due + overdue</option>
-            <option value="Due">Due only</option>
-            <option value="Overdue">Overdue only</option>
-          </select>
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); setStatus('all'); setSigned('no'); }} />
-        </>}
-        footer={`Showing ${shown.length} of ${rows.length}.`}
-      >
-        <table className="data-table data-table-compact">
-          <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Evaluation status</th><th>Last evaluated</th><th>This cycle</th></tr></thead>
-          <tbody>
-            {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{rows.length ? 'No faculty match these filters.' : 'Nobody is due this cycle.'}</td></tr>}
-            {shown.map((f) => (
-              <tr key={f.professor_id}>
-                <td className="strong nowrap">{f.name}</td>
-                <td>{f.hire_level}</td>
-                <td>{f.department}</td>
-                <td>{f.status === 'Overdue' ? <Badge tone="bad">Overdue · {f.overdue_by} sem</Badge> : <Badge tone="warn">Due</Badge>}</td>
-                <td className="mono">{f.last_evaluation || 'Never'}</td>
-                <td><Badge tone={f.signedUp ? 'good' : 'neutral'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ListPanel>
+      <section className="card card-flush list-panel" aria-labelledby="participation-title">
+        <div className="card-head">
+          <div>
+            <h2 id="participation-title" className="card-title">Faculty list</h2>
+            <p className="card-sub">{listSub}</p>
+          </div>
+          <div className="row">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => exportFacultyCsv(allFaculty, term)} disabled={allFaculty.length === 0}>
+              <Icon name="download" size={14} /> Export CSV
+            </button>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <FacultyTable rows={preview} empty="No faculty on record." />
+        </div>
+        <div className="card-foot row-between">
+          <span>Showing {preview.length} of {allFaculty.length}</span>
+          {allFaculty.length > 0 && (
+            <button ref={showAllRef} type="button" className="btn btn-ghost btn-sm" onClick={() => setDialogOpen(true)} aria-haspopup="dialog">
+              Show all {allFaculty.length}
+            </button>
+          )}
+        </div>
+        {dialogOpen && <FacultyDialog faculty={allFaculty} term={term} title="Faculty list" sub={listSub} withStatuses onClose={closeDialog} />}
+      </section>
     </div>
   );
 }
@@ -404,7 +318,7 @@ function ParticipationPage({ k, signups, onNavigate }) {
 const LOAD_BUCKETS = ['1 observation', '2 observations', '3 observations', '4+ observations'];
 const loadBucket = (n) => LOAD_BUCKETS[Math.min(n, 4) - 1];
 
-function UtilizationPage({ k, observations, professors }) {
+function UtilizationPage({ k, observations, professors, term }) {
   const { utilization } = k;
   // Same rule as the KPI: an observation reported not held does not count toward the observer role
   const observers = useMemo(() => {
@@ -431,17 +345,13 @@ function UtilizationPage({ k, observations, professors }) {
   const byDept = tally(observers, (o) => o.department);
   const busiest = [...observers].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)).slice(0, 6);
 
-  const [query, setQuery] = useState('');
-  const [dept, setDept] = useState('all');
-  const [sort, setSort] = useState('load');
-  const departments = useMemo(() => optionsOf(observers, 'department'), [observers]);
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return observers
-      .filter((o) => (dept === 'all' || o.department === dept) && matches(q, o.name, o.department, ...o.observees))
-      .sort(sort === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.total - a.total || a.name.localeCompare(b.name));
-  }, [observers, query, dept, sort]);
-  const filtered = query || dept !== 'all';
+  // Most observations first; "Show all" opens the full list with search + Advanced filtering.
+  const sortedObservers = useMemo(() => [...observers].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)), [observers]);
+  const observerPreview = sortedObservers.slice(0, OBSERVER_PREVIEW);
+  const observersSub = `${observers.length} observers · ${activeObs} active observations (reported-not-held ones are left out)`;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const showAllRef = useRef(null);
+  const closeDialog = useCallback(() => { setDialogOpen(false); showAllRef.current?.focus(); }, []);
 
   return (
     <div className="stack">
@@ -475,53 +385,38 @@ function UtilizationPage({ k, observations, professors }) {
         </Card>
       </div>
 
-      <ListPanel
-        titleId="observers-title" title="Observers this cycle"
-        sub={`${observers.length} observers · ${activeObs} active observations (reported-not-held ones are left out)`}
-        filters={<>
-          <input className="input" type="search" placeholder="Search by observer, department or observee" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observers" />
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <select className="select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">
-            <option value="load">Most observations first</option>
-            <option value="name">Name A–Z</option>
-          </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setDept('all'); }} />
-        </>}
-        footer={`Showing ${shown.length} of ${observers.length}.`}
-      >
-        <table className="data-table data-table-compact">
-          <thead><tr><th>Observer</th><th>Department</th><th>Observing</th><th>Completed</th><th>In progress</th><th>Observees</th></tr></thead>
-          <tbody>
-            {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">{observers.length ? 'No observers match these filters.' : 'No observers yet.'}</td></tr>}
-            {shown.map((o) => (
-              <tr key={o.id}>
-                <td className="strong nowrap">{o.name}</td>
-                <td>{o.department}</td>
-                <td><strong className="num">{o.total}</strong></td>
-                <td><span className="num text-good">{o.completed}</span></td>
-                <td><span className="num">{o.inProgress}</span></td>
-                <td>{o.observees.join(', ')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ListPanel>
+      <section className="card card-flush list-panel" aria-labelledby="observers-title">
+        <div className="card-head">
+          <div>
+            <h2 id="observers-title" className="card-title">Observers this cycle</h2>
+            <p className="card-sub">{observersSub}</p>
+          </div>
+          <div className="row">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => exportObserversCsv(sortedObservers, term)} disabled={observers.length === 0}>
+              <Icon name="download" size={14} /> Export CSV
+            </button>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <ObserversTable rows={observerPreview} empty="No observers yet." />
+        </div>
+        <div className="card-foot row-between">
+          <span>Showing {observerPreview.length} of {observers.length}</span>
+          {observers.length > 0 && (
+            <button ref={showAllRef} type="button" className="btn btn-ghost btn-sm" onClick={() => setDialogOpen(true)} aria-haspopup="dialog">
+              Show all {observers.length}
+            </button>
+          )}
+        </div>
+        {dialogOpen && <ObserversDialog observers={sortedObservers} term={term} sub={observersSub} onClose={closeDialog} />}
+      </section>
     </div>
   );
 }
 
 /* ---------- 3a: List sufficiency ---------- */
 
-const FLAGS = {
-  OK: { label: 'Full list', tone: 'good' },
-  'INSUFFICIENT OBSERVERS': { label: 'Insufficient', tone: 'warn' },
-  'NO ELIGIBLE OBSERVER': { label: 'None eligible', tone: 'bad' },
-};
-
-function SufficiencyPage({ k, signups, professors, onNavigate }) {
+function SufficiencyPage({ k, signups, professors, term }) {
   const { sufficiency } = k;
   const deptOf = useMemo(() => new Map(professors.map((p) => [p.professor_id, p.department])), [professors]);
   const rows = useMemo(() => signups.map((s) => ({ ...s, department: deptOf.get(s.observeeId) || 'Unknown', size: s.matchesCount || 0 })), [signups, deptOf]);
@@ -538,20 +433,13 @@ function SufficiencyPage({ k, signups, professors, onNavigate }) {
   }, [rows]);
   const released = rows.filter((r) => r.listReleased).length;
 
-  const [query, setQuery] = useState('');
-  const [flag, setFlag] = useState('short');
-  const [dept, setDept] = useState('all');
-  const departments = useMemo(() => optionsOf(rows, 'department'), [rows]);
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return rows
-      .filter((r) =>
-        (flag === 'all' || (flag === 'short' ? r.matchFlag !== 'OK' : r.matchFlag === flag)) &&
-        (dept === 'all' || r.department === dept) &&
-        matches(q, r.observeeName, r.courseCode, r.department))
-      .sort((a, b) => a.size - b.size || a.observeeName.localeCompare(b.observeeName));
-  }, [rows, query, flag, dept]);
-  const filtered = query || flag !== 'short' || dept !== 'all';
+  // Shortest lists first; "Show all" opens the full list with search + Advanced filtering.
+  const sortedLists = useMemo(() => [...rows].sort((a, b) => a.size - b.size || a.observeeName.localeCompare(b.observeeName)), [rows]);
+  const listPreview = sortedLists.slice(0, LIST_PREVIEW);
+  const listsSub = `${rows.length} sign-ups · ${sufficiency.insufficient + sufficiency.none} short of the ${TARGET_LIST_SIZE}-observer target · shortest lists first`;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const showAllRef = useRef(null);
+  const closeDialog = useCallback(() => { setDialogOpen(false); showAllRef.current?.focus(); }, []);
 
   return (
     <div className="stack">
@@ -592,57 +480,38 @@ function SufficiencyPage({ k, signups, professors, onNavigate }) {
         </Card>
       </div>
 
-      <ListPanel
-        titleId="lists-title" title="Observer lists"
-        sub={`${rows.length} sign-ups · ${sufficiency.insufficient + sufficiency.none} short of the ${TARGET_LIST_SIZE}-observer target`}
-        actions={onNavigate && (
-          <button type="button" className="btn btn-accent btn-sm" onClick={() => onNavigate('signups')}>
-            Open Signup monitor <Icon name="chevronRight" size={14} />
-          </button>
-        )}
-        filters={<>
-          <input className="input" type="search" placeholder="Search by observee, course or department" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search observer lists" />
-          <select className="select" value={flag} onChange={(e) => setFlag(e.target.value)} aria-label="Filter by list status">
-            <option value="short">Short lists · {sufficiency.insufficient + sufficiency.none}</option>
-            <option value="all">All lists · {rows.length}</option>
-            {Object.entries(FLAGS).map(([key, f]) => <option key={key} value={key}>{f.label} · {rows.filter((r) => r.matchFlag === key).length}</option>)}
-          </select>
-          <select className="select" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Filter by department">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setFlag('short'); setDept('all'); }} />
-        </>}
-        footer={`Showing ${shown.length} of ${rows.length}. Shortest lists first.`}
-      >
-        <table className="data-table data-table-compact">
-          <thead><tr><th>Observee</th><th>Department</th><th>Course</th><th>Class time</th><th>List size</th><th>Status</th><th>Released</th></tr></thead>
-          <tbody>
-            {shown.length === 0 && <tr><td colSpan="7" className="empty-cell">{rows.length ? 'No sign-ups match these filters.' : 'No sign-ups yet.'}</td></tr>}
-            {shown.map((r) => {
-              const f = FLAGS[r.matchFlag] || { label: r.matchFlag, tone: 'neutral' };
-              return (
-                <tr key={r.id}>
-                  <td className="strong nowrap">{r.observeeName}</td>
-                  <td>{r.department}</td>
-                  <td className="mono nowrap">{r.courseCode}</td>
-                  <td className="nowrap">{r.timing}</td>
-                  <td><span className={`num text-${f.tone}`}>{r.size}</span><span className="faint"> / {TARGET_LIST_SIZE}</span></td>
-                  <td><Badge tone={f.tone}>{f.label}</Badge></td>
-                  <td>{r.listReleased ? <Badge tone="good">Released</Badge> : <Badge>Not yet</Badge>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </ListPanel>
+      <section className="card card-flush list-panel" aria-labelledby="lists-title">
+        <div className="card-head">
+          <div>
+            <h2 id="lists-title" className="card-title">Observer lists</h2>
+            <p className="card-sub">{listsSub}</p>
+          </div>
+          <div className="row">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => exportListsCsv(sortedLists, term, TARGET_LIST_SIZE)} disabled={rows.length === 0}>
+              <Icon name="download" size={14} /> Export CSV
+            </button>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <ListsTable rows={listPreview} target={TARGET_LIST_SIZE} empty="No sign-ups yet." />
+        </div>
+        <div className="card-foot row-between">
+          <span>Showing {listPreview.length} of {rows.length}</span>
+          {rows.length > 0 && (
+            <button ref={showAllRef} type="button" className="btn btn-ghost btn-sm" onClick={() => setDialogOpen(true)} aria-haspopup="dialog">
+              Show all {rows.length}
+            </button>
+          )}
+        </div>
+        {dialogOpen && <ListsDialog rows={sortedLists} term={term} target={TARGET_LIST_SIZE} sub={listsSub} onClose={closeDialog} />}
+      </section>
     </div>
   );
 }
 
 /* ---------- 4a: Missing observations ---------- */
 
-function MissingPage({ k, deadlines }) {
+function MissingPage({ k, deadlines, term }) {
   const { missing } = k;
   const kinds = useMemo(() => tally(missing.missing, kindOf), [missing.missing]);
   const kindCount = (key) => kinds.find(([kk]) => kk === key)?.[1] || 0;
@@ -686,7 +555,7 @@ function MissingPage({ k, deadlines }) {
       </div>
 
       {missing.count > 0
-        ? <MissingList missing={missing.missing} />
+        ? <MissingList missing={missing.missing} term={term} />
         : <Notice tone="good" title="No missing observations">Every approved appointment went through, or is still within the observation window.</Notice>}
     </div>
   );
@@ -694,7 +563,7 @@ function MissingPage({ k, deadlines }) {
 
 /* ---------- 4b: Survey completion ---------- */
 
-function SurveyPage({ k, deadlines }) {
+function SurveyPage({ k, deadlines, term }) {
   const { survey } = k;
   const ready = isSurveyClosed(deadlines?.survey, deadlines?.surveyTime);
   const surveyDeadline = deadlines?.survey ? formatSurveyDeadline(deadlines.survey, deadlines.surveyTime) : '';
@@ -712,15 +581,8 @@ function SurveyPage({ k, deadlines }) {
   const drops = steps.slice(1).map((s, i) => ({ ...s, lost: steps[i].count - s.count, from: steps[i].label }));
   const biggest = drops.reduce((best, d) => (d.lost > (best?.lost || 0) ? d : best), null);
 
-  const [query, setQuery] = useState('');
-  const [reached, setReached] = useState('all');
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return rows
-      .filter((r) => (reached === 'all' || r.reached === Number(reached)) && matches(q, r.name))
-      .sort((a, b) => a.reached - b.reached || String(a.name).localeCompare(String(b.name)));
-  }, [rows, query, reached]);
-  const filtered = query || reached !== 'all';
+  // Least progress first; "Show all" opens the full list with search + Advanced filtering.
+  const progressRows = useMemo(() => [...rows].sort((a, b) => a.reached - b.reached || String(a.name).localeCompare(String(b.name))), [rows]);
   const lastIdx = steps.length - 1;
 
   return (
@@ -776,41 +638,8 @@ function SurveyPage({ k, deadlines }) {
         </Card>
       </div>
 
-      <ListPanel
-        titleId="process-title" title="Progress by sign-up"
-        sub={`${total} sign-ups · ${ready ? `${survey.numerator} finished every step` : `${observed} observed so far`}`}
-        filters={<>
-          <input className="input" type="search" placeholder="Search by professor" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search sign-ups" />
-          <select className="select" value={reached} onChange={(e) => setReached(e.target.value)} aria-label="Filter by last step finished">
-            <option value="all">Any step</option>
-            {steps.map((s, i) => <option key={s.key} value={i}>{i === lastIdx ? `Finished (${s.label.toLowerCase()})` : `Stopped after: ${s.label}`} · {rows.filter((r) => r.reached === i).length}</option>)}
-          </select>
-          <ClearButton show={filtered} onClick={() => { setQuery(''); setReached('all'); }} />
-        </>}
-        footer={`Showing ${shown.length} of ${total}. Furthest along last.`}
-      >
-        <table className="data-table data-table-compact">
-          <thead><tr><th>Professor</th><th>Progress</th><th>Last step finished</th><th>Next step</th></tr></thead>
-          <tbody>
-            {shown.length === 0 && <tr><td colSpan="4" className="empty-cell">{total ? 'No sign-ups match these filters.' : 'No sign-ups yet.'}</td></tr>}
-            {shown.map((r) => {
-              const next = steps[r.reached + 1];
-              return (
-                <tr key={r.rowKey}>
-                  <td className="strong nowrap">{r.name}</td>
-                  <td>
-                    <span className="step-dots" role="img" aria-label={`${r.reached + 1} of ${steps.length} steps`}>
-                      {steps.map((s, i) => <span key={s.key} className={`step-dot${i <= r.reached ? ' done' : ''}`} title={s.label} />)}
-                    </span>
-                  </td>
-                  <td>{r.reached >= 0 ? steps[r.reached].label : '—'}</td>
-                  <td>{next ? <Badge tone="warn">{next.label}</Badge> : <Badge tone="good">{ready ? 'Done' : 'Observed'}</Badge>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </ListPanel>
+      <ProgressList rows={progressRows} steps={steps} ready={ready} term={term}
+        sub={`${total} sign-ups · ${ready ? `${survey.numerator} finished every step` : `${observed} observed so far`}`} />
     </div>
   );
 }
