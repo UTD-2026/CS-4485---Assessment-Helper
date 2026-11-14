@@ -1079,7 +1079,8 @@ a:hover { color: var(--accent-hover); }
 .search-launch-count { padding: 2px 8px; border-radius: 999px; background: var(--good-bg); color: var(--good-fg); font-size: 12px; font-weight: 700; white-space: nowrap; }
 
 .dialog-overlay-top { z-index: 950; }
-.filter-dialog { width: min(1040px, 100%); overflow: auto; }
+/* Filter pop-ups can use the window's full height (not the 720px dialog cap), so they only scroll on very short screens. */
+.filter-dialog { width: min(1040px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
 .filter-dialog-actions { display: flex; justify-content: flex-end; padding: 14px 20px 0; }
 .filter-dialog-actions + .filter-groups { padding-top: 4px; }
 .filter-reset { background: transparent; font-weight: 700; color: var(--bad-fg); border-color: var(--bad-line); }
@@ -1127,8 +1128,23 @@ a:hover { color: var(--accent-hover); }
 .count-range .input { width: 0; flex: 1 1 0; min-width: 0; padding-left: 10px; padding-right: 6px; }
 .count-range-error { margin: 0 0 2px; font-size: 12px; color: var(--bad-fg); }
 /* Observer lists (3a): Observee | Course | Days on row 1; Status (two tracks, with the Insufficient list-size range) | Released on row 2. */
-.filter-groups-lists { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.list-size-range { margin: 0 0 4px 36px; display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+/* Fixed column widths with equal gaps, packed to the left. Fixed (not sized to the labels) so a ticked option turning bold
+   can't widen its column and shift the others. Days is wide enough for "MW (Monday–Wednesday)" in bold plus its count. */
+.filter-groups-lists { grid-template-columns: 220px 290px 340px; justify-content: start; column-gap: 48px; row-gap: 8px; }
+/* Status spans the first two columns; cap it so its counts sit close to the labels, but wide enough that
+   the List size sorts stay on one line. */
+.filter-groups-lists .filter-group-wide { max-width: 470px; }
+/* Tighter spacing so the whole pop-up fits without scrolling. */
+.filter-dialog-actions + .filter-groups-lists { padding-top: 0; padding-bottom: 12px; }
+.filter-groups-lists .filter-group { gap: 2px; }
+.filter-groups-lists .filter-group legend { margin-bottom: 6px; }
+.filter-groups-lists .filter-check { padding-top: 4px; padding-bottom: 4px; }
+.filter-groups-lists .input, .filter-groups-lists .select { height: 36px; min-height: 36px; padding-top: 0; padding-bottom: 0; }
+.filter-groups-lists .list-size-sorts { margin-top: 0; }
+@media (min-width: 641px) { .filter-groups-lists .list-size-sorts { flex-wrap: nowrap; } }
+/* Narrower windows: the same three columns, shrinking together (single column below 640px, further down). */
+@media (max-width: 1060px) { .filter-groups-lists { grid-template-columns: minmax(0, 220fr) minmax(0, 290fr) minmax(0, 340fr); column-gap: 32px; } }
+.list-size-range { margin: 0 0 2px 36px; display: flex; flex-direction: column; gap: 2px; max-width: 420px; }
 .list-size-range .count-range { max-width: 260px; }
 .list-size-range .count-range .select { flex: 1 1 0; min-width: 0; }
 .list-size-range.is-off { opacity: 0.6; }

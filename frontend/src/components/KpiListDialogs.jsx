@@ -63,6 +63,9 @@ export function ListPanel({ titleId, title, sub, actions, filters, footer, child
   );
 }
 
+// Empty course range for the filter objects below. Defined up here because the EMPTY_*_FILTERS objects spread it as the module loads.
+const EMPTY_COURSE_RANGE = { courseMin: '', courseMax: '' };
+
 const useAutoFocus = () => {
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); }, []);
@@ -78,7 +81,28 @@ const pairingsSub = (pairings) => {
   return `${pairings.length} pairings · ${pairings.length - confirmed} recommended · ${confirmed} confirmed`;
 };
 
-export function PairingsList({ pairings }) {
+const csvFilename = (base, term) => `${base}-${String(term || 'cycle').toLowerCase().replaceAll(' ', '-')}.csv`;
+
+// Export CSV button used on the list cards and in the full-list pop-ups.
+function ExportCsvButton({ onClick, disabled }) {
+  return (
+    <button type="button" className="btn btn-primary btn-sm" onClick={onClick} disabled={disabled}>
+      <Icon name="download" size={14} /> Export CSV
+    </button>
+  );
+}
+
+function exportPairingsCsv(rows, term) {
+  if (!rows.length) return;
+  downloadCsv(
+    [['Observer', 'Observee', 'Course', 'Time', 'Source', 'Rules broken'],
+      ...rows.map((p) => [p.observerName, p.observeeName, p.courseCode, p.timing, p.source,
+        p.violations.map((v) => `${VIOLATION_TYPES[v].code}: ${VIOLATION_TYPES[v].label}`).join('; ')])],
+    csvFilename('pairings-breaking-rules', term),
+  );
+}
+
+export function PairingsList({ pairings, term }) {
   const [open, setOpen] = useState(false);
   const showAllRef = useRef(null);
   const close = useCallback(() => { setOpen(false); showAllRef.current?.focus(); }, []);
@@ -91,6 +115,9 @@ export function PairingsList({ pairings }) {
           <h2 id="pairings-title" className="card-title">Pairings that break a rule</h2>
           <p className="card-sub">{pairingsSub(pairings)}</p>
         </div>
+        <div className="row">
+          <ExportCsvButton onClick={() => exportPairingsCsv(pairings, term)} disabled={pairings.length === 0} />
+        </div>
       </div>
       <div className="table-wrap"><PairingsTable rows={preview} /></div>
       <div className="card-foot row-between">
@@ -99,7 +126,7 @@ export function PairingsList({ pairings }) {
           <button ref={showAllRef} type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(true)} aria-haspopup="dialog">Show all {pairings.length}</button>
         )}
       </div>
-      {open && <PairingsDialog pairings={pairings} onClose={close} />}
+      {open && <PairingsDialog pairings={pairings} term={term} onClose={close} />}
     </section>
   );
 }
@@ -123,7 +150,7 @@ const PAIRING_PAIRS = {
   observerAsc: 'observerDesc', observerDesc: 'observerAsc', observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc',
   courseAsc: 'courseDesc', courseDesc: 'courseAsc',
 };
-const EMPTY_PAIRING_FILTERS = { sorts: [], days: [], sources: [], rules: [] };
+const EMPTY_PAIRING_FILTERS = { sorts: [], days: [], sources: [], rules: [], ...EMPTY_COURSE_RANGE };
 
 function PairingsFilterDialog({ applied, dayCounts, sourceCounts, ruleCounts, onApply, onClose }) {
   const [draft, setDraft] = useState(applied);
@@ -133,7 +160,7 @@ function PairingsFilterDialog({ applied, dayCounts, sourceCounts, ruleCounts, on
   const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
 
   return (
-    <FilterDialog titleId="pairings-filter-title" sub="Sort and narrow the pairings that break a rule. Tick any options, then select Apply filters."
+    <FilterDialog titleId="pairings-filter-title" sub="Sort and narrow the pairings that break a rule. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-pairings">
       <fieldset className="filter-group">
         <legend>Observer</legend>
@@ -145,11 +172,7 @@ function PairingsFilterDialog({ applied, dayCounts, sourceCounts, ruleCounts, on
         {sortCheck('observeeAsc', 'Ascending (A–Z)')}
         {sortCheck('observeeDesc', 'Descending (Z–A)')}
       </fieldset>
-      <fieldset className="filter-group filter-group-nowrap">
-        <legend>Course</legend>
-        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
-        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group filter-group-nowrap">
         <legend>Days</legend>
         {OUTSTANDING_DAYS.map(([k, label]) => <FilterCheck key={k} label={label} count={dayCounts[k] || 0} checked={draft.days.includes(k)} onToggle={() => toggle('days', k)} />)}
@@ -171,7 +194,7 @@ function PairingsFilterDialog({ applied, dayCounts, sourceCounts, ruleCounts, on
   );
 }
 
-function PairingsDialog({ pairings, onClose }) {
+function PairingsDialog({ pairings, term, onClose }) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState(EMPTY_PAIRING_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -190,6 +213,7 @@ function PairingsDialog({ pairings, onClose }) {
       (!days.length || days.includes(p.days)) &&
       (!sources.length || sources.includes(p.source)) &&
       (!rules.length || rules.some((r) => p.violations.includes(r))) &&
+      inCourseRange(p.courseCode, filters) &&
       matches(q, p.observerName, p.observeeName, p.courseCode, p.timing));
     return sortBy(kept, sorts, PAIRING_SORTS);
   }, [rows, query, filters]);
@@ -204,12 +228,13 @@ function PairingsDialog({ pairings, onClose }) {
         <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
           placeholder="Search by observer, observee, course or time" searchLabel="Search pairings"
           onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_PAIRING_FILTERS); }} />
+        <ExportCsvButton onClick={() => exportPairingsCsv(shown, term)} disabled={shown.length === 0} />
         {filterOpen && (
           <PairingsFilterDialog applied={filters} dayCounts={dayCounts} sourceCounts={sourceCounts} ruleCounts={ruleCounts}
             onApply={setFilters} onClose={closeFilters} />
         )}
       </>}
-      footer={<>Showing {shown.length} of {pairings.length}. Rules: {Object.values(VIOLATION_TYPES).map((v) => `${v.code}: ${v.label}`).join(' · ')}</>}
+      footer={<>Showing {shown.length} of {pairings.length}. Export CSV downloads the rows shown. Rules: {Object.values(VIOLATION_TYPES).map((v) => `${v.code}: ${v.label}`).join(' · ')}</>}
     >
       <PairingsTable rows={shown} compact />
     </ListDialog>
@@ -688,8 +713,7 @@ const LIST_PAIRS = {
   observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc', sizeAsc: 'sizeDesc', sizeDesc: 'sizeAsc',
 };
 // sizeMin / sizeMax: '' or '1'-'4', only used while Insufficient is ticked.
-const EMPTY_LIST_FILTERS = { sorts: [], days: [], flags: [], released: [], sizeMin: '', sizeMax: '' };
-const countListFilters = (f) => f.sorts.length + f.days.length + f.flags.length + f.released.length;
+const EMPTY_LIST_FILTERS = { sorts: [], days: [], flags: [], released: [], sizeMin: '', sizeMax: '', ...EMPTY_COURSE_RANGE };
 
 export function exportListsCsv(rows, term, target) {
   if (!rows.length) return;
@@ -752,18 +776,14 @@ function ListsFilterDialog({ applied, dayCounts, flagCounts, releasedCounts, onA
   );
 
   return (
-    <FilterDialog titleId="lists-filter-title" sub="Sort and narrow the observer lists. Tick any options, then select Apply filters."
+    <FilterDialog titleId="lists-filter-title" sub="Sort and narrow the observer lists. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-lists">
       <fieldset className="filter-group">
         <legend>Observee</legend>
         {sortCheck('observeeAsc', 'Ascending (A–Z)')}
         {sortCheck('observeeDesc', 'Descending (Z–A)')}
       </fieldset>
-      <fieldset className="filter-group filter-group-nowrap">
-        <legend>Course</legend>
-        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
-        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group filter-group-nowrap">
         <legend>Days</legend>
         {OUTSTANDING_DAYS.map(([k, label]) => <FilterCheck key={k} label={label} count={dayCounts[k] || 0} checked={draft.days.includes(k)} onToggle={() => toggle('days', k)} />)}
@@ -819,10 +839,11 @@ export function ListsDialog({ rows, term, target, sub, onClose }) {
         // The list-size range narrows only the Insufficient lists.
         (r.matchFlag !== 'INSUFFICIENT OBSERVERS' || ((lo === null || r.size >= lo) && (hi === null || r.size <= hi))))) &&
       (!released.length || released.includes(r.listReleased ? 'yes' : 'no')) &&
+      inCourseRange(r.courseCode, filters) &&
       matches(q, r.observeeName, r.courseCode, r.department));
     return sortBy(kept, sorts, LIST_SORTS);
   }, [withDays, query, filters]);
-  const active = countListFilters(filters);
+  const active = countFilters(filters);
   const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, [openRef]);
 
   return (
@@ -1032,7 +1053,44 @@ const toggleSortIn = (setDraft, pairs, key) =>
   setDraft((d) => ({ ...d, sorts: d.sorts.includes(key) ? d.sorts.filter((s) => s !== key) : [...d.sorts.filter((s) => s !== pairs[key]), key] }));
 const sortBy = (rows, sorts, fns) =>
   (!sorts.length ? rows : [...rows].sort((a, b) => { for (const s of sorts) { const r = fns[s](a, b); if (r) return r; } return 0; }));
-const countFilters = (f) => Object.values(f).reduce((n, v) => n + v.length, 0);
+// Ticked options count one each; a course range counts once. Other text fields (e.g. list size) don't count.
+const countFilters = (f) =>
+  Object.values(f).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0) + (hasCourseRange(f) ? 1 : 0);
+
+/* Course range: courseMin / courseMax are typed text; only a 4-digit whole number counts, anything else means no limit. */
+const courseBound = (text) => (/^\d{4}$/.test(String(text ?? '').trim()) ? Number(text) : null);
+const hasCourseRange = (f) => courseBound(f.courseMin) !== null || courseBound(f.courseMax) !== null;
+// True when the course number is inside the range (no range = everything passes; a row with no course number fails a range).
+const inCourseRange = (code, f) => {
+  const lo = courseBound(f.courseMin), hi = courseBound(f.courseMax);
+  if (lo === null && hi === null) return true;
+  const n = courseNum(code);
+  return n !== null && (lo === null || n >= lo) && (hi === null || n <= hi);
+};
+
+// "Course" group for the filter pop-ups: Min - Max boxes, then the ascending / descending sorts.
+function CourseRangeGroup({ draft, setDraft, sortCheck }) {
+  // Digits only, at most 4.
+  const setBound = (side, value) => setDraft((d) => ({ ...d, [side]: value.replace(/\D/g, '').slice(0, 4) }));
+  const lo = courseBound(draft.courseMin), hi = courseBound(draft.courseMax);
+  const partial = [draft.courseMin, draft.courseMax].some((v) => v && courseBound(v) === null);
+  const flipped = lo !== null && hi !== null && lo > hi;
+  return (
+    <fieldset className="filter-group filter-group-nowrap">
+      <legend>Course</legend>
+      <div className="count-range">
+        <input className="input" type="text" inputMode="numeric" maxLength={4} placeholder="Min" value={draft.courseMin}
+          onChange={(e) => setBound('courseMin', e.target.value)} aria-label="Course number: minimum (4 digits)" />
+        <span aria-hidden="true">–</span>
+        <input className="input" type="text" inputMode="numeric" maxLength={4} placeholder="Max" value={draft.courseMax}
+          onChange={(e) => setBound('courseMax', e.target.value)} aria-label="Course number: maximum (4 digits)" />
+      </div>
+      {(partial || flipped) && <p className="count-range-error">{partial ? 'Enter a 4-digit course number.' : 'Minimum is above maximum.'}</p>}
+      {sortCheck('courseAsc', 'Ascending (min → max)')}
+      {sortCheck('courseDesc', 'Descending (max → min)')}
+    </fieldset>
+  );
+}
 
 // Shell for the pop-up. Changes only take effect on Apply (or Reset); only X / Esc / outside click closes it.
 // The plain text search stays outside, in the list's own search box.
@@ -1144,7 +1202,7 @@ function WorkloadFilterDialog({ applied, hasCounts, onApply, onClose }) {
   );
 }
 
-export function WorkloadDialog({ workload, onClose }) {
+export function WorkloadDialog({ workload, term, onClose }) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState(EMPTY_WORKLOAD_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -1171,9 +1229,13 @@ export function WorkloadDialog({ workload, onClose }) {
         <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
           placeholder="Search by professor or department" searchLabel="Search observers"
           onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_WORKLOAD_FILTERS); }} />
+        <ExportCsvButton disabled={shown.length === 0} onClick={() => downloadCsv(
+          [['Professor', 'Department', 'Assigned', 'Completed', 'Pending', 'Missed', 'Deferred'],
+            ...shown.map((p) => [p.name, p.department, p.assigned, p.completed, p.pending, p.missed, countOf(p, 'deferred')])],
+          csvFilename('observer-workload', term))} />
         {filterOpen && <WorkloadFilterDialog applied={filters} hasCounts={hasCounts} onApply={setFilters} onClose={closeFilters} />}
       </>}
-      footer={`Showing ${shown.length} of ${workload.length}. Assigned counts every assignment this cycle: completed, pending, missed and deferred.`}
+      footer={`Showing ${shown.length} of ${workload.length}. Export CSV downloads the rows shown. Assigned counts every assignment this cycle: completed, pending, missed and deferred.`}
     >
       <table className="data-table data-table-compact">
         <thead><tr><th>Professor</th><th>Department</th><th>Assigned</th><th>Completed</th><th>Pending</th><th>Missed</th><th>Deferred</th></tr></thead>
@@ -1207,16 +1269,17 @@ const SORTS = {
   courseDesc: (a, b) => { const x = courseNum(a.course_code), y = courseNum(b.course_code); return x === y ? 0 : x === null ? 1 : y === null ? -1 : y - x; },
 };
 const SORT_PAIRS = { nameAsc: 'nameDesc', nameDesc: 'nameAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc' };
-const EMPTY_FILTERS = { sorts: [], levels: [], due: [], reasons: [] };
+const EMPTY_FILTERS = { sorts: [], levels: [], due: [], reasons: [], ...EMPTY_COURSE_RANGE };
 
 function UnmatchedFilterDialog({ applied, levels, reasons, levelCounts, dueCounts, reasonCounts, onApply, onClose }) {
   const [draft, setDraft] = useState(applied);
   const toggle = (key, value) => toggleIn(setDraft, key, value);
   const toggleSort = (key) => toggleSortIn(setDraft, SORT_PAIRS, key);
   const reset = () => { setDraft(EMPTY_FILTERS); onApply(EMPTY_FILTERS); };
+  const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
 
   return (
-    <FilterDialog titleId="unmatched-filter-title" sub="Sort and narrow the unmatched faculty list. Tick any options, then select Apply filters."
+    <FilterDialog titleId="unmatched-filter-title" sub="Sort and narrow the unmatched faculty list. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose}>
       <fieldset className="filter-group">
         <legend>Professor</legend>
@@ -1231,11 +1294,7 @@ function UnmatchedFilterDialog({ applied, levels, reasons, levelCounts, dueCount
         <legend>Evaluation status</legend>
         {['due', 'overdue'].map((k) => <FilterCheck key={k} label={DUE[k][0]} count={dueCounts[k] || 0} checked={draft.due.includes(k)} onToggle={() => toggle('due', k)} />)}
       </fieldset>
-      <fieldset className="filter-group">
-        <legend>Course</legend>
-        <FilterCheck label="Ascending (1000 → 5000)" checked={draft.sorts.includes('courseAsc')} onToggle={() => toggleSort('courseAsc')} />
-        <FilterCheck label="Descending (5000 → 1000)" checked={draft.sorts.includes('courseDesc')} onToggle={() => toggleSort('courseDesc')} />
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group filter-group-wide">
         <legend>Next action</legend>
         {reasons.map((r) => <FilterCheck key={r} label={r} count={reasonCounts[r]} checked={draft.reasons.includes(r)} onToggle={() => toggle('reasons', r)} />)}
@@ -1244,7 +1303,7 @@ function UnmatchedFilterDialog({ applied, levels, reasons, levelCounts, dueCount
   );
 }
 
-export function UnmatchedDialog({ faculty, onClose }) {
+export function UnmatchedDialog({ faculty, term, onClose }) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -1263,6 +1322,7 @@ export function UnmatchedDialog({ faculty, onClose }) {
       (!lv.length || lv.includes(p.hire_level_label)) &&
       (!due.length || due.includes(p.evaluation_status)) &&
       (!rs.length || rs.includes(p.reason)) &&
+      inCourseRange(p.course_code, filters) &&
       matches(q, p.name, p.department, p.course_code));
     return sortBy(rows, sorts, SORTS);
   }, [faculty, query, filters]);
@@ -1277,12 +1337,16 @@ export function UnmatchedDialog({ faculty, onClose }) {
         <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
           placeholder="Search by professor, department or course" searchLabel="Search unmatched faculty"
           onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_FILTERS); }} />
+        <ExportCsvButton disabled={shown.length === 0} onClick={() => downloadCsv(
+          [['Professor', 'Department', 'Level', 'Evaluation status', 'Course', 'Next action'],
+            ...shown.map((p) => [p.name, p.department, p.hire_level_label, (DUE[p.evaluation_status] || [p.evaluation_status])[0], p.course_code || '—', p.reason])],
+          csvFilename('unmatched-faculty', term))} />
         {filterOpen && (
           <UnmatchedFilterDialog applied={filters} levels={levels} reasons={reasons} levelCounts={levelCounts} dueCounts={dueCounts} reasonCounts={reasonCounts}
             onApply={setFilters} onClose={closeFilters} />
         )}
       </>}
-      footer={`Showing ${shown.length} of ${faculty.length}.`}
+      footer={`Showing ${shown.length} of ${faculty.length}. Export CSV downloads the rows shown.`}
     >
       <table className="data-table data-table-compact">
         <thead><tr><th>Professor</th><th>Department</th><th>Level</th><th>Evaluation status</th><th>Course</th><th>Next action</th></tr></thead>
@@ -1383,7 +1447,7 @@ const OUTSTANDING_PAIRS = {
   observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', observerAsc: 'observerDesc', observerDesc: 'observerAsc',
   courseAsc: 'courseDesc', courseDesc: 'courseAsc',
 };
-const EMPTY_OUTSTANDING_FILTERS = { sorts: [], levels: [], days: [], statuses: [] };
+const EMPTY_OUTSTANDING_FILTERS = { sorts: [], levels: [], days: [], statuses: [], ...EMPTY_COURSE_RANGE };
 
 function OutstandingFilterDialog({ applied, levelCounts, dayCounts, statusCounts, onApply, onClose }) {
   const [draft, setDraft] = useState(applied);
@@ -1393,7 +1457,7 @@ function OutstandingFilterDialog({ applied, levelCounts, dayCounts, statusCounts
   const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
 
   return (
-    <FilterDialog titleId="outstanding-filter-title" sub="Sort and narrow the outstanding observations list. Tick any options, then select Apply filters."
+    <FilterDialog titleId="outstanding-filter-title" sub="Sort and narrow the outstanding observations list. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-outstanding">
       <fieldset className="filter-group">
         <legend>Observee</legend>
@@ -1409,11 +1473,7 @@ function OutstandingFilterDialog({ applied, levelCounts, dayCounts, statusCounts
         {sortCheck('observerAsc', 'Ascending (A–Z)')}
         {sortCheck('observerDesc', 'Descending (Z–A)')}
       </fieldset>
-      <fieldset className="filter-group">
-        <legend>Course</legend>
-        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
-        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group filter-group-nowrap">
         <legend>Schedule</legend>
         {OUTSTANDING_DAYS.map(([k, label]) => <FilterCheck key={k} label={label} count={dayCounts[k] || 0} checked={draft.days.includes(k)} onToggle={() => toggle('days', k)} />)}
@@ -1428,7 +1488,7 @@ function OutstandingFilterDialog({ applied, levelCounts, dayCounts, statusCounts
   );
 }
 
-export function OutstandingDialog({ observations, onClose }) {
+export function OutstandingDialog({ observations, term, onClose }) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState(EMPTY_OUTSTANDING_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -1448,6 +1508,7 @@ export function OutstandingDialog({ observations, onClose }) {
       (!levels.length || levels.includes(o.hire_level_label)) &&
       (!days.length || days.includes(o.days)) &&
       (!statuses.length || statuses.includes(o.status)) &&
+      inCourseRange(o.course_code, filters) &&
       matches(q, o.observee_name, o.observer_name, o.course_code));
     return sortBy(kept, sorts, OUTSTANDING_SORTS);
   }, [rows, query, filters]);
@@ -1462,12 +1523,16 @@ export function OutstandingDialog({ observations, onClose }) {
         <FilterToolbar openRef={openRef} searchRef={searchRef} active={active} query={query} setQuery={setQuery}
           placeholder="Search by observee, observer or course" searchLabel="Search outstanding observations"
           onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_OUTSTANDING_FILTERS); }} />
+        <ExportCsvButton disabled={shown.length === 0} onClick={() => downloadCsv(
+          [['Observee', 'Hiring level', 'Observer', 'Course', 'Schedule', 'Status', 'Next action'],
+            ...shown.map((o) => [o.observee_name, o.hire_level_label, o.observer_name || '—', o.course_code, scheduleOf(o), (STATUS[o.status] || [o.status])[0], nextDetail(o)])],
+          csvFilename('outstanding-observations', term))} />
         {filterOpen && (
           <OutstandingFilterDialog applied={filters} levelCounts={levelCounts} dayCounts={dayCounts} statusCounts={statusCounts}
             onApply={setFilters} onClose={closeFilters} />
         )}
       </>}
-      footer={`Showing ${shown.length} of ${observations.length}. Click a next action to see the full explanation.`}
+      footer={`Showing ${shown.length} of ${observations.length}. Export CSV downloads the rows shown. Click a next action to see the full explanation.`}
     >
       <table className="data-table data-table-compact">
         <thead><tr><th>Observee</th><th>Level</th><th>Observer</th><th>Course</th><th>Schedule</th><th>Status</th><th>Next action</th></tr></thead>
@@ -1511,11 +1576,7 @@ const MISSING_PAIRS = {
   observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', observerAsc: 'observerDesc', observerDesc: 'observerAsc',
   courseAsc: 'courseDesc', courseDesc: 'courseAsc',
 };
-// courseMin / courseMax: typed text; only a 4-digit whole number counts, anything else means no limit.
-const EMPTY_MISSING_FILTERS = { sorts: [], kinds: [], courseMin: '', courseMax: '' };
-const courseBound = (text) => (/^\d{4}$/.test(String(text).trim()) ? Number(text) : null);
-const countMissingFilters = (f) =>
-  f.sorts.length + f.kinds.length + (courseBound(f.courseMin) !== null || courseBound(f.courseMax) !== null ? 1 : 0);
+const EMPTY_MISSING_FILTERS = { sorts: [], kinds: [], ...EMPTY_COURSE_RANGE };
 const MISSING_PREVIEW = 8;
 
 function exportMissingCsv(rows, term) {
@@ -1554,12 +1615,6 @@ function MissingFilterDialog({ applied, kindCounts, onApply, onClose }) {
   const toggleSort = (key) => toggleSortIn(setDraft, MISSING_PAIRS, key);
   const reset = () => { setDraft(EMPTY_MISSING_FILTERS); onApply(EMPTY_MISSING_FILTERS); };
   const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
-  // Digits only, at most 4.
-  const setBound = (side, value) => setDraft((d) => ({ ...d, [side]: value.replace(/\D/g, '').slice(0, 4) }));
-  const lo = courseBound(draft.courseMin), hi = courseBound(draft.courseMax);
-  const partial = [draft.courseMin, draft.courseMax].some((v) => v && courseBound(v) === null);
-  const flipped = lo !== null && hi !== null && lo > hi;
-
   return (
     <FilterDialog titleId="missing-filter-title" sub="Sort and narrow the appointments that did not go through. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-missing">
@@ -1573,19 +1628,7 @@ function MissingFilterDialog({ applied, kindCounts, onApply, onClose }) {
         {sortCheck('observerAsc', 'Ascending (A–Z)')}
         {sortCheck('observerDesc', 'Descending (Z–A)')}
       </fieldset>
-      <fieldset className="filter-group filter-group-nowrap">
-        <legend>Course</legend>
-        <div className="count-range">
-          <input className="input" type="text" inputMode="numeric" maxLength={4} placeholder="Min" value={draft.courseMin}
-            onChange={(e) => setBound('courseMin', e.target.value)} aria-label="Course number: minimum (4 digits)" />
-          <span aria-hidden="true">–</span>
-          <input className="input" type="text" inputMode="numeric" maxLength={4} placeholder="Max" value={draft.courseMax}
-            onChange={(e) => setBound('courseMax', e.target.value)} aria-label="Course number: maximum (4 digits)" />
-        </div>
-        {(partial || flipped) && <p className="count-range-error">{partial ? 'Enter a 4-digit course number.' : 'Minimum is above maximum.'}</p>}
-        {sortCheck('courseAsc', 'Ascending (min → max)')}
-        {sortCheck('courseDesc', 'Descending (max → min)')}
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group">
         <legend>Reason</legend>
         {MISSING_REASON_ORDER.map((k) => (
@@ -1605,19 +1648,15 @@ function MissingDialog({ rows, term, sub, onClose }) {
 
   const kindCounts = useMemo(() => countBy(rows, 'kind'), [rows]);
   const shown = useMemo(() => {
-    const { sorts, kinds, courseMin, courseMax } = filters;
-    const lo = courseBound(courseMin), hi = courseBound(courseMax);
+    const { sorts, kinds } = filters;
     const q = query.trim().toLowerCase();
-    const kept = rows.filter((o) => {
-      const n = courseNum(o.courseCode);
-      return (!kinds.length || kinds.includes(o.kind)) &&
-        (lo === null || (n !== null && n >= lo)) &&
-        (hi === null || (n !== null && n <= hi)) &&
-        matches(q, o.observeeName, o.observerName, o.courseCode);
-    });
+    const kept = rows.filter((o) =>
+      (!kinds.length || kinds.includes(o.kind)) &&
+      inCourseRange(o.courseCode, filters) &&
+      matches(q, o.observeeName, o.observerName, o.courseCode));
     return sortBy(kept, sorts, MISSING_SORTS);
   }, [rows, query, filters]);
-  const active = countMissingFilters(filters);
+  const active = countFilters(filters);
   const closeFilters = useCallback(() => { setFilterOpen(false); openRef.current?.focus(); }, [openRef]);
 
   return (
@@ -1702,7 +1741,7 @@ const SIGNUP_PAIRS = {
   observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc',
   observerAsc: 'observerDesc', observerDesc: 'observerAsc',
 };
-export const EMPTY_SIGNUP_FILTERS = { sorts: [], days: [], statuses: [] };
+export const EMPTY_SIGNUP_FILTERS = { sorts: [], days: [], statuses: [], ...EMPTY_COURSE_RANGE };
 
 // Search + ticked filters + sorts, applied to the Signup monitor rows.
 export function applySignupFilters(rows, query, filters) {
@@ -1710,6 +1749,7 @@ export function applySignupFilters(rows, query, filters) {
   const kept = rows.filter((r) =>
     (!filters.days.length || filters.days.includes(classDays(r.signup.timing))) &&
     (!filters.statuses.length || filters.statuses.includes(r.signup.matchFlag)) &&
+    inCourseRange(r.signup.courseCode, filters) &&
     matches(q, r.signup.observeeName, r.signup.courseCode, signupObserver(r)));
   return sortBy(kept, filters.sorts, SIGNUP_SORTS);
 }
@@ -1722,18 +1762,14 @@ function SignupFilterDialog({ applied, dayCounts, statusCounts, onApply, onClose
   const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
 
   return (
-    <FilterDialog titleId="signup-filter-title" sub="Sort and narrow the sign-up list. Tick any options, then select Apply filters."
+    <FilterDialog titleId="signup-filter-title" sub="Sort and narrow the sign-up list. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-signups">
       <fieldset className="filter-group">
         <legend>Observee</legend>
         {sortCheck('observeeAsc', 'Ascending (A–Z)')}
         {sortCheck('observeeDesc', 'Descending (Z–A)')}
       </fieldset>
-      <fieldset className="filter-group">
-        <legend>Course</legend>
-        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
-        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group filter-group-nowrap">
         <legend>Days</legend>
         {OUTSTANDING_DAYS.map(([k, label]) => <FilterCheck key={k} label={label} count={dayCounts[k] || 0} checked={draft.days.includes(k)} onToggle={() => toggle('days', k)} />)}
@@ -1791,11 +1827,12 @@ const EVAL_PAIRS = {
   observeeAsc: 'observeeDesc', observeeDesc: 'observeeAsc', courseAsc: 'courseDesc', courseDesc: 'courseAsc',
   observerAsc: 'observerDesc', observerDesc: 'observerAsc', dateOldest: 'dateNewest', dateNewest: 'dateOldest',
 };
-export const EMPTY_EVAL_FILTERS = { sorts: [] };
+export const EMPTY_EVAL_FILTERS = { sorts: [], ...EMPTY_COURSE_RANGE };
 
 export function applyEvaluationFilters(rows, query, filters) {
   const q = query.trim().toLowerCase();
-  return sortBy(rows.filter((e) => matches(q, e.observeeName, e.observerName, e.courseCode)), filters.sorts, EVAL_SORTS);
+  const kept = rows.filter((e) => inCourseRange(e.courseCode, filters) && matches(q, e.observeeName, e.observerName, e.courseCode));
+  return sortBy(kept, filters.sorts, EVAL_SORTS);
 }
 
 function EvaluationFilterDialog({ applied, onApply, onClose }) {
@@ -1805,18 +1842,14 @@ function EvaluationFilterDialog({ applied, onApply, onClose }) {
   const sortCheck = (key, label) => <FilterCheck label={label} checked={draft.sorts.includes(key)} onToggle={() => toggleSort(key)} />;
 
   return (
-    <FilterDialog titleId="eval-filter-title" sub="Sort the submitted evaluation forms. Tick any options, then select Apply filters."
+    <FilterDialog titleId="eval-filter-title" sub="Sort and narrow the submitted evaluation forms. Tick any options or enter a range, then select Apply filters."
       draft={draft} applied={applied} onReset={reset} onApply={onApply} onClose={onClose} groupsClassName="filter-groups-evals">
       <fieldset className="filter-group">
         <legend>Observee</legend>
         {sortCheck('observeeAsc', 'Ascending (A–Z)')}
         {sortCheck('observeeDesc', 'Descending (Z–A)')}
       </fieldset>
-      <fieldset className="filter-group">
-        <legend>Course</legend>
-        {sortCheck('courseAsc', 'Ascending (1000 → 5000)')}
-        {sortCheck('courseDesc', 'Descending (5000 → 1000)')}
-      </fieldset>
+      <CourseRangeGroup draft={draft} setDraft={setDraft} sortCheck={sortCheck} />
       <fieldset className="filter-group">
         <legend>Observer</legend>
         {sortCheck('observerAsc', 'Ascending (A–Z)')}

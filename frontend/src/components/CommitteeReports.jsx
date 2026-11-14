@@ -38,9 +38,9 @@ function ReportTable({ title, description, columns, rows, csv, empty, filename, 
       title={<>{title} <span className="muted">· {rows.length}</span></>}
       sub={description}
       actions={(
-        <button type="button" className="btn btn-ghost btn-sm" disabled={!rows.length}
+        <button type="button" className="btn btn-primary btn-sm" disabled={!rows.length}
           onClick={() => downloadCsv([columns.map((c) => c.label), ...csv], `${filename}-${term.toLowerCase().replaceAll(' ', '-')}.csv`)}>
-          <Icon name="download" size={15} /> CSV<span className="sr-only">: {title}</span>
+          <Icon name="download" size={14} /> Export CSV<span className="sr-only">: {title}</span>
         </button>
       )}
     >
@@ -174,9 +174,9 @@ export default function CommitteeReports({ term, refreshKey }) {
         csv={report.outstanding.map((o) => [o.observee_name, o.hire_level_label, o.observer_name || '—', o.course_code, scheduleOf(o), (STATUS[o.status] || [o.status])[0], nextDetail(o)])}
         empty="No outstanding observations."
       />
-      {dialog === 'workload' && <WorkloadDialog workload={workload} onClose={closeDialog} />}
-      {dialog === 'unmatched' && <UnmatchedDialog faculty={report.unmatched} onClose={closeDialog} />}
-      {dialog === 'outstanding' && <OutstandingDialog observations={report.outstanding} onClose={closeDialog} />}
+      {dialog === 'workload' && <WorkloadDialog workload={workload} term={term} onClose={closeDialog} />}
+      {dialog === 'unmatched' && <UnmatchedDialog faculty={report.unmatched} term={term} onClose={closeDialog} />}
+      {dialog === 'outstanding' && <OutstandingDialog observations={report.outstanding} term={term} onClose={closeDialog} />}
       {dialog?.observation && <NextActionDialog observation={dialog.observation} onClose={closeDialog} />}
     </div>
   );

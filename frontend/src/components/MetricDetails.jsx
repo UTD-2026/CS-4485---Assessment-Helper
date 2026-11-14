@@ -71,7 +71,7 @@ function Empty({ children }) {
 
 /* ---------- 1a: Eligibility accuracy ---------- */
 
-function EligibilityPage({ k, signups, observations }) {
+function EligibilityPage({ k, signups, observations, term }) {
   const { eligibility } = k;
   const tone = eligibility.rate == null ? 'neutral' : eligibility.incorrect.length ? 'bad' : 'good';
   const recommendedTotal = signups.reduce((n, s) => n + (s.eligibleObservers || []).length, 0);
@@ -122,7 +122,7 @@ function EligibilityPage({ k, signups, observations }) {
       </div>
 
       {eligibility.incorrect.length > 0
-        ? <PairingsList pairings={eligibility.incorrect} />
+        ? <PairingsList pairings={eligibility.incorrect} term={term} />
         : <Notice tone="good" title="Every audited pairing passes">No recommended or confirmed observer breaks an eligibility rule.</Notice>}
     </div>
   );
