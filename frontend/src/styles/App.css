@@ -1341,12 +1341,17 @@ a:hover { color: var(--accent-hover); }
 .list-panel .data-table th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
 /* Headline strip at the top of each detail page: the KPI itself plus the counts behind it. */
 .metric-hero { display: grid; grid-template-columns: minmax(220px, 1.2fr) repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; align-items: stretch; }
+.metric-hero-stacked { grid-template-columns: var(--hero-cols); }
+.metric-hero-stacked > :first-child { grid-column: 1 / -1; }
 .metric-stat { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
 .metric-stat-label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .metric-stat-value { font-family: var(--mono); font-size: 26px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
 .metric-stat-sub { font-size: 12.5px; color: var(--faint); }
+.metric-stat-good { background: var(--good-surface); border-color: var(--good-line); }
+.metric-stat-bad { background: var(--bad-surface); border-color: var(--bad-line); }
 /* Breakdown rows: label, meter, value and an optional fraction ("12 / 30") */
 .break-row { display: grid; grid-template-columns: minmax(90px, 170px) minmax(0, 1fr) minmax(48px, auto); gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border-soft); }
+.break-row.break-row-even { grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr) minmax(130px, 1fr); }
 .break-row:last-child { border-bottom: 0; }
 .break-row-label { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .break-row-value { font-family: var(--mono); font-weight: 700; text-align: right; white-space: nowrap; }
