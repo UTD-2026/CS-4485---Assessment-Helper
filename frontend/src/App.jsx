@@ -7,6 +7,8 @@ import MetricDetail from './components/MetricDetails.jsx';
 import { METRIC_PAGES } from './utils/metricPages.js';
 import ScheduleObservationForm from './components/ScheduleObservationForm.jsx';
 import CommitteeReports from './components/CommitteeReports.jsx';
+import RankChangeForm from './components/RankChangeForm.jsx';
+import AdminRankReview from './components/AdminRankReview.jsx';
 import { SignupFilters, applySignupFilters, EMPTY_SIGNUP_FILTERS, EvaluationFilters, applyEvaluationFilters, EMPTY_EVAL_FILTERS } from './components/KpiListDialogs.jsx';
 import TestAccountsDialog from './components/TestAccountsDialog.jsx';
 import Toaster from './components/Toaster.jsx';
@@ -329,6 +331,7 @@ const ADMIN_TITLES = {
   template: ['Template editor', 'Criteria observers rate during in-person evaluations'],
   evaluations: ['Digital evaluations', 'Forms submitted this cycle'],
   surveys: ['Survey responses', 'Anonymous end-of-process feedback'],
+  ranks: ['Ranks', 'Review rank change forms and every professor\'s current rank'],
   // One page per KPI, listed under Metrics in the side rail
   ...Object.fromEntries(METRIC_PAGES.map(p => [p.id, [`${p.code} · ${p.title}`, p.subtitle]])),
 };
@@ -509,6 +512,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
     { id: 'template', label: 'Template', icon: 'sliders' },
     { id: 'evaluations', label: 'Evaluations', icon: 'form' },
     { id: 'surveys', label: 'Surveys', icon: 'message' },
+    { id: 'ranks', label: 'Ranks', icon: 'award' },
   ];
 
   const obsDays = daysUntil(globalDeadlines?.observation);
@@ -836,6 +840,8 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
             : `Available after the observation period ends${globalDeadlines?.observation ? ` (${shortDeadline(globalDeadlines.observation, globalDeadlines.observationTime)})` : ''}.`}
         />
       )}
+
+      {activeTab === 'ranks' && <AdminRankReview professors={professors} onChanged={refresh} />}
     </AppShell>
   );
 }
@@ -850,6 +856,7 @@ const PROF_TITLES = {
   'live-evaluation': ['', ''],
   'my-evaluations': ['My evaluations', 'Forms you submitted and forms about your teaching'],
   survey: ['End-of-process survey', 'Anonymous feedback for the Assessment Committee'],
+  'rank-change': ['Rank change', 'Tell the Assessment Committee your rank has changed'],
   notifications: ['Notifications', 'Updates from the evaluation workflow'],
 };
 
@@ -1091,6 +1098,7 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
     { id: 'observer-duties', label: 'Duties', icon: 'signups', count: pendingDuties.length },
     { id: 'my-evaluations', label: 'Evaluations', icon: 'form' },
     { id: 'survey', label: 'Survey', icon: 'message' },
+    { id: 'rank-change', label: 'Rank Change', icon: 'trendingUp' },
     { id: 'notifications', label: 'Inbox', icon: 'bell', count: unreadCount },
   ];
   const [titleText, subtitleText] = PROF_TITLES[activeTab] || ['', ''];
@@ -1516,6 +1524,11 @@ function ProfessorDashboard({ user, onLogout, data, globalRequests, hasSubmitted
 
       {activeTab === 'survey' && (
         <FeedbackSurvey hasSubmitted={hasSubmittedSurvey} onSubmit={onSurveySubmit} isClosed={isSurveyClosed} deadline={surveyDeadlineLabel} />
+      )}
+
+      {/* Rank on file comes from the polled professor list, so an approval shows up without signing in again */}
+      {activeTab === 'rank-change' && (
+        <RankChangeForm user={data.professors.find(p => p.email === user?.email) || user} onSubmitted={refresh} />
       )}
     </AppShell>
   );

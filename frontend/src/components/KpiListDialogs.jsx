@@ -66,7 +66,7 @@ export function ListPanel({ titleId, title, sub, actions, filters, footer, child
 // Empty course range for the filter objects below. Defined up here because the EMPTY_*_FILTERS objects spread it as the module loads.
 const EMPTY_COURSE_RANGE = { courseMin: '', courseMax: '' };
 
-const useAutoFocus = () => {
+export const useAutoFocus = () => {
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); }, []);
   return ref;
@@ -1034,7 +1034,7 @@ export function ProgressList({ rows, steps, ready, term, sub }) {
 /* ---------- Shared "Advanced filtering" pop-up ---------- */
 
 // One tickable option in the filter pop-up: a box that turns green with a check mark when on. Click again to untick.
-function FilterCheck({ checked, onToggle, label, count, hint, disabled }) {
+export function FilterCheck({ checked, onToggle, label, count, hint, disabled }) {
   return (
     <button type="button" role="checkbox" aria-checked={checked} className={`filter-check${checked ? ' checked' : ''}`} onClick={onToggle} title={hint} disabled={disabled}>
       <span className="filter-check-box" aria-hidden="true">{checked && <Icon name="check" size={12} />}</span>
@@ -1045,13 +1045,13 @@ function FilterCheck({ checked, onToggle, label, count, hint, disabled }) {
 }
 
 // Tick/untick a value in one of the draft's list fields.
-const toggleIn = (setDraft, key, value) =>
+export const toggleIn = (setDraft, key, value) =>
   setDraft((d) => ({ ...d, [key]: d[key].includes(value) ? d[key].filter((v) => v !== value) : [...d[key], value] }));
 // Sorts keep the order they were picked in: the first one picked is the main sort, later ones break ties.
 // Each sort group allows one direction; picking the other direction replaces it.
-const toggleSortIn = (setDraft, pairs, key) =>
+export const toggleSortIn = (setDraft, pairs, key) =>
   setDraft((d) => ({ ...d, sorts: d.sorts.includes(key) ? d.sorts.filter((s) => s !== key) : [...d.sorts.filter((s) => s !== pairs[key]), key] }));
-const sortBy = (rows, sorts, fns) =>
+export const sortBy = (rows, sorts, fns) =>
   (!sorts.length ? rows : [...rows].sort((a, b) => { for (const s of sorts) { const r = fns[s](a, b); if (r) return r; } return 0; }));
 // Ticked options count one each; a course range counts once. Other text fields (e.g. list size) don't count.
 const countFilters = (f) =>
@@ -1094,7 +1094,7 @@ function CourseRangeGroup({ draft, setDraft, sortCheck }) {
 
 // Shell for the pop-up. Changes only take effect on Apply (or Reset); only X / Esc / outside click closes it.
 // The plain text search stays outside, in the list's own search box.
-function FilterDialog({ titleId, sub, draft, applied, onReset, onApply, onClose, groupsClassName = '', children }) {
+export function FilterDialog({ titleId, sub, draft, applied, onReset, onApply, onClose, groupsClassName = '', children }) {
   const closeRef = useAutoFocus();
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -1127,7 +1127,7 @@ function FilterDialog({ titleId, sub, draft, applied, onReset, onApply, onClose,
 }
 
 // Toolbar used by both pop-up lists: "More filters" button, search box, Clear.
-function FilterToolbar({ openRef, searchRef, active, query, setQuery, placeholder, searchLabel, onOpen, onClear }) {
+export function FilterToolbar({ openRef, searchRef, active, query, setQuery, placeholder, searchLabel, onOpen, onClear }) {
   return (
     <>
       <button ref={openRef} type="button" className="btn btn-ghost more-filters" onClick={onOpen} aria-haspopup="dialog">

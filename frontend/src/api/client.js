@@ -105,4 +105,9 @@ export const api = {
   notifications: () => request('GET', '/notifications'),
   markRead: (id) => request('PATCH', `/notifications/${enc(id)}/read`),
   archive: (id) => request('PATCH', `/notifications/${enc(id)}/archive`),
+
+  // 9. Rank changes (extension): professors submit, the committee approves or rejects
+  rankChanges: (status) => request('GET', `/rank-changes${q({ status })}`),
+  submitRankChange: (current_level, requested_level, reason) => request('POST', '/rank-changes', { current_level, requested_level, reason }),
+  decideRankChange: (id, decision, note) => request('PATCH', `/rank-changes/${enc(id)}/decision`, { decision, note }),
 };

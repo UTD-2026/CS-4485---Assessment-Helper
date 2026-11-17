@@ -31,6 +31,7 @@ function createApp() {
   app.use("/api/surveys", authenticate, require("./routes/surveys"));
   app.use("/api/reports", authenticate, requireAc, require("./routes/reports"));
   app.use("/api/notifications", authenticate, require("./routes/notifications"));
+  app.use("/api/rank-changes", authenticate, require("./routes/rankChanges"));
 
   app.use("/api", notFoundHandler);
   app.use(errorHandler);

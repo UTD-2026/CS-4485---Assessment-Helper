@@ -156,6 +156,25 @@ const notificationSchema = new Schema({
 
 notificationSchema.index({ recipient_email: 1, created_at: -1 });
 
+// Rank Change Request (a professor reports a promotion / rank change; the committee approves or rejects it)
+// Status lifecycle: pending -> approved | rejected. Approving updates Professor.hire_level.
+const RANKS = ["assistant", "associate", "full"];
+const rankChangeRequestSchema = new Schema({
+  professor_email: emailField(),
+  current_level: { type: String, enum: RANKS, required: true }, // what the professor says they were
+  requested_level: { type: String, enum: RANKS, required: true }, // what they are changing to
+  recorded_level: { type: String, default: null }, // hire_level in the database when they submitted
+  reason: { type: String, required: true, trim: true },
+  status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+  submitted_date: { type: Date, default: Date.now },
+  reviewed_by: { ...emailField(false), default: null },
+  reviewed_date: { type: Date, default: null },
+  review_note: { type: String, default: "" },
+});
+
+rankChangeRequestSchema.index({ professor_email: 1, submitted_date: -1 });
+rankChangeRequestSchema.index({ status: 1, submitted_date: -1 });
+
 module.exports = {
   Professor: mongoose.model("Professor", professorSchema),
   CourseSection: mongoose.model("CourseSection", courseSectionSchema),
@@ -164,4 +183,6 @@ module.exports = {
   ObserverMatch: mongoose.model("ObserverMatch", observerMatchSchema),
   Survey: mongoose.model("Survey", surveySchema),
   Notification: mongoose.model("Notification", notificationSchema),
+  RankChangeRequest: mongoose.model("RankChangeRequest", rankChangeRequestSchema),
+  RANKS,
 };

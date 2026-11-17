@@ -183,6 +183,25 @@ test("full observation workflow through the API", { skip }, async (t) => {
   assert.equal((await call("GET", "/reports/outstanding-observations", ac)).status, 200);
   assert.equal((await call("GET", "/reports/unmatched-faculty?include=all_due", ac)).status, 200);
   assert.equal((await call("GET", `/professors/${observee.email}/evaluation-status`, ac)).body.data.signed_up, true);
+
+  // Rank changes: professor submits, committee approves, hire_level updates
+  const from = observee.hire_level;
+  const to = from === "full" ? "associate" : from === "associate" ? "full" : "associate";
+  assert.equal((await call("POST", "/rank-changes", prof, { current_level: from, requested_level: from, reason: "x" })).status, 400);
+  assert.equal((await call("POST", "/rank-changes", prof, { current_level: from, requested_level: to, reason: " " })).status, 400);
+  const rc = await call("POST", "/rank-changes", prof, { current_level: from, requested_level: to, reason: "Promoted" });
+  assert.equal(rc.status, 201);
+  assert.equal(rc.body.data.status, "pending");
+  assert.equal((await call("POST", "/rank-changes", prof, { current_level: from, requested_level: to, reason: "Again" })).status, 409);
+  assert.equal((await call("PATCH", `/rank-changes/${rc.body.data.id}/decision`, prof, { decision: "approve" })).status, 403);
+  assert.ok((await call("GET", "/rank-changes?status=pending", ac)).body.data.some((r) => r.id === rc.body.data.id));
+  const mine = (await call("GET", "/rank-changes", prof)).body.data;
+  assert.ok(mine.every((r) => r.professor_email === observee.email));
+  const decided = await call("PATCH", `/rank-changes/${rc.body.data.id}/decision`, ac, { decision: "approve", note: "Congrats" });
+  assert.equal(decided.body.data.status, "approved");
+  assert.equal((await call("GET", `/professors/${observee.email}`, ac)).body.data.hire_level, to);
+  assert.equal((await call("PATCH", `/rank-changes/${rc.body.data.id}/decision`, ac, { decision: "reject" })).status, 409);
+  assert.ok((await call("GET", "/notifications", prof)).body.data.some((n) => n.message.includes("rank change")));
 });
 
 test("due-status rule (committee spec)", () => {
