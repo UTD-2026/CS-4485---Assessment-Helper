@@ -447,7 +447,7 @@ function SufficiencyPage({ k, signups, professors, term }) {
         stacked
         code="3a" label="List sufficiency" tone={sufficiency.signups ? toneFor(sufficiency.rateOfTarget) : 'neutral'}
         value={sufficiency.average.toFixed(1)} meter={sufficiency.rateOfTarget}
-        sub={`Avg list size · ${sufficiency.rateOfTarget}% of the ${TARGET_LIST_SIZE}-observer target`}
+        sub={`Eligible observers found per sign-up, on average · ${sufficiency.rateOfTarget}% of the goal of ${TARGET_LIST_SIZE}`}
         stats={[
           { label: 'Full lists', value: sufficiency.fullLists, tone: 'good', sub: `${TARGET_LIST_SIZE} eligible observers found` },
           { label: 'Insufficient', value: sufficiency.insufficient, tone: sufficiency.insufficient ? 'warn' : 'good', sub: `Fewer than ${TARGET_LIST_SIZE}` },
@@ -572,6 +572,13 @@ function SurveyPage({ k, deadlines, term }) {
     return { ...p, rowKey: `${p.id}-${i}`, reached };
   }), [survey.stages, steps]);
   const drops = steps.slice(1).map((s, i) => ({ ...s, lost: steps[i].count - s.count, from: steps[i].label }));
+  // Plain-language note for professors who reached one step but not the next (keyed by the step they missed)
+  const DROP_TEXT = {
+    sentRequest: 'signed up but never sent a request',
+    confirmed: 'sent requests but none were confirmed',
+    observed: 'had a request confirmed but the observation never happened',
+    surveyed: 'got observed but did not submit the survey',
+  };
   const biggest = drops.reduce((best, d) => (d.lost > (best?.lost || 0) ? d : best), null);
 
   // Least progress first; "Show all" opens the full list with search + Advanced filtering.
@@ -615,7 +622,7 @@ function SurveyPage({ k, deadlines, term }) {
         <Card title="Process funnel" sub={ready ? 'Sign up → request → confirm → observed → survey' : 'Survey step appears after the survey closes'}>
           {steps.map((step, i) => (
             <React.Fragment key={step.key}>
-              {i > 0 && drops[i - 1].lost > 0 && <p className="funnel-drop">−{drops[i - 1].lost} stopped after “{drops[i - 1].from}”</p>}
+              {i > 0 && drops[i - 1].lost > 0 && <p className="funnel-drop">↓ {plural(drops[i - 1].lost, 'professor')} {DROP_TEXT[step.key] ?? `did not reach “${step.label}”`}</p>}
               <div className="bar-row">
                 <span>{step.label}</span>
                 <Meter size="lg" tone="info" value={total ? (step.count / total) * 100 : 0} label={`${step.label}: ${step.count}`} />
@@ -624,7 +631,7 @@ function SurveyPage({ k, deadlines, term }) {
             </React.Fragment>
           ))}
         </Card>
-        <Card title="Where people stopped" sub="Sign-ups by the last step they finished">
+        <Card className="card-fill-rows" title="Where people stopped" sub="Sign-ups by the last step they finished">
           {total === 0 ? <Empty>No sign-ups yet.</Empty> : steps.map((step, i) => {
             const n = rows.filter((r) => r.reached === i).length;
             const done = i === lastIdx;

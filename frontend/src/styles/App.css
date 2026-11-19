@@ -873,6 +873,8 @@ a:hover { color: var(--accent-hover); }
 .signup-head-more { text-align: center; }
 /* Digital evaluations: same card rows as the Signup monitor, with its own columns. */
 .signup-row.eval-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 1fr) 110px; }
+/* Survey responses (committee): Rating / Date / Time / Open survey */
+.signup-row.survey-row { grid-template-columns: repeat(3, minmax(0, 1fr)) 120px; }
 /* Observer name with the observation status underneath, both centered. */
 .signup-observer { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .signup-observer-name { color: var(--text); font-weight: 600; }
@@ -1102,6 +1104,11 @@ a:hover { color: var(--accent-hover); }
 /* Signup monitor: four tracks so the rows can split at different points.
    Row 1: Observee | Course (tracks 2-3) | Days.   Row 2: Status (tracks 1-2) | Observer (tracks 3-4). */
 .filter-groups-evals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.filter-groups-surveys { grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr); }
+/* Start / End pickers (date or time) in the survey filter pop-up */
+.survey-range { display: flex; gap: 8px; margin-bottom: 4px; }
+.survey-range label { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-width: 0; font-size: 12px; color: var(--faint); }
+.survey-range .input { width: 100%; min-width: 0; padding-left: 10px; padding-right: 6px; }
 .filter-groups-signups { grid-template-columns: minmax(0, 31fr) minmax(0, 12fr) minmax(0, 22fr) minmax(0, 35fr); }
 .filter-groups-signups > :nth-child(1) { grid-column: 1; }
 .filter-groups-signups > :nth-child(2) { grid-column: 2 / span 2; }
@@ -1241,8 +1248,8 @@ a:hover { color: var(--accent-hover); }
 /* ---------- Small screens ---------- */
 
 @media (max-width: 900px) {
-  .signup-row, .signup-row.eval-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .filter-groups-evals { grid-template-columns: 1fr; }
+  .signup-row, .signup-row.eval-row, .signup-row.survey-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .filter-groups-evals, .filter-groups-surveys { grid-template-columns: 1fr; }
   .signup-row > :last-child { justify-self: start; }
   .signup-head { display: none; }
   .signup-observer { align-items: flex-start; text-align: left; }
@@ -1353,14 +1360,17 @@ a:hover { color: var(--accent-hover); }
 .break-row { display: grid; grid-template-columns: minmax(90px, 170px) minmax(0, 1fr) minmax(48px, auto); gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border-soft); }
 .break-row.break-row-even { grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr) minmax(130px, 1fr); }
 .break-row:last-child { border-bottom: 0; }
+/* Card whose break rows stretch to share the card's full height evenly (e.g. next to a taller card) */
+.card-fill-rows { display: flex; flex-direction: column; }
+.card-fill-rows > .break-row { flex: 1 1 0; }
 .break-row-label { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .break-row-value { font-family: var(--mono); font-weight: 700; text-align: right; white-space: nowrap; }
 .break-row-value .faint { font-weight: 500; font-size: 0.85em; }
 /* Simple column chart (list-size distribution) */
-.histo { display: grid; grid-template-columns: repeat(var(--bars, 6), minmax(0, 1fr)); gap: 10px; align-items: end; height: 170px; padding-top: 8px; }
+.histo { display: grid; grid-template-columns: repeat(var(--bars, 6), minmax(0, 1fr)); gap: 10px; align-items: end; height: 240px; padding-top: 8px; }
 .histo-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
 .histo-count { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--text-2); }
-.histo-bar { width: 100%; max-width: 56px; min-height: 2px; border-radius: 6px 6px 2px 2px; background: var(--info-fill); }
+.histo-bar { width: 80%; max-width: 180px; min-height: 2px; border-radius: 6px 6px 2px 2px; background: var(--info-fill); }
 .histo-bar.good { background: var(--good-fill); }
 .histo-bar.warn { background: var(--warn-fill); }
 .histo-bar.bad { background: var(--bad-fill); }
