@@ -53,6 +53,52 @@ function MetricHero({ code, label, value, tone, meter, sub, stats = [], stacked 
   );
 }
 
+// Top-3 podium: steps laid out 2nd · 1st · 3rd (gold / silver / bronze) with the count above each,
+// then a ranked list of names underneath. entries: [{ name, count }], highest first (up to 3).
+const PLACES = ['1st', '2nd', '3rd'];
+function Podium({ entries, unit }) {
+  const ranked = entries.slice(0, 3).map((e, i) => ({ ...e, place: i + 1 }));
+  const stand = [ranked[1], ranked[0], ranked[2]].filter(Boolean); // 2nd on the left, 1st in the middle, 3rd on the right
+  return (
+    <div className="podium-wrap">
+      <div className="podium" role="img"
+        aria-label={ranked.map((e) => `${PLACES[e.place - 1]}: ${e.name}, ${plural(e.count, unit)}`).join('; ')}>
+        {stand.map((e) => (
+          <div key={e.name} className={`podium-col podium-${e.place}`}>
+            <span className="podium-count">{e.count}</span>
+            <span className="podium-step">{PLACES[e.place - 1]}</span>
+          </div>
+        ))}
+      </div>
+      <ol className="podium-names">
+        {ranked.map((e) => (
+          <li key={e.name} className={`podium-name podium-${e.place}`}>
+            <span className="podium-place">{PLACES[e.place - 1]}</span>
+            <span className="grow">{e.name}</span>
+            <span className="mono">{plural(e.count, unit)}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+// Simple column chart: one column per bar, height relative to the tallest. bars: [{ key, label, count, tone }]
+function ColumnChart({ bars, ariaLabel }) {
+  const tallest = Math.max(1, ...bars.map((b) => b.count));
+  return (
+    <div className="histo" style={{ '--bars': bars.length }} role="img" aria-label={ariaLabel}>
+      {bars.map((b) => (
+        <div className="histo-col" key={b.key ?? b.label}>
+          <span className="histo-count">{b.count}</span>
+          <span className={`histo-bar ${b.tone || ''}`.trim()} style={{ height: `${(b.count / tallest) * 100}%` }} />
+          <span className="histo-label">{b.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // One breakdown line: label, bar (value / max) and the number shown on the right.
 function BreakRow({ label, value, max, tone = 'info', display, title, className = '', valueTone }) {
   const shown = display ?? value;
@@ -84,7 +130,7 @@ function EligibilityPage({ k, signups, observations, term }) {
   const confirmedTotal = observations.length;
   const badConfirmed = eligibility.incorrect.filter((p) => p.source === 'Confirmed').length;
   const badRecommended = eligibility.incorrect.length - badConfirmed;
-  const flaggedObservers = tally(eligibility.incorrect, (p) => p.observerName).slice(0, 5);
+  const flaggedObservers = tally(eligibility.incorrect, (p) => p.observerName).slice(0, 3);
 
   return (
     <div className="stack">
@@ -112,7 +158,7 @@ function EligibilityPage({ k, signups, observations, term }) {
       </Card>
 
       <div className="grid grid-380 grid-stretch">
-        <Card title="Pass rate by source" sub="Recommended = on an observer list · Confirmed = the observer was selected">
+        <Card className="card-fill-rows" title="Pass rate by source" sub="Pairings that pass every rule / pairings checked · Recommended: on an observer list · Confirmed: observer was selected">
           {[
             ['Recommended', recommendedTotal - badRecommended, recommendedTotal],
             ['Confirmed', confirmedTotal - badConfirmed, confirmedTotal],
@@ -125,10 +171,10 @@ function EligibilityPage({ k, signups, observations, term }) {
           })}
         </Card>
 
-        <Card title="Observers in the most flagged pairings" sub={flaggedObservers.length ? `Top ${flaggedObservers.length}` : undefined}>
-          {flaggedObservers.length === 0 ? <Empty>No observer is in a pairing that breaks a rule.</Empty> : flaggedObservers.map(([name, n]) => (
-            <BreakRow key={name} label={name} value={n} max={flaggedObservers[0][1]} tone="bad" />
-          ))}
+        <Card title="Observers in the most flagged pairings" sub={flaggedObservers.length ? `Top ${flaggedObservers.length} by pairings that break a rule` : undefined}>
+          {flaggedObservers.length === 0
+            ? <Empty>No observer is in a pairing that breaks a rule.</Empty>
+            : <Podium entries={flaggedObservers.map(([name, count]) => ({ name, count }))} unit="flagged pairing" />}
         </Card>
       </div>
 
@@ -141,7 +187,8 @@ function EligibilityPage({ k, signups, observations, term }) {
 
 /* ---------- 1b: Overdue evaluations ---------- */
 
-const lateBucket = (n) => (n >= 4 ? '4+ semesters' : plural(n, 'semester'));
+const LATE_BUCKETS = [1, 2, 3, 4]; // semesters overdue; 4 means 4 or more
+const HIRE_LEVELS = ['Assistant', 'Associate', 'Full'];
 
 const STATUS_ORDER = { Overdue: 0, Due: 1 };
 
@@ -156,8 +203,13 @@ function OverduePage({ k, signups, professors = [], term }) {
     .sort((a, b) => (b.overdue_by || 0) - (a.overdue_by || 0) || a.name.localeCompare(b.name)),
   [professors, signedIds]);
   const maxLate = rows.reduce((m, f) => Math.max(m, f.overdue_by || 0), 0);
-  const byLate = tally(rows, (f) => lateBucket(f.overdue_by || 0)).sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
-  const byLevel = tally(rows, (f) => f.hire_level);
+  // Column charts: every bucket shown (even at 0) in a fixed order, so the charts read left to right.
+  const byLate = LATE_BUCKETS.map((n) => ({
+    key: n, label: n === 4 ? '4+' : String(n), tone: 'bad',
+    count: rows.filter((f) => Math.min(Math.max(f.overdue_by || 0, 1), 4) === n).length,
+  }));
+  const levelNames = [...HIRE_LEVELS, ...new Set(rows.map((f) => f.hire_level || 'Unknown').filter((l) => !HIRE_LEVELS.includes(l)))];
+  const byLevel = levelNames.map((l) => ({ label: l, tone: 'warn', count: rows.filter((f) => (f.hire_level || 'Unknown') === l).length }));
 
   const notSigned = overdueFaculty.filter((f) => !f.signedUp).length;
   const preview = overdueFaculty.slice(0, FACULTY_PREVIEW);
@@ -180,15 +232,19 @@ function OverduePage({ k, signups, professors = [], term }) {
       />
 
       <div className="grid grid-380 grid-stretch">
-        <Card title="How late">
-          {byLate.length === 0 ? <Empty>Nobody is overdue.</Empty> : byLate.map(([label, n]) => (
-            <BreakRow key={label} label={label} value={n} max={overdue.count} tone="bad" />
-          ))}
+        <Card title="How late" sub="Overdue faculty by how many semesters late">
+          {rows.length === 0 ? <Empty>Nobody is overdue.</Empty> : (
+            <ColumnChart bars={byLate}
+              ariaLabel={byLate.map((b) => `${b.label} semesters late: ${plural(b.count, 'professor')}`).join(', ')} />
+          )}
+          <p className="card-foot">Semesters overdue</p>
         </Card>
-        <Card title="By hiring level">
-          {byLevel.length === 0 ? <Empty>Nobody is overdue.</Empty> : byLevel.map(([label, n]) => (
-            <BreakRow key={label} label={label} value={n} max={byLevel[0][1]} tone="warn" />
-          ))}
+        <Card title="By hiring level" sub="Overdue faculty by level">
+          {rows.length === 0 ? <Empty>Nobody is overdue.</Empty> : (
+            <ColumnChart bars={byLevel}
+              ariaLabel={byLevel.map((b) => `${b.label}: ${plural(b.count, 'professor')}`).join(', ')} />
+          )}
+          <p className="card-foot">Hiring level</p>
         </Card>
       </div>
 
@@ -243,7 +299,7 @@ const ratesBy = (rows, keyFn) => {
 
 function RateCard({ title, sub, groups, empty }) {
   return (
-    <Card title={title} sub={sub}>
+    <Card className="card-fill-rows" title={title} sub={sub}>
       {groups.length === 0 ? <Empty>{empty}</Empty> : groups.map((g) => {
         const t = bandTone(g.rate, g.due);
         return (
@@ -283,15 +339,15 @@ function ParticipationPage({ k, signups, professors = [], term }) {
         sub="Signed up this cycle ÷ due this cycle"
         stats={[
           { label: 'Due this cycle', value: participation.denominator, sub: `${overdue.count} of them overdue` },
-          { label: 'Signed up', value: participation.numerator, tone: 'good' },
-          { label: 'Not signed up yet', value: missingCount, tone: missingCount ? 'warn' : 'good' },
           { label: 'Signed up but not due', value: notDueSignups, sub: 'Not counted in the rate' },
+          { label: 'Signed up', value: participation.numerator, tone: 'good', tint: 'good' },
+          { label: 'Not signed up yet', value: missingCount, tone: missingCount ? 'bad' : 'good', tint: 'bad' },
         ]}
       />
 
       <div className="grid grid-380 grid-stretch">
-        <RateCard title="By hiring level" sub="Lowest rate first" groups={ratesBy(rows, (f) => f.hire_level)} empty="Nobody is due this cycle." />
-        <RateCard title="Due vs overdue" sub="Overdue faculty should sign up first" groups={ratesBy(rows, (f) => f.status)} empty="Nobody is due this cycle." />
+        <RateCard title="By hiring level" sub="Signed up / needing evaluation · lowest rate first" groups={ratesBy(rows, (f) => f.hire_level)} empty="Nobody is due this cycle." />
+        <RateCard title="Due vs overdue" sub="Signed up / needing evaluation · overdue should sign up first" groups={ratesBy(rows, (f) => f.status)} empty="Nobody is due this cycle." />
       </div>
 
       <section className="card card-flush list-panel" aria-labelledby="participation-title">
@@ -378,7 +434,7 @@ function UtilizationPage({ k, observations, professors, term }) {
       />
 
       <div className="grid grid-380 grid-stretch">
-        <Card title="Load per observer" sub="How many observations each observer has">
+        <Card className="card-fill-rows" title="Load per observer" sub="How many observations each observer has">
           {observers.length === 0 ? <Empty>No observers yet.</Empty> : byLoad.map(([label, n]) => (
             <BreakRow key={label} label={label} value={n} max={observers.length} tone={label.startsWith('1') || label.startsWith('2') ? 'good' : 'warn'} />
           ))}
@@ -430,7 +486,6 @@ function SufficiencyPage({ k, signups, professors, term }) {
   const sizes = Array.from({ length: TARGET_LIST_SIZE + 1 }, (_, n) => ({
     n, label: n === TARGET_LIST_SIZE ? `${n}+` : String(n), count: rows.filter((r) => Math.min(r.size, TARGET_LIST_SIZE) === n).length,
   }));
-  const tallest = Math.max(1, ...sizes.map((s) => s.count));
   const released = rows.filter((r) => r.listReleased).length;
 
   // Shortest lists first; "Show all" opens the full list with search + Advanced filtering.
@@ -449,25 +504,18 @@ function SufficiencyPage({ k, signups, professors, term }) {
         value={sufficiency.average.toFixed(1)} meter={sufficiency.rateOfTarget}
         sub={`Eligible observers found per sign-up, on average · ${sufficiency.rateOfTarget}% of the goal of ${TARGET_LIST_SIZE}`}
         stats={[
-          { label: 'Full lists', value: sufficiency.fullLists, tone: 'good', sub: `${TARGET_LIST_SIZE} eligible observers found` },
-          { label: 'Insufficient', value: sufficiency.insufficient, tone: sufficiency.insufficient ? 'warn' : 'good', sub: `Fewer than ${TARGET_LIST_SIZE}` },
-          { label: 'None eligible', value: sufficiency.none, tone: sufficiency.none ? 'bad' : 'good', sub: 'Need a manual assignment' },
-          { label: 'Lists released', value: `${released}/${rows.length}`, sub: `${sufficiency.totalMatches} observer matches in all` },
+          { label: 'Lists released', value: <span className="stat-fraction">{released}<span className="stat-fraction-total">/ {rows.length}</span></span>, sub: `${sufficiency.totalMatches} observer matches in all` },
+          { label: 'Full lists', value: sufficiency.fullLists, tone: 'good', tint: 'good', sub: `${TARGET_LIST_SIZE} eligible observers found` },
+          { label: 'Insufficient', value: sufficiency.insufficient, tone: sufficiency.insufficient ? 'warn' : 'good', tint: 'warn', sub: `Fewer than ${TARGET_LIST_SIZE}` },
+          { label: 'None eligible', value: sufficiency.none, tone: sufficiency.none ? 'bad' : 'good', tint: 'bad', sub: 'Need a manual assignment' },
         ]}
       />
 
       <Card title="List size distribution" sub="Sign-ups by how many eligible observers they got">
         {rows.length === 0 ? <Empty>No sign-ups yet.</Empty> : (
-          <div className="histo" style={{ '--bars': sizes.length }} role="img"
-            aria-label={sizes.map((s) => `${s.label} observers: ${plural(s.count, 'sign-up')}`).join(', ')}>
-            {sizes.map((s) => (
-              <div className="histo-col" key={s.n}>
-                <span className="histo-count">{s.count}</span>
-                <span className={`histo-bar ${s.n === 0 ? 'bad' : s.n < TARGET_LIST_SIZE ? 'warn' : 'good'}`} style={{ height: `${(s.count / tallest) * 100}%` }} />
-                <span className="histo-label">{s.label}</span>
-              </div>
-            ))}
-          </div>
+          <ColumnChart
+            bars={sizes.map((s) => ({ key: s.n, label: s.label, count: s.count, tone: s.n === 0 ? 'bad' : s.n < TARGET_LIST_SIZE ? 'warn' : 'good' }))}
+            ariaLabel={sizes.map((s) => `${s.label} observers: ${plural(s.count, 'sign-up')}`).join(', ')} />
         )}
         <p className="card-foot">Observers per list (target {TARGET_LIST_SIZE})</p>
       </Card>
@@ -538,7 +586,7 @@ function MissingPage({ k, deadlines, term }) {
             <BreakRow key={key} label={kd.label} value={kindCount(key)} max={missing.count} tone={kd.tone} />
           ))}
         </Card>
-        <Card title="Approved appointments" sub="Where every approved appointment stands">
+        <Card className="card-fill-rows" title="Approved appointments" sub="Where every approved appointment stands">
           {missing.approved === 0 ? <Empty>No approved appointments yet.</Empty> : <>
             <BreakRow label="Pair-confirmed" value={missing.pairConfirmed} max={missing.approved} tone="good" />
             <BreakRow label="Still in progress" value={awaitingNotMissing} max={missing.approved} tone="warn" />
@@ -595,9 +643,9 @@ function SurveyPage({ k, deadlines, term }) {
           sub="Sign-ups that finished every step through the survey ÷ sign-ups"
           stats={[
             { label: 'Sign-ups', value: total },
-            { label: 'Completed everything', value: survey.numerator, tone: 'good' },
             { label: 'Were observed', value: observed, sub: 'Could have taken the survey' },
-            { label: 'Biggest drop-off', value: biggest ? `−${biggest.lost}` : '0', tone: biggest ? 'bad' : 'good', sub: biggest ? `Before “${biggest.label}”` : 'Nobody dropped out' },
+            { label: 'Biggest drop-off', value: biggest ? `−${biggest.lost}` : '0', tone: biggest ? 'bad' : 'good', tint: 'bad', sub: biggest ? `Before “${biggest.label}”` : 'Nobody dropped out' },
+            { label: 'Completed everything', value: survey.numerator, tone: 'good', tint: 'good' },
           ]}
         />
       ) : (
@@ -609,7 +657,7 @@ function SurveyPage({ k, deadlines, term }) {
             stats={[
               { label: 'Sign-ups', value: total },
               { label: 'Were observed', value: observed, tone: 'good', sub: 'Can take the survey' },
-              { label: 'Biggest drop-off', value: biggest ? `−${biggest.lost}` : '0', tone: biggest ? 'bad' : 'good', sub: biggest ? `Before “${biggest.label}”` : 'Nobody dropped out' },
+              { label: 'Biggest drop-off', value: biggest ? `−${biggest.lost}` : '0', tone: biggest ? 'bad' : 'good', tint: 'bad', sub: biggest ? `Before “${biggest.label}”` : 'Nobody dropped out' },
             ]}
           />
           <Notice tone="info" icon="lock" title="Survey progress stays hidden until the survey closes">

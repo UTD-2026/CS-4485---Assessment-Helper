@@ -244,7 +244,7 @@ function PairingsDialog({ pairings, term, onClose }) {
 function PairingsTable({ rows, compact }) {
   return (
       <table className={`data-table${compact ? ' data-table-compact' : ''}`}>
-        <thead><tr><th>Observer</th><th>Observee</th><th>Course</th><th>Time</th><th>Source</th><th>Rules broken</th></tr></thead>
+        <thead><tr><th>Observer</th><th>Observee</th><th>Course</th><th className="cell-center">Time</th><th className="cell-center">Source</th><th className="cell-center">Rules broken</th></tr></thead>
         <tbody>
           {rows.length === 0 && <tr><td colSpan="6" className="empty-cell">No pairings match these filters.</td></tr>}
           {rows.map((p, i) => (
@@ -252,9 +252,9 @@ function PairingsTable({ rows, compact }) {
               <td className="strong">{p.observerName}</td>
               <td>{p.observeeName}</td>
               <td className="mono nowrap">{p.courseCode}</td>
-              <td className="nowrap">{p.timing}</td>
-              <td><Badge tone={p.source === 'Confirmed' ? 'warn' : 'neutral'}>{p.source}</Badge></td>
-              <td>
+              <td className="nowrap cell-center">{p.timing}</td>
+              <td className="cell-center"><Badge tone={p.source === 'Confirmed' ? 'warn' : 'neutral'}>{p.source}</Badge></td>
+              <td className="cell-center">
                 <span className="row nowrap">
                   {p.violations.map((v) => <span key={v} className="code-chip code-chip-bad" title={VIOLATION_TYPES[v].label}>{VIOLATION_TYPES[v].code}</span>)}
                 </span>
@@ -327,17 +327,17 @@ export function FacultyStatusBadge({ f }) {
 export function FacultyTable({ rows, empty = 'No faculty match these filters.' }) {
   return (
     <table className="data-table data-table-compact">
-      <thead><tr><th>Professor</th><th>Level</th><th>Department</th><th>Last evaluated</th><th>Status</th><th>This cycle</th></tr></thead>
+      <thead><tr><th>Professor</th>{['Level', 'Department', 'Last evaluated', 'Status', 'This cycle'].map((h) => <th key={h} className="cell-center">{h}</th>)}</tr></thead>
       <tbody>
         {rows.length === 0 && <tr><td colSpan="6" className="empty-cell">{empty}</td></tr>}
         {rows.map((f) => (
           <tr key={f.professor_id}>
             <td className="strong nowrap">{f.name}</td>
-            <td>{f.hire_level}</td>
-            <td>{f.department}</td>
-            <td className="mono">{f.last_evaluation || 'Never'}</td>
-            <td className="nowrap"><FacultyStatusBadge f={f} /></td>
-            <td><Badge tone={f.signedUp ? 'good' : 'warn'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
+            <td className="cell-center">{f.hire_level}</td>
+            <td className="cell-center">{f.department}</td>
+            <td className="mono cell-center">{f.last_evaluation || 'Never'}</td>
+            <td className="nowrap cell-center"><FacultyStatusBadge f={f} /></td>
+            <td className="cell-center"><Badge tone={f.signedUp ? 'good' : 'warn'}>{f.signedUp ? 'Signed up' : 'Not signed up'}</Badge></td>
           </tr>
         ))}
       </tbody>
@@ -1238,18 +1238,18 @@ export function WorkloadDialog({ workload, term, onClose }) {
       footer={`Showing ${shown.length} of ${workload.length}. Export CSV downloads the rows shown. Assigned counts every assignment this cycle: completed, pending, missed and deferred.`}
     >
       <table className="data-table data-table-compact">
-        <thead><tr><th>Professor</th><th>Department</th><th>Assigned</th><th>Completed</th><th>Pending</th><th>Missed</th><th>Deferred</th></tr></thead>
+        <thead><tr><th>Professor</th>{['Department', 'Assigned', 'Completed', 'Pending', 'Missed', 'Deferred'].map((h) => <th key={h} className="cell-center">{h}</th>)}</tr></thead>
         <tbody>
           {shown.length === 0 && <tr><td colSpan="7" className="empty-cell">No faculty match these filters.</td></tr>}
           {shown.map((p, i) => (
             <tr key={`${p.email || p.name}-${i}`}>
               <td className="strong nowrap">{p.name}</td>
-              <td>{p.department}</td>
-              <td><strong className="num">{p.assigned}</strong></td>
-              <td><span className="num">{p.completed}</span></td>
-              <td><span className="num">{p.pending}</span></td>
-              <td><span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span></td>
-              <td><span className="num">{countOf(p, 'deferred')}</span></td>
+              <td className="cell-center">{p.department}</td>
+              <td className="cell-center"><strong className="num">{p.assigned}</strong></td>
+              <td className="cell-center"><span className="num">{p.completed}</span></td>
+              <td className="cell-center"><span className="num">{p.pending}</span></td>
+              <td className="cell-center"><span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span></td>
+              <td className="cell-center"><span className="num">{countOf(p, 'deferred')}</span></td>
             </tr>
           ))}
         </tbody>
@@ -1349,7 +1349,7 @@ export function UnmatchedDialog({ faculty, term, onClose }) {
       footer={`Showing ${shown.length} of ${faculty.length}. Export CSV downloads the rows shown.`}
     >
       <table className="data-table data-table-compact">
-        <thead><tr><th>Professor</th><th>Department</th><th>Level</th><th>Evaluation status</th><th>Course</th><th>Next action</th></tr></thead>
+        <thead><tr><th>Professor</th><th className="cell-center">Department</th><th className="cell-center">Level</th><th className="cell-center">Evaluation status</th><th>Course</th><th>Next action</th></tr></thead>
         <tbody>
           {shown.length === 0 && <tr><td colSpan="6" className="empty-cell">No faculty match these filters.</td></tr>}
           {shown.map((p) => {
@@ -1357,9 +1357,9 @@ export function UnmatchedDialog({ faculty, term, onClose }) {
             return (
               <tr key={p.email || p.name}>
                 <td className="strong nowrap">{p.name}</td>
-                <td>{p.department}</td>
-                <td>{p.hire_level_label}</td>
-                <td><Badge tone={tone}>{label}</Badge></td>
+                <td className="cell-center">{p.department}</td>
+                <td className="cell-center">{p.hire_level_label}</td>
+                <td className="cell-center"><Badge tone={tone}>{label}</Badge></td>
                 <td className="mono nowrap">{p.course_code || '—'}</td>
                 <td>{p.reason}</td>
               </tr>

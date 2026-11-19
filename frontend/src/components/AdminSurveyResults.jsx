@@ -49,7 +49,8 @@ const countSurveyFilters = (f) =>
   f.ratings.length + f.sorts.length + (f.dateFrom || f.dateTo ? 1 : 0) + (f.timeFrom || f.timeTo ? 1 : 0);
 
 function applySurveyFilters(rows, query, f) {
-  const q = query.trim().toLowerCase();
+  // Spaces ignored, so "11:52pm" finds "11:52 PM"
+  const q = query.toLowerCase().replace(/\s+/g, '');
   const tFrom = pickerMinutes(f.timeFrom), tTo = pickerMinutes(f.timeTo);
   const kept = rows.filter((r) => {
     const { dateKey, minutes } = r.when;
@@ -57,8 +58,9 @@ function applySurveyFilters(rows, query, f) {
     // A response with no date (or no time) is left out once that range is set.
     if ((f.dateFrom || f.dateTo) && (!dateKey || (f.dateFrom && dateKey < f.dateFrom) || (f.dateTo && dateKey > f.dateTo))) return false;
     if ((tFrom != null || tTo != null) && (minutes == null || (tFrom != null && minutes < tFrom) || (tTo != null && minutes > tTo))) return false;
-    // Search by date: matches "11/12/2026", "11/12", "2026-11-12", ...
-    return !q || [formatDate(dateKey), dateKey].some((t) => t && t.toLowerCase().includes(q));
+    // Search by date or time: "11/12/2026", "11/12", "2026-11-12", "11:52 PM", "11:52pm", "23:52", "pm", ...
+    const times = minutes == null ? [] : [clockText(minutes), `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`];
+    return !q || [formatDate(dateKey), dateKey, ...times].some((t) => t && t.toLowerCase().replace(/\s+/g, '').includes(q));
   });
   return sortBy(kept, f.sorts, SURVEY_SORTS);
 }
@@ -227,7 +229,7 @@ export default function AdminSurveyResults({ surveyResponses, submittedCount, to
         <div className="stack-sm">
           <div className="page-filters">
             <FilterToolbar openRef={openRef} active={countSurveyFilters(filters)} query={query} setQuery={setQuery}
-              placeholder="Search by date" searchLabel="Search surveys by date"
+              placeholder="Search by date or time" searchLabel="Search surveys by date or time"
               onOpen={() => setFilterOpen(true)} onClear={() => { setQuery(''); setFilters(EMPTY_SURVEY_FILTERS); }} />
           </div>
           {filterOpen && <SurveyFilterDialog applied={filters} ratingCounts={ratingCounts} onApply={setFilters} onClose={closeFilters} />}

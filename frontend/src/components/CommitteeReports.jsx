@@ -47,10 +47,12 @@ function ReportTable({ title, description, columns, rows, csv, empty, filename, 
       <div className="table-wrap">
         <table className={`data-table${compact ? ' data-table-compact' : ''}`}>
           <caption className="sr-only">{title}</caption>
-          <thead><tr>{columns.map((c) => <th key={c.label} scope="col">{c.label}</th>)}</tr></thead>
+          <thead><tr>{columns.map((c) => <th key={c.label} scope="col" className={c.center ? 'cell-center' : undefined}>{c.label}</th>)}</tr></thead>
           <tbody>
             {visible.length ? visible.map((row, i) => (
-              <tr key={i}>{columns.map((c, j) => <td key={c.label} className={j === 0 ? 'strong nowrap' : c.className}>{c.render(row)}</td>)}</tr>
+              <tr key={i}>{columns.map((c, j) => (
+                <td key={c.label} className={[j === 0 ? 'strong nowrap' : c.className, c.center && 'cell-center'].filter(Boolean).join(' ') || undefined}>{c.render(row)}</td>
+              ))}</tr>
             )) : <tr><td colSpan={columns.length} className="empty-cell">{empty}</td></tr>}
           </tbody>
         </table>
@@ -118,8 +120,8 @@ export default function CommitteeReports({ term, refreshKey }) {
           rows={report.kpis.faculty_due_by_hire_level}
           columns={[
             { label: 'Hiring level', render: (p) => p.hire_level_label },
-            { label: 'Due', render: (p) => <span className="num">{p.due}</span> },
-            { label: 'Overdue', render: (p) => <span className="num text-bad">{p.overdue}</span> },
+            { label: 'Due', render: (p) => <span className="num text-vivid-yellow">{p.due}</span> },
+            { label: 'Overdue', render: (p) => <span className="num text-vivid-red">{p.overdue}</span> },
             { label: 'Total needing evaluation', render: (p) => <strong className="num">{p.due + p.overdue}</strong> },
           ]}
           csv={report.kpis.faculty_due_by_hire_level.map((p) => [p.hire_level_label, p.due, p.overdue, p.due + p.overdue])}
@@ -131,12 +133,12 @@ export default function CommitteeReports({ term, refreshKey }) {
           rows={workload} limit={PREVIEW_ROWS} onShowAll={() => setDialog('workload')}
           columns={[
             { label: 'Professor', render: (p) => p.name },
-            { label: 'Department', render: (p) => p.department },
-            { label: 'Assigned', render: (p) => <strong className="num">{p.assigned}</strong> },
-            { label: 'Completed', render: (p) => <span className="num">{p.completed}</span> },
-            { label: 'Pending', render: (p) => <span className="num">{p.pending}</span> },
-            { label: 'Missed', render: (p) => <span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span> },
-            { label: 'Deferred', render: (p) => <span className="num">{p.deferred ?? 0}</span> },
+            { label: 'Department', center: true, render: (p) => p.department },
+            { label: 'Assigned', center: true, render: (p) => <strong className="num">{p.assigned}</strong> },
+            { label: 'Completed', center: true, render: (p) => <span className="num">{p.completed}</span> },
+            { label: 'Pending', center: true, render: (p) => <span className="num">{p.pending}</span> },
+            { label: 'Missed', center: true, render: (p) => <span className={`num${p.missed ? ' text-bad' : ''}`}>{p.missed}</span> },
+            { label: 'Deferred', center: true, render: (p) => <span className="num">{p.deferred ?? 0}</span> },
           ]}
           csv={workload.map((p) => [p.name, p.department, p.assigned, p.completed, p.pending, p.missed, p.deferred ?? 0])}
           empty="No faculty records available."
@@ -149,9 +151,9 @@ export default function CommitteeReports({ term, refreshKey }) {
         rows={report.unmatched} limit={PREVIEW_ROWS} onShowAll={() => setDialog('unmatched')}
         columns={[
           { label: 'Professor', render: (p) => p.name },
-          { label: 'Department', render: (p) => p.department },
-          { label: 'Level', render: (p) => p.hire_level_label },
-          { label: 'Evaluation status', render: (p) => { const [l, t] = DUE[p.evaluation_status] || [p.evaluation_status, 'neutral']; return <Badge tone={t}>{l}</Badge>; } },
+          { label: 'Department', center: true, render: (p) => p.department },
+          { label: 'Level', center: true, render: (p) => p.hire_level_label },
+          { label: 'Evaluation status', center: true, render: (p) => { const [l, t] = DUE[p.evaluation_status] || [p.evaluation_status, 'neutral']; return <Badge tone={t}>{l}</Badge>; } },
           { label: 'Course', className: 'nowrap', render: (p) => <span className="mono">{p.course_code || '—'}</span> },
           { label: 'Next action', render: (p) => p.reason },
         ]}

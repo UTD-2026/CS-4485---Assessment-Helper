@@ -498,7 +498,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
   // Signup monitor summary cards: totals on the first row, one card per list status on the second.
   const signupCards = [
     { label: 'Sign-ups', value: (globalSignups || []).length, sub: 'Due faculty who chose a course to be observed in' },
-    { label: 'Lists released', value: `${releasedCount}/${(globalSignups || []).length}`, sub: 'Observer lists sent to the observee' },
+    { label: 'Lists released', value: <span className="stat-fraction">{releasedCount}<span className="stat-fraction-total">/ {(globalSignups || []).length}</span></span>, sub: 'Observer lists sent to the observee' },
     { label: 'Full lists', value: flagCount('OK'), tone: 'good', sub: '5 eligible observers found' },
     { label: 'Insufficient lists', value: flagCount('INSUFFICIENT OBSERVERS'), tone: 'warn', sub: '1 to 4 eligible observers found' },
     { label: 'No eligible observer', value: flagCount('NO ELIGIBLE OBSERVER'), tone: 'bad', sub: 'Needs a manual assignment' },
@@ -599,7 +599,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
               <div className="signup-row signup-head" aria-hidden="true">
                 <span>Observee</span>
                 <span>Schedule</span>
-                <span>Observer list status</span>
+                <span className="signup-center">Observer list status</span>
                 <span className="signup-observer">Confirmed observer</span>
                 <span className="signup-head-more">See more</span>
               </div>
@@ -618,7 +618,7 @@ function AdminDashboard({ user, onLogout, data, globalSignups, globalRequests, g
                         <span className="mono">{signup.courseCode}-{signup.section}</span>
                         <span className="list-sub">{signup.timing}</span>
                       </span>
-                      <span><Badge tone={flagTone}>{flagLabel}</Badge></span>
+                      <span className="signup-center"><Badge tone={flagTone}>{flagLabel}</Badge></span>
                       <span className="signup-observer">
                         {obs ? <><span className="signup-observer-name">{obs.observerName}</span><StatusBadge status={obs.status} /></> : <span className="faint">No observer yet</span>}
                       </span>
