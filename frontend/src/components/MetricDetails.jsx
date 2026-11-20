@@ -53,8 +53,27 @@ function MetricHero({ code, label, value, tone, meter, sub, stats = [], stacked 
   );
 }
 
-// Top-3 podium: steps laid out 2nd · 1st · 3rd (gold / silver / bronze) with the count above each,
-// then a ranked list of names underneath. entries: [{ name, count }], highest first (up to 3).
+// Medal badge (ribbon + disc with a laurel wreath and the place number in the middle). place: 1 | 2 | 3.
+const LEAVES = [-78, -58, -38, -18]; // laurel leaf positions (degrees from the bottom of the disc)
+function Medal({ place, size = 40 }) {
+  return (
+    <svg className={`medal medal-${place}`} width={size} height={size * 1.3} viewBox="0 0 40 52" aria-hidden="true">
+      <polygon className="medal-ribbon-back" points="22,0 32,0 22,22 14,18" />
+      <polygon className="medal-ribbon-front" points="8,0 18,0 26,18 18,22" />
+      <rect className="medal-loop" x="15" y="16" width="10" height="5" rx="1.5" />
+      <circle className="medal-disc" cx="20" cy="35" r="16" />
+      <circle className="medal-ring" cx="20" cy="35" r="12" />
+      {[-1, 1].map((side) => LEAVES.map((a) => (
+        <ellipse key={`${side}${a}`} className="medal-leaf" cx="20" cy="45.5" rx="1.3" ry="2.6"
+          transform={`rotate(${side * a} 20 35) rotate(${side * 35} 20 45.5)`} />
+      )))}
+      <text className="medal-num" x="20" y="35" textAnchor="middle" dominantBaseline="central">{place}</text>
+    </svg>
+  );
+}
+
+// Top-3 podium: steps laid out 2nd · 1st · 3rd (gold / silver / bronze) with the observer's first name above
+// each and a medal on the step, then a ranked list of full names underneath. entries: [{ name, count }], highest first.
 const PLACES = ['1st', '2nd', '3rd'];
 function Podium({ entries, unit }) {
   const ranked = entries.slice(0, 3).map((e, i) => ({ ...e, place: i + 1 }));
@@ -65,17 +84,19 @@ function Podium({ entries, unit }) {
         aria-label={ranked.map((e) => `${PLACES[e.place - 1]}: ${e.name}, ${plural(e.count, unit)}`).join('; ')}>
         {stand.map((e) => (
           <div key={e.name} className={`podium-col podium-${e.place}`}>
-            <span className="podium-count">{e.count}</span>
-            <span className="podium-step">{PLACES[e.place - 1]}</span>
+            <span className="podium-first" title={e.name}>{e.name.split(' ')[0]}</span>
+            <span className="podium-step"><Medal place={e.place} size={e.place === 1 ? 44 : 36} /></span>
           </div>
         ))}
       </div>
       <ol className="podium-names">
         {ranked.map((e) => (
           <li key={e.name} className={`podium-name podium-${e.place}`}>
-            <span className="podium-place">{PLACES[e.place - 1]}</span>
+            <span className="podium-place"><Medal place={e.place} size={22} /><span className="sr-only">{PLACES[e.place - 1]}</span></span>
             <span className="grow">{e.name}</span>
-            <span className="mono">{plural(e.count, unit)}</span>
+            <span className="podium-tally">
+              <strong className="podium-tally-num">{e.count}</strong> {e.count === 1 ? unit : `${unit}s`}
+            </span>
           </li>
         ))}
       </ol>
@@ -232,14 +253,14 @@ function OverduePage({ k, signups, professors = [], term }) {
       />
 
       <div className="grid grid-380 grid-stretch">
-        <Card title="How late" sub="Overdue faculty by how many semesters late">
+        <Card className="card-fill-chart" title="How late" sub="Overdue faculty by how many semesters late">
           {rows.length === 0 ? <Empty>Nobody is overdue.</Empty> : (
             <ColumnChart bars={byLate}
               ariaLabel={byLate.map((b) => `${b.label} semesters late: ${plural(b.count, 'professor')}`).join(', ')} />
           )}
           <p className="card-foot">Semesters overdue</p>
         </Card>
-        <Card title="By hiring level" sub="Overdue faculty by level">
+        <Card className="card-fill-chart" title="By hiring level" sub="Overdue faculty by level">
           {rows.length === 0 ? <Empty>Nobody is overdue.</Empty> : (
             <ColumnChart bars={byLevel}
               ariaLabel={byLevel.map((b) => `${b.label}: ${plural(b.count, 'professor')}`).join(', ')} />
@@ -408,7 +429,7 @@ function UtilizationPage({ k, observations, professors, term }) {
   const avg = observers.length ? (activeObs / observers.length).toFixed(1) : '0.0';
   const idle = Math.max(0, professors.length - observers.length);
   const byLoad = LOAD_BUCKETS.map((label) => [label, observers.filter((o) => loadBucket(o.total) === label).length]);
-  const busiest = [...observers].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)).slice(0, 5);
+  const busiest = [...observers].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)).slice(0, 3);
 
   // Most observations first; "Show all" opens the full list with search + Advanced filtering.
   const sortedObservers = useMemo(() => [...observers].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)), [observers]);
@@ -434,15 +455,20 @@ function UtilizationPage({ k, observations, professors, term }) {
       />
 
       <div className="grid grid-380 grid-stretch">
-        <Card className="card-fill-rows" title="Load per observer" sub="How many observations each observer has">
-          {observers.length === 0 ? <Empty>No observers yet.</Empty> : byLoad.map(([label, n]) => (
-            <BreakRow key={label} label={label} value={n} max={observers.length} tone={label.startsWith('1') || label.startsWith('2') ? 'good' : 'warn'} />
-          ))}
+        <Card className="card-fill-chart" title="Load per observer" sub="Observers by how many observations they have">
+          {observers.length === 0 ? <Empty>No observers yet.</Empty> : (
+            <ColumnChart
+              bars={byLoad.map(([label, n]) => ({
+                key: label, label: label.split(' ')[0], count: n,
+                tone: label.startsWith('1') || label.startsWith('2') ? 'good' : 'warn',
+              }))}
+              ariaLabel={byLoad.map(([label, n]) => `${label}: ${plural(n, 'observer')}`).join(', ')} />
+          )}
+          <p className="card-foot">Observations per observer</p>
         </Card>
-        <Card title="Busiest observers" sub={busiest.length ? `Top ${busiest.length}` : undefined}>
-          {busiest.length === 0 ? <Empty>No observers yet.</Empty> : busiest.map((o) => (
-            <BreakRow key={o.id} label={o.name} value={o.total} max={busiest[0].total} tone="info" />
-          ))}
+        <Card title="Busiest observers" sub={busiest.length ? `Top ${busiest.length} by observations assigned` : undefined}>
+          {busiest.length === 0 ? <Empty>No observers yet.</Empty>
+            : <Podium entries={busiest.map((o) => ({ name: o.name, count: o.total }))} unit="observation" />}
         </Card>
       </div>
 
@@ -581,17 +607,23 @@ function MissingPage({ k, deadlines, term }) {
       )}
 
       <div className="grid grid-380 grid-stretch">
-        <Card title="Why they did not go through">
-          {missing.count === 0 ? <Empty>Every approved appointment went through.</Empty> : Object.entries(MISSING_KINDS).map(([key, kd]) => (
-            <BreakRow key={key} label={kd.label} value={kindCount(key)} max={missing.count} tone={kd.tone} />
-          ))}
+        <Card className="card-fill-chart" title="Why they did not go through" sub="Missing observations by reason">
+          {missing.count === 0 ? <Empty>Every approved appointment went through.</Empty> : (() => {
+            const bars = Object.entries(MISSING_KINDS).map(([key, kd]) => ({ key, label: kd.label, count: kindCount(key), tone: kd.tone }));
+            return <ColumnChart bars={bars} ariaLabel={bars.map((b) => `${b.label}: ${b.count}`).join(', ')} />;
+          })()}
+          <p className="card-foot">Reason</p>
         </Card>
-        <Card className="card-fill-rows" title="Approved appointments" sub="Where every approved appointment stands">
-          {missing.approved === 0 ? <Empty>No approved appointments yet.</Empty> : <>
-            <BreakRow label="Pair-confirmed" value={missing.pairConfirmed} max={missing.approved} tone="good" />
-            <BreakRow label="Still in progress" value={awaitingNotMissing} max={missing.approved} tone="warn" />
-            <BreakRow label="Missing" value={missing.count} max={missing.approved} tone="bad" />
-          </>}
+        <Card className="card-fill-chart" title="Approved appointments" sub="Where every approved appointment stands">
+          {missing.approved === 0 ? <Empty>No approved appointments yet.</Empty> : (() => {
+            const bars = [
+              { label: 'Pair-confirmed', count: missing.pairConfirmed, tone: 'good' },
+              { label: 'Still in progress', count: awaitingNotMissing, tone: 'warn' },
+              { label: 'Missing', count: missing.count, tone: 'bad' },
+            ];
+            return <ColumnChart bars={bars} ariaLabel={bars.map((b) => `${b.label}: ${b.count}`).join(', ')} />;
+          })()}
+          <p className="card-foot">Status</p>
         </Card>
       </div>
 
@@ -679,12 +711,15 @@ function SurveyPage({ k, deadlines, term }) {
             </React.Fragment>
           ))}
         </Card>
-        <Card className="card-fill-rows" title="Where people stopped" sub="Sign-ups by the last step they finished">
-          {total === 0 ? <Empty>No sign-ups yet.</Empty> : steps.map((step, i) => {
-            const n = rows.filter((r) => r.reached === i).length;
-            const done = i === lastIdx;
-            return <BreakRow key={step.key} label={done ? 'Finished every step' : step.label} value={n} max={total} tone={done ? 'good' : 'warn'} />;
-          })}
+        <Card className="card-fill-chart" title="Where people stopped" sub="Sign-ups by the last step they finished">
+          {total === 0 ? <Empty>No sign-ups yet.</Empty> : (() => {
+            const bars = steps.map((step, i) => {
+              const done = i === lastIdx;
+              return { key: step.key, label: done ? 'Finished every step' : step.label, count: rows.filter((r) => r.reached === i).length, tone: done ? 'good' : 'warn' };
+            });
+            return <ColumnChart bars={bars} ariaLabel={bars.map((b) => `${b.label}: ${plural(b.count, 'sign-up')}`).join(', ')} />;
+          })()}
+          <p className="card-foot">Last step finished</p>
         </Card>
       </div>
 

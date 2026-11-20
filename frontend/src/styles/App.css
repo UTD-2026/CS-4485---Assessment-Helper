@@ -1382,6 +1382,9 @@ a:hover { color: var(--accent-hover); }
 /* Card whose break rows stretch to share the card's full height evenly (e.g. next to a taller card) */
 .card-fill-rows { display: flex; flex-direction: column; }
 .card-fill-rows > .break-row { flex: 1 1 0; }
+/* A column chart that grows to fill whatever height the card has (cards in a row share the tallest height) */
+.card-fill-chart { display: flex; flex-direction: column; }
+.card-fill-chart > .histo { flex: 1 1 auto; height: auto; min-height: 240px; }
 .break-row-label { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .break-row-value { font-family: var(--mono); font-weight: 700; text-align: right; white-space: nowrap; }
 .break-row-value .faint { font-weight: 500; font-size: 0.85em; }
@@ -1389,23 +1392,37 @@ a:hover { color: var(--accent-hover); }
 .podium-wrap { display: flex; flex-direction: column; gap: 16px; }
 .podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 6px; width: 100%; max-width: 360px; margin: 4px auto 0; }
 .podium-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.podium-count { font-family: var(--mono); font-size: 18px; font-weight: 800; }
-.podium-step { width: 100%; display: flex; justify-content: center; padding-top: 10px; border: 1px solid; border-bottom-width: 3px; border-radius: 10px 10px 2px 2px; font-weight: 800; }
-.podium-1 .podium-step { height: 120px; font-size: 18px; }
-.podium-2 .podium-step { height: 88px; }
-.podium-3 .podium-step { height: 64px; }
+.podium-first { max-width: 100%; font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium-1 .podium-first { font-size: 17px; }
+.podium-step { width: 100%; display: flex; justify-content: center; padding-top: 8px; border: 1px solid; border-bottom-width: 3px; border-radius: 10px 10px 2px 2px; }
+.podium-1 .podium-step { height: 128px; }
+.podium-2 .podium-step { height: 96px; }
+.podium-3 .podium-step { height: 72px; }
 .podium-1 .podium-step { background: var(--gold-bg); border-color: var(--gold-line); }
 .podium-2 .podium-step { background: var(--silver-bg); border-color: var(--silver-line); }
 .podium-3 .podium-step { background: var(--bronze-bg); border-color: var(--bronze-line); }
-.podium-1 .podium-step, .podium-1 .podium-count, .podium-name.podium-1 .podium-place { color: var(--gold-fg); }
-.podium-2 .podium-step, .podium-2 .podium-count, .podium-name.podium-2 .podium-place { color: var(--silver-fg); }
-.podium-3 .podium-step, .podium-3 .podium-count, .podium-name.podium-3 .podium-place { color: var(--bronze-fg); }
+.podium-1 .podium-first, .podium-name.podium-1 .podium-tally-num { color: var(--gold-fg); }
+.podium-2 .podium-first, .podium-name.podium-2 .podium-tally-num { color: var(--silver-fg); }
+.podium-3 .podium-first, .podium-name.podium-3 .podium-tally-num { color: var(--bronze-fg); }
 .podium-names { list-style: none; margin: 0; padding: 0; }
-.podium-name { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-soft); }
+.podium-name { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
 .podium-name:last-child { border-bottom: 0; }
 .podium-name .grow { color: var(--text); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.podium-name .mono { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.podium-place { flex: 0 0 34px; font-weight: 800; }
+.podium-place { flex: 0 0 auto; display: flex; }
+.podium-tally { color: var(--muted); font-size: 13px; white-space: nowrap; display: flex; align-items: baseline; gap: 5px; }
+.podium-tally-num { font-family: var(--mono); font-size: 20px; font-weight: 800; }
+/* Medal badge: blue ribbon, metal disc, inner ring + laurel, place number in the middle */
+.medal { display: block; flex: none; }
+.medal-ribbon-back { fill: #2f6fd0; }
+.medal-ribbon-front { fill: #4a9be8; }
+.medal-1 { --medal-disc: #f7c21b; --medal-edge: #e19a00; --medal-ink: #8a5a00; }
+.medal-2 { --medal-disc: #d3d3d6; --medal-edge: #a3a4a8; --medal-ink: #55575c; }
+.medal-3 { --medal-disc: #f6a06c; --medal-edge: #d77c45; --medal-ink: #7a3d14; }
+.medal-loop { fill: none; stroke: var(--medal-edge); stroke-width: 1.6; }
+.medal-disc { fill: var(--medal-disc); stroke: var(--medal-edge); stroke-width: 1.2; }
+.medal-ring { fill: none; stroke: var(--medal-edge); stroke-width: 1.4; }
+.medal-leaf { fill: var(--medal-edge); }
+.medal-num { fill: var(--medal-ink); font-family: var(--mono); font-size: 13px; font-weight: 800; }
 /* Simple column chart (list-size distribution) */
 .histo { display: grid; grid-template-columns: repeat(var(--bars, 6), minmax(0, 1fr)); gap: 10px; align-items: end; height: 240px; padding-top: 8px; }
 .histo-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
